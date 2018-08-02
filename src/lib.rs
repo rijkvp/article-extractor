@@ -5,7 +5,6 @@ extern crate reqwest;
 extern crate url;
 extern crate regex;
 extern crate encoding_rs;
-extern crate html2text;
 extern crate htmlescape;
 extern crate base64;
 extern crate image;
