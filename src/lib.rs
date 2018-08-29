@@ -5,7 +5,6 @@ extern crate reqwest;
 extern crate url;
 extern crate regex;
 extern crate encoding_rs;
-extern crate htmlescape;
 extern crate base64;
 extern crate image;
 extern crate chrono;
@@ -35,7 +34,9 @@ use config::{
     GrabberConfig,
     ConfigCollection
 };
-use encoding_rs::*;
+use encoding_rs::{
+    Encoding,
+};
 use chrono::NaiveDateTime;
 use std::str::FromStr;
 use images::ImageDownloader;
