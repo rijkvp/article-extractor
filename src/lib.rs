@@ -69,15 +69,12 @@ impl ArticleScraper {
     pub fn parse(&self, url: url::Url) -> Result<Article, ScraperError> {
 
         info!("Scraping article: {}", url.as_str());
-
-        // do a HEAD request to url
-        let response = match self.client.head(url.clone()).send() {
-            Ok(response) => response,
-            Err(error) => {
-                error!("Failed head request to: {} - {}", url.as_str(), error.description());
-                Err(error).context(ScraperErrorKind::Http)?
-            }
-        };
+        let response = self.client.head(url.clone()).send()
+            .map_err(|err| {
+                error!("Failed head request to: {} - {}", url.as_str(), err.description());
+                err
+            })
+            .context(ScraperErrorKind::Http)?;
 
         // check if url redirects and we need to pick up the new url
         let mut url = url;
@@ -102,16 +99,13 @@ impl ArticleScraper {
             html: None,
         };
 
-        // create empty document to hold the content
-        let mut document = match Document::new() {
-            Ok(doc) => doc,
-            Err(()) => return Err(ScraperErrorKind::Xml)?
-        };
+        let mut document = Document::new().map_err(|()| {
+            ScraperErrorKind::Xml
+        })?;
 
-        let mut root = match Node::new("article", None, &document) {
-            Ok(root) => root,
-            Err(()) => return Err(ScraperErrorKind::Xml)?
-        };
+        let mut root = Node::new("article", None, &document).map_err(|()| {
+            ScraperErrorKind::Xml
+        })?;
 
         document.set_root_element(&root);
 
@@ -119,13 +113,10 @@ impl ArticleScraper {
 
         self.parse_first_page(&mut article, &url, &mut root, config)?;
 
-        let context = match Context::new(&document) {
-            Ok(context) => context,
-            Err(_) => {
-                error!("Failed to create xpath context for extracted article");
-                return Err(ScraperErrorKind::Xml)?
-            }
-        };
+        let context = Context::new(&document).map_err(|()| {
+            error!("Failed to create xpath context for extracted article");
+            ScraperErrorKind::Xml
+        })?;
 
         if let Err(error) = ArticleScraper::prevent_self_closing_tags(&context) {
             error!("Preventing self closing tags failed - {}", error);
@@ -197,13 +188,12 @@ impl ArticleScraper {
 
     fn download(url: &url::Url, client: &reqwest::Client) -> Result<String, ScraperError> {
 
-        let mut response = match client.get(url.as_str()).send() {
-            Ok(response) => response,
-            Err(error) => {
-                error!("Downloading HTML failed: GET {} - {}", url.as_str(), error.description());
-                return Err(error).context(ScraperErrorKind::Http)?
-            }
-        };
+        let mut response = client.get(url.as_str()).send()
+            .map_err(|err| {
+                error!("Downloading HTML failed: GET {} - {}", url.as_str(), err.description());
+                err
+            })
+            .context(ScraperErrorKind::Http)?;
 
         if response.status().is_success() {
             let text = response.text().context(ScraperErrorKind::Http)?;
@@ -386,13 +376,10 @@ impl ArticleScraper {
                         if let Ok(()) = node.set_property("width", "100%") {
                             if let Ok(()) = node.remove_property("height") {
                                 node.unlink();
-                                match video_wrapper.add_child(&mut node) {
-                                    Ok(_) => continue,
-                                    Err(_) => {
-                                        error!("Failed to add iframe as child of video wrapper <div>");
-                                        return Err(ScraperErrorKind::Xml)?
-                                    }
-                                }
+                                video_wrapper.add_child(&mut node).map_err(|_| {
+                                    error!("Failed to add iframe as child of video wrapper <div>");
+                                    ScraperErrorKind::Xml
+                                })?;
                             }
                         }
                     }

@@ -36,21 +36,15 @@ impl ImageDownloader {
     pub fn download_images_from_string(&self, html: &str, article_url: &url::Url) -> Result<String, ImageDownloadError> {
 
         let parser = Parser::default_html();
-        let doc = match parser.parse_string(html) {
-            Ok(doc) => doc,
-            Err(_) => {
-                error!("Failed to parse HTML string");
-                return Err(ImageDownloadErrorKind::HtmlParse)?
-            }
-        };
+        let doc = parser.parse_string(html).map_err(|_| {
+            error!("Failed to parse HTML string");
+            ImageDownloadErrorKind::HtmlParse
+        })?;
 
-        let xpath_ctx = match Context::new(&doc) {
-            Ok(context) => context,
-            Err(_) => {
-                error!("Failed to create xpath context for document");
-                return Err(ImageDownloadErrorKind::HtmlParse)?
-            }
-        };
+        let xpath_ctx = Context::new(&doc).map_err(|()| {
+            error!("Failed to create xpath context for document");
+            ImageDownloadErrorKind::HtmlParse
+        })?;
 
         self.download_images_from_context(&xpath_ctx, article_url)?;
 
@@ -109,13 +103,11 @@ impl ImageDownloader {
 
     fn save_image(&self, image_url: &url::Url, article_url: &url::Url) -> Result<PathBuf, ImageDownloadError> {
 
-        let mut response = match self.client.get(image_url.clone()).send() {
-            Ok(response) => response,
-            Err(error) => {
-                error!("GET {} failed - {}", image_url.as_str(), error.description());
-                Err(error).context(ImageDownloadErrorKind::Http)?
-            }
-        };
+        let mut response = self.client.get(image_url.clone()).send().map_err(|err| {
+            error!("GET {} failed - {}", image_url.as_str(), err.description());
+            err
+        }).context(ImageDownloadErrorKind::Http)?;
+
         let content_type = ImageDownloader::check_image_content_type(&response)?;
         
         if let Some(host) = article_url.host_str() {
@@ -126,13 +118,10 @@ impl ImageDownloader {
             if let Ok(()) = std::fs::create_dir_all(&path) {
                 let file_name = ImageDownloader::extract_image_name(image_url, content_type)?;
                 let path = path.join(file_name);
-                let mut image_buffer = match std::fs::File::create(&path) {
-                    Ok(buffer) => buffer,
-                    Err(error) => {
-                        error!("Failed to create file {}", path.display());
-                        Err(error).context(ImageDownloadErrorKind::IO)?
-                    }
-                };
+                let mut image_buffer = std::fs::File::create(&path).map_err(|err| {
+                    error!("Failed to create file {}", path.display());
+                    err
+                }).context(ImageDownloadErrorKind::IO)?;
 
                 response.copy_to(&mut image_buffer).context(ImageDownloadErrorKind::IO)?;
                 let path = std::fs::canonicalize(&path).context(ImageDownloadErrorKind::IO)?;
@@ -252,13 +241,10 @@ impl ImageDownloader {
 
     fn scale_image(image_path: &PathBuf, max_width: u32, max_height: u32) -> Result<PathBuf, ImageDownloadError> {
 
-        let image = match image::open(image_path) {
-            Ok(image) => image,
-            Err(error) => {
-                error!("Failed to open image to resize: {:?}", image_path);
-                return Err(error).context(ImageDownloadErrorKind::ImageScale)?
-            }
-        };
+        let image = image::open(image_path).map_err(|err| {
+            error!("Failed to open image to resize: {:?}", image_path);
+            err
+        }).context(ImageDownloadErrorKind::ImageScale)?;
         let image = image.resize(max_width, max_height, image::FilterType::Lanczos3);
 
         if let Some(file_name) = image_path.file_name() {
