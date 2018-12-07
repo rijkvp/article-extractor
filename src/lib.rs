@@ -19,7 +19,7 @@ mod error;
 mod article;
 pub mod images;
 
-use article::Article;
+use crate::article::Article;
 use libxml::parser::Parser;
 use libxml::xpath::Context;
 use libxml::tree::{
@@ -30,7 +30,7 @@ use std::path::PathBuf;
 use std::ops::Index;
 use failure::ResultExt;
 use std::error::Error;
-use config::{
+use crate::config::{
     GrabberConfig,
     ConfigCollection
 };
@@ -39,7 +39,7 @@ use encoding_rs::{
 };
 use chrono::NaiveDateTime;
 use std::str::FromStr;
-use images::ImageDownloader;
+use crate::images::ImageDownloader;
 use self::error::{
     ScraperError,
     ScraperErrorKind
@@ -686,7 +686,7 @@ impl ArticleScraper {
 
 #[cfg(test)]
 mod tests {
-    use ::*;
+    use crate::*;
     
     #[test]
     pub fn golem() {

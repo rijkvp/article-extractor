@@ -2,7 +2,7 @@ use std;
 use url::Url;
 use std::path::PathBuf;
 use chrono::NaiveDateTime;
-use error::{
+use crate::error::{
     ScraperError,
     ScraperErrorKind,
 };
