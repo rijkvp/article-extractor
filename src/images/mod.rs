@@ -143,11 +143,11 @@ impl ImageDownloader {
         Err(ImageDownloadErrorKind::InvalidUrl)?
     }
 
-    fn check_image_content_type(response: &reqwest::Response) -> Result<reqwest::header::ContentType, ImageDownloadError> {
+    fn check_image_content_type(response: &reqwest::Response) -> Result<reqwest::header::HeaderValue, ImageDownloadError> {
     
         if response.status().is_success() {
-            if let Some(content_type) = response.headers().get::<reqwest::header::ContentType>() {
-                if content_type.type_() == reqwest::mime::IMAGE {
+            if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
+                if content_type.to_str().context(ImageDownloadErrorKind::ContentType)?.contains("image") {
                     return Ok(content_type.clone())
                 }
             }
@@ -162,8 +162,12 @@ impl ImageDownloader {
     fn get_content_lenght(response: &reqwest::Response) -> Result<u64, ImageDownloadError> {
 
         if response.status().is_success() {
-            if let Some(&reqwest::header::ContentLength(content_length)) = response.headers().get::<reqwest::header::ContentLength>() {
-                return Ok(content_length)
+            if let Some(content_length) = response.headers().get(reqwest::header::CONTENT_LENGTH) {
+                if let Ok(content_length) = content_length.to_str() {
+                    if let Ok(content_length) = content_length.parse::<u64>() {
+                        return Ok(content_length)
+                    }
+                }
             }
         }
 
@@ -188,7 +192,7 @@ impl ImageDownloader {
         None
     }
 
-    fn extract_image_name(url: &url::Url, content_type: reqwest::header::ContentType) -> Result<String, ImageDownloadError> {
+    fn extract_image_name(url: &url::Url, content_type: reqwest::header::HeaderValue) -> Result<String, ImageDownloadError> {
 
         if let Some(file_name) = url.path_segments().and_then(|segments| segments.last()) {
             let mut image_name = file_name.to_owned();
@@ -197,12 +201,25 @@ impl ImageDownloader {
                 image_name.push_str(query);
             }
 
-            let primary_type = content_type.type_().as_str();
-            let mut sub_type = content_type.subtype().as_str().to_owned();
-            if let Some(suffix) = content_type.suffix() {
+            let header = content_type.to_str().context(ImageDownloadErrorKind::ContentType)?;
+            let primary_type = match header.find("/") {
+                Some(end) => header[..end-1].to_string(),
+                None => "unknown".to_string(),
+            };
+            let mut sub_type = match header.find("/") {
+                None => "unknown".to_string(),
+                Some(start) => {
+                    match header.find("+") {
+                        None => "unknown".to_string(),
+                        Some(end) => header[start..end-1].to_string(),
+                    }
+                },
+            };
+            if let Some(start) = header.find("+") {
                 sub_type.push_str("+");
-                sub_type.push_str(suffix.as_str());
-            }
+                sub_type.push_str(&header[start..].to_string());
+            };
+            
             if let Some(extensions) = mime_guess::get_extensions(primary_type, &sub_type) {
                 let mut extension_present = false;
                 for extension in extensions {

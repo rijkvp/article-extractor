@@ -223,11 +223,16 @@ impl ArticleScraper {
         Err(ScraperErrorKind::Http)?
     }
 
-    fn get_encoding_from_http_header(headers: &reqwest::header::Headers) -> Option<&str> {
+    fn get_encoding_from_http_header(headers: &reqwest::header::HeaderMap) -> Option<&str> {
 
-        if let Some(content_type) = headers.get::<reqwest::header::ContentType>() {
-            if let Some(encoding) = content_type.get_param(reqwest::mime::CHARSET) {
-                return Some(encoding.as_str())
+        if let Some(content_type) = headers.get(reqwest::header::CONTENT_TYPE) {
+            if let Ok(content_type) = content_type.to_str() {
+                let regex = regex::Regex::new(r#"charset=([^"']+)"#).unwrap();
+                if let Some(captures) = regex.captures(content_type) {
+                    if let Some(regex_match) = captures.get(1) {
+                        return Some(regex_match.as_str())
+                    }
+                }
             }
         }
         None
@@ -288,9 +293,11 @@ impl ArticleScraper {
     fn check_content_type(response: &reqwest::Response) -> Result<bool, ScraperError> {
     
         if response.status().is_success() {
-            if let Some(content_type) = response.headers().get::<reqwest::header::ContentType>() {
-                if content_type.type_() == reqwest::mime::TEXT && content_type.subtype() == reqwest::mime::HTML {
-                    return Ok(true)
+            if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
+                if let Ok(content_type) = content_type.to_str() {
+                    if content_type.contains("text/html") {
+                        return Ok(true)
+                    }
                 }
             }
 
@@ -304,7 +311,7 @@ impl ArticleScraper {
 
     fn check_redirect(response: &reqwest::Response) -> Option<url::Url> {
         
-        if response.status() == reqwest::StatusCode::PermanentRedirect {
+        if response.status() == reqwest::StatusCode::PERMANENT_REDIRECT {
             debug!("Article url redirects to {}", response.url().as_str());
             return Some(response.url().clone())
         }
