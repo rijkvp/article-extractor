@@ -219,8 +219,8 @@ impl ImageDownloader {
                 sub_type.push_str("+");
                 sub_type.push_str(&header[start..].to_string());
             };
-            
-            if let Some(extensions) = mime_guess::get_extensions(primary_type, &sub_type) {
+
+            if let Some(extensions) = mime_guess::get_extensions(&primary_type, &sub_type) {
                 let mut extension_present = false;
                 for extension in extensions {
                     if image_name.ends_with(extension) {
