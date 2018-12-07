@@ -4,6 +4,7 @@ use std::fs;
 use std::io;
 use std::io::BufRead;
 use failure::ResultExt;
+use log::error;
 use self::error::{ConfigError, ConfigErrorKind};
 
 #[macro_use]

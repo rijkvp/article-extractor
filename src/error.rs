@@ -27,7 +27,7 @@ pub enum ScraperErrorKind {
 }
 
 impl Fail for ScraperError {
-    fn cause(&self) -> Option<&Fail> {
+    fn cause(&self) -> Option<&dyn Fail> {
         self.inner.cause()
     }
 
@@ -37,7 +37,7 @@ impl Fail for ScraperError {
 }
 
 impl fmt::Display for ScraperError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.inner, f)
     }
 }

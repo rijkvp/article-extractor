@@ -1,24 +1,22 @@
 #[macro_use]
-extern crate failure;
-extern crate libxml;
-extern crate reqwest;
-extern crate url;
-extern crate regex;
-extern crate encoding_rs;
-extern crate base64;
-extern crate image;
-extern crate chrono;
-extern crate mime_guess;
-#[macro_use]
-extern crate log;
-
-#[macro_use]
 mod macros;
 mod config;
 mod error;
 mod article;
 pub mod images;
 
+use reqwest;
+use url;
+use regex;
+use base64;
+use image;
+use mime_guess;
+use log::{
+    error,
+    debug,
+    info,
+    warn,
+};
 use crate::article::Article;
 use libxml::parser::Parser;
 use libxml::xpath::Context;
@@ -310,7 +308,7 @@ impl ArticleScraper {
         None
     }
 
-    fn extract_value(context: &Context, xpath: &str) -> Result<String, ScraperError> {
+    fn extract_value(context: &Context<'_>, xpath: &str) -> Result<String, ScraperError> {
 
         evaluate_xpath!(context, xpath, node_vec);
         xpath_result_empty!(node_vec, xpath);
@@ -321,7 +319,7 @@ impl ArticleScraper {
         Err(ScraperErrorKind::Xml)?
     }
 
-    fn extract_value_merge(context: &Context, xpath: &str) -> Result<String, ScraperError> {
+    fn extract_value_merge(context: &Context<'_>, xpath: &str) -> Result<String, ScraperError> {
 
         evaluate_xpath!(context, xpath, node_vec);
         xpath_result_empty!(node_vec, xpath);
@@ -333,7 +331,7 @@ impl ArticleScraper {
         return Ok(val.trim().to_string())
     }
 
-    fn strip_node(context: &Context, xpath: &String) -> Result<(), ScraperError> {
+    fn strip_node(context: &Context<'_>, xpath: &String) -> Result<(), ScraperError> {
 
         let mut ancestor = xpath.clone();
         if ancestor.starts_with("//") {
@@ -348,7 +346,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn strip_id_or_class(context: &Context, id_or_class: &String) -> Result<(), ScraperError> {
+    fn strip_id_or_class(context: &Context<'_>, id_or_class: &String) -> Result<(), ScraperError> {
 
         let xpath = &format!("//*[contains(@class, '{}') or contains(@id, '{}')]", id_or_class, id_or_class);
         evaluate_xpath!(context, xpath, node_vec);
@@ -358,7 +356,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn fix_lazy_images(context: &Context, class: &str, property_url: &str) -> Result<(), ScraperError> {
+    fn fix_lazy_images(context: &Context<'_>, class: &str, property_url: &str) -> Result<(), ScraperError> {
         
         let xpath = &format!("//img[contains(@class, '{}')]", class);
         evaluate_xpath!(context, xpath, node_vec);
@@ -372,7 +370,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn fix_iframe_size(context: &Context, site_name: &str) -> Result<(), ScraperError> {
+    fn fix_iframe_size(context: &Context<'_>, site_name: &str) -> Result<(), ScraperError> {
 
         let xpath = &format!("//iframe[contains(@src, '{}')]", site_name);
         evaluate_xpath!(context, xpath, node_vec);
@@ -402,7 +400,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn remove_attribute(context: &Context, tag: Option<&str>, attribute: &str) -> Result<(), ScraperError> {
+    fn remove_attribute(context: &Context<'_>, tag: Option<&str>, attribute: &str) -> Result<(), ScraperError> {
 
         let xpath_tag = match tag {
             Some(tag) => tag,
@@ -419,7 +417,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn add_attribute(context: &Context, tag: Option<&str>, attribute: &str, value: &str) -> Result<(), ScraperError> {
+    fn add_attribute(context: &Context<'_>, tag: Option<&str>, attribute: &str, value: &str) -> Result<(), ScraperError> {
 
         let xpath_tag = match tag {
             Some(tag) => tag,
@@ -436,7 +434,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn get_attribute(context: &Context, xpath: &str, attribute: &str) -> Result<String, ScraperError> {
+    fn get_attribute(context: &Context<'_>, xpath: &str, attribute: &str) -> Result<String, ScraperError> {
 
         evaluate_xpath!(context, xpath, node_vec);
         xpath_result_empty!(node_vec, xpath);
@@ -449,7 +447,7 @@ impl ArticleScraper {
         Err(ScraperErrorKind::Xml)?
     }
 
-    fn repair_urls(context: &Context, xpath: &str, attribute: &str, article_url: &url::Url) -> Result<(), ScraperError> {
+    fn repair_urls(context: &Context<'_>, xpath: &str, attribute: &str, article_url: &url::Url) -> Result<(), ScraperError> {
 
         evaluate_xpath!(context, xpath, node_vec);
         for mut node in node_vec {
@@ -486,7 +484,7 @@ impl ArticleScraper {
         return Ok(url)
     }
 
-    fn strip_junk(context: &Context, config: &GrabberConfig, url: &url::Url) {
+    fn strip_junk(context: &Context<'_>, config: &GrabberConfig, url: &url::Url) {
 
         // strip specified xpath
         for xpath_strip in &config.xpath_strip {
@@ -539,7 +537,7 @@ impl ArticleScraper {
         let _ = ArticleScraper::strip_node(&context, &String::from("//*[@type='text/css']"));
     }
 
-    fn extract_metadata(context: &Context, config: &GrabberConfig, article: &mut Article) {
+    fn extract_metadata(context: &Context<'_>, config: &GrabberConfig, article: &mut Article) {
 
         // try to get title
         for xpath_title in &config.xpath_title {
@@ -574,7 +572,7 @@ impl ArticleScraper {
         }
     }
 
-    fn extract_body(context: &Context, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
+    fn extract_body(context: &Context<'_>, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
 
         let mut found_something = false;
         for xpath_body in &config.xpath_body {
@@ -588,7 +586,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn extract_body_single(context: &Context, root: &mut Node, xpath: &str) -> Result<bool, ScraperError> {
+    fn extract_body_single(context: &Context<'_>, root: &mut Node, xpath: &str) -> Result<bool, ScraperError> {
 
         let mut found_something = false;
         {
@@ -615,7 +613,7 @@ impl ArticleScraper {
         Ok(found_something)
     }
 
-    fn check_for_next_page(&self, context: &Context, config: &GrabberConfig, root: &mut Node) -> Result<(), ScraperError> {
+    fn check_for_next_page(&self, context: &Context<'_>, config: &GrabberConfig, root: &mut Node) -> Result<(), ScraperError> {
 
         if let Some(next_page_xpath) = config.next_page_link.clone() {
             if let Ok(next_page_string) = ArticleScraper::get_attribute(&context, &next_page_xpath, "href") {
@@ -644,7 +642,7 @@ impl ArticleScraper {
         Err(ScraperErrorKind::Xml)?
     }
 
-    fn prevent_self_closing_tags(context: &Context) -> Result<(), ScraperError> {
+    fn prevent_self_closing_tags(context: &Context<'_>) -> Result<(), ScraperError> {
 
         // search document for empty tags and add a empty text node as child
         // this prevents libxml from self closing non void elements such as iframe
@@ -662,7 +660,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn eliminate_noscrip_tag(context: &Context) -> Result<(), ScraperError> {
+    fn eliminate_noscrip_tag(context: &Context<'_>) -> Result<(), ScraperError> {
 
         let xpath = "//noscript";
         evaluate_xpath!(context, xpath, node_vec);

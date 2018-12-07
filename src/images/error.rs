@@ -32,7 +32,7 @@ pub enum ImageDownloadErrorKind {
 }
 
 impl Fail for ImageDownloadError {
-    fn cause(&self) -> Option<&Fail> {
+    fn cause(&self) -> Option<&dyn Fail> {
         self.inner.cause()
     }
 
@@ -42,7 +42,7 @@ impl Fail for ImageDownloadError {
 }
 
 impl fmt::Display for ImageDownloadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.inner, f)
     }
 }
