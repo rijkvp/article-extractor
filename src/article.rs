@@ -30,6 +30,7 @@ impl Article {
                 let path = path.join(file_name);
                 let mut html_file = std::fs::File::create(&path).context(ScraperErrorKind::IO)?;
                 html_file.write_all(html.as_bytes()).context(ScraperErrorKind::IO)?;
+                return Ok(())
             }
         }
 
