@@ -37,7 +37,7 @@ impl Fail for ScraperError {
 }
 
 impl fmt::Display for ScraperError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.inner, f)
     }
 }

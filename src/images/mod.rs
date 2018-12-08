@@ -55,7 +55,7 @@ impl ImageDownloader {
         Ok(doc.to_string(/*format:*/ false))
     }
 
-    pub fn download_images_from_context(&self, context: &Context<'_>, article_url: &url::Url) -> Result<(), ImageDownloadError> {
+    pub fn download_images_from_context(&self, context: &Context, article_url: &url::Url) -> Result<(), ImageDownloadError> {
         let xpath = "//img";
         evaluate_xpath!(context, xpath, node_vec);
         for mut node in node_vec {

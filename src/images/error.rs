@@ -42,7 +42,7 @@ impl Fail for ImageDownloadError {
 }
 
 impl fmt::Display for ImageDownloadError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.inner, f)
     }
 }
