@@ -8,9 +8,6 @@ pub mod images;
 use reqwest;
 use url;
 use regex;
-use base64;
-use image;
-use mime_guess;
 use log::{
     error,
     debug,
@@ -52,12 +49,12 @@ pub struct ArticleScraper {
 }
 
 impl ArticleScraper {
-    pub fn new(config_path: PathBuf, save_image_path: PathBuf, download_images: bool) -> Result<ArticleScraper, ScraperError> {
+    pub fn new(config_path: PathBuf, download_images: bool) -> Result<ArticleScraper, ScraperError> {
 
         let config_files = GrabberConfig::parse_directory(&config_path).context(ScraperErrorKind::Config)?;
 
         Ok(ArticleScraper {
-            image_downloader: ImageDownloader::new(save_image_path, (2000, 2000), (1000, 800)),
+            image_downloader: ImageDownloader::new((2000, 2000)),
             config_files: config_files,
             client: reqwest::Client::new(),
             download_images: download_images,
@@ -127,7 +124,7 @@ impl ArticleScraper {
         }
 
         if self.download_images {
-            if let Err(error) = self.image_downloader.download_images_from_context(&context, &url) {
+            if let Err(error) = self.image_downloader.download_images_from_context(&context) {
                 error!("Downloading images failed: {}", error);
             }
         }
@@ -689,12 +686,12 @@ mod tests {
     #[test]
     pub fn golem() {
         let config_path = PathBuf::from(r"./resources/tests/golem");
-        let image_path = PathBuf::from(r"./test_output");
+        let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
-        let grabber = ArticleScraper::new(config_path, image_path.clone(), true).unwrap();
+        let grabber = ArticleScraper::new(config_path, true).unwrap();
         let article = grabber.parse(url).unwrap();
-        article.save_html(&image_path).unwrap();
+        article.save_html(&out_path).unwrap();
 
         assert_eq!(article.title, Some(String::from("HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben")));
         assert_eq!(article.author, Some(String::from("Hauke Gierow")));
@@ -703,12 +700,12 @@ mod tests {
     #[test]
     pub fn phoronix() {
         let config_path = PathBuf::from(r"./resources/tests/phoronix");
-        let image_path = PathBuf::from(r"./test_output");
+        let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1").unwrap();
 
-        let grabber = ArticleScraper::new(config_path, image_path.clone(), true).unwrap();
+        let grabber = ArticleScraper::new(config_path, true).unwrap();
         let article = grabber.parse(url).unwrap();
-        article.save_html(&image_path).unwrap();
+        article.save_html(&out_path).unwrap();
 
         assert_eq!(article.title, Some(String::from("Amazon EC2 Cloud Benchmarks Against Bare Metal Systems")));
     }
