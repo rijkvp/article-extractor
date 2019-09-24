@@ -107,7 +107,7 @@ impl ImageDownloader {
             big_image = Some(big_buffer);
         }
 
-        if content_type_small != "image/svg+xml" {
+        if content_type_small != "image/svg+xml" && content_type_small != "image/gif" {
             let (original_image, resized_image) = Self::scale_image(&small_image, self.max_size)?;
             if let Some(resized_image) = resized_image {
                 small_image = resized_image;
@@ -236,6 +236,4 @@ impl ImageDownloader {
         }
         Err(ImageDownloadErrorKind::ContentLenght)?
     }
-
-
 }
