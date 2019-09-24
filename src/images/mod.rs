@@ -46,6 +46,7 @@ impl ImageDownloader {
         self.download_images_from_context(&xpath_ctx)?;
 
         Ok(doc.to_string(/*format:*/ false))
+        //Ok(doc.to_string_custom())
     }
 
     pub fn download_images_from_context(&self, context: &Context) -> Result<(), ImageDownloadError> {
@@ -235,5 +236,25 @@ impl ImageDownloader {
             }
         }
         Err(ImageDownloadErrorKind::ContentLenght)?
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Write;
+
+    #[test]
+    pub fn close_tags() {
+        let image_dowloader = ImageDownloader::new((2048, 2048));
+        let hdyleaflet = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
+            .expect("Failed to read HTML");
+        let result = image_dowloader.download_images_from_string(&hdyleaflet)
+            .expect("Failed to downalod images");
+        let mut file = fs::File::create(r"./resources/tests/planetGnome/fedora31_images_downloaded.html")
+            .expect("Failed to create output file");
+        file.write_all(result.as_bytes()).expect("Failed to write result to file");
     }
 }
