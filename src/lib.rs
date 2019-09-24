@@ -45,11 +45,10 @@ pub struct ArticleScraper {
     pub image_downloader: ImageDownloader,
     config_files: ConfigCollection,
     client: reqwest::Client,
-    pub download_images: bool,
 }
 
 impl ArticleScraper {
-    pub fn new(config_path: PathBuf, download_images: bool) -> Result<ArticleScraper, ScraperError> {
+    pub fn new(config_path: PathBuf) -> Result<ArticleScraper, ScraperError> {
 
         let config_files = GrabberConfig::parse_directory(&config_path).context(ScraperErrorKind::Config)?;
 
@@ -57,11 +56,10 @@ impl ArticleScraper {
             image_downloader: ImageDownloader::new((2048, 2048)),
             config_files: config_files,
             client: reqwest::Client::new(),
-            download_images: download_images,
         })
     }
 
-    pub fn parse(&self, url: url::Url) -> Result<Article, ScraperError> {
+    pub fn parse(&self, url: url::Url, download_images: bool) -> Result<Article, ScraperError> {
 
         info!("Scraping article: {}", url.as_str());
         let response = self.client.head(url.clone()).send()
@@ -123,7 +121,7 @@ impl ArticleScraper {
             return Err(error)
         }
 
-        if self.download_images {
+        if download_images {
             if let Err(error) = self.image_downloader.download_images_from_context(&context) {
                 error!("Downloading images failed: {}", error);
             }
@@ -689,8 +687,8 @@ mod tests {
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
-        let grabber = ArticleScraper::new(config_path, true).unwrap();
-        let article = grabber.parse(url).unwrap();
+        let grabber = ArticleScraper::new(config_path).unwrap();
+        let article = grabber.parse(url, true).unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(article.title, Some(String::from("HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben")));
@@ -703,8 +701,8 @@ mod tests {
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1").unwrap();
 
-        let grabber = ArticleScraper::new(config_path, true).unwrap();
-        let article = grabber.parse(url).unwrap();
+        let grabber = ArticleScraper::new(config_path).unwrap();
+        let article = grabber.parse(url, true).unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(article.title, Some(String::from("Amazon EC2 Cloud Benchmarks Against Bare Metal Systems")));
