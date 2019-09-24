@@ -34,6 +34,12 @@ pub struct GrabberConfig {
 impl GrabberConfig {
 
     pub fn parse_directory(directory: &PathBuf) -> Result<ConfigCollection, ConfigError> {
+        // create data dir if it doesn't already exist
+        std::fs::DirBuilder::new()
+            .recursive(true)
+            .create(&directory)
+            .context(ConfigErrorKind::IO)?;
+        
         let paths = fs::read_dir(directory).context(ConfigErrorKind::IO)?;
 
 		let mut collection: collections::HashMap<String, GrabberConfig> = collections::HashMap::new();
