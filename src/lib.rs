@@ -42,7 +42,7 @@ use self::error::{
 
 
 pub struct ArticleScraper {
-    image_downloader: ImageDownloader,
+    pub image_downloader: ImageDownloader,
     config_files: ConfigCollection,
     client: reqwest::Client,
     pub download_images: bool,
@@ -54,7 +54,7 @@ impl ArticleScraper {
         let config_files = GrabberConfig::parse_directory(&config_path).context(ScraperErrorKind::Config)?;
 
         Ok(ArticleScraper {
-            image_downloader: ImageDownloader::new((2000, 2000)),
+            image_downloader: ImageDownloader::new((2048, 2048)),
             config_files: config_files,
             client: reqwest::Client::new(),
             download_images: download_images,
