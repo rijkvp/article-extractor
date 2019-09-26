@@ -120,7 +120,7 @@ impl ImageDownloader {
             big_image = Some(big_buffer);
         }
 
-        if content_type_small != "image/svg+xml" {
+        if content_type_small != "image/svg+xml" && content_type_small != "image/gif" {
             let (original_image, resized_image) = Self::scale_image(&small_image, self.max_size)?;
             if let Some(resized_image) = resized_image {
                 small_image = resized_image;
@@ -249,6 +249,24 @@ impl ImageDownloader {
         }
         Err(ImageDownloadErrorKind::ContentLenght)?
     }
+}
 
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Write;
+
+    #[test]
+    pub fn close_tags() {
+        let image_dowloader = ImageDownloader::new((2048, 2048));
+        let hdyleaflet = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
+            .expect("Failed to read HTML");
+        let result = image_dowloader.download_images_from_string(&hdyleaflet)
+            .expect("Failed to downalod images");
+        let mut file = fs::File::create(r"./resources/tests/planetGnome/fedora31_images_downloaded.html")
+            .expect("Failed to create output file");
+        file.write_all(result.as_bytes()).expect("Failed to write result to file");
+    }
 }
