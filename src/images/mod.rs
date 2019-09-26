@@ -66,19 +66,21 @@ impl ImageDownloader {
         evaluate_xpath!(context, xpath, node_vec);
         for mut node in node_vec {
             if let Some(url) = node.get_property("src") {
-                if let Ok(url) = url::Url::parse(&url) {
-                    let parent_url = match self.check_image_parent(&node, &url) {
-                        Ok(url) => Some(url),
-                        Err(_) => None,
-                    };
+                if !url.starts_with("data:") {
+                    if let Ok(url) = url::Url::parse(&url) {
+                        let parent_url = match self.check_image_parent(&node, &url) {
+                            Ok(url) => Some(url),
+                            Err(_) => None,
+                        };
 
-                    if let Ok((small_image, big_image)) = self.save_image(&url, &parent_url) {
-                        if let Err(_) = node.set_property("src", &small_image) {
-                            return Err(ImageDownloadErrorKind::HtmlParse)?;
-                        }
-                        if let Some(big_image) = big_image {
-                            if let Err(_) = node.set_property("big-src", &big_image) {
+                        if let Ok((small_image, big_image)) = self.save_image(&url, &parent_url) {
+                            if let Err(_) = node.set_property("src", &small_image) {
                                 return Err(ImageDownloadErrorKind::HtmlParse)?;
+                            }
+                            if let Some(big_image) = big_image {
+                                if let Err(_) = node.set_property("big-src", &big_image) {
+                                    return Err(ImageDownloadErrorKind::HtmlParse)?;
+                                }
                             }
                         }
                     }
