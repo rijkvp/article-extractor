@@ -19,7 +19,8 @@ use libxml::parser::Parser;
 use libxml::xpath::Context;
 use libxml::tree::{
     Document,
-    Node
+    Node,
+    SaveOptions,
 };
 use std::path::PathBuf;
 use std::ops::Index;
@@ -128,7 +129,17 @@ impl ArticleScraper {
         }
 
         // serialize content
-        let html = document.to_string(/*format:*/ false);
+        let options = SaveOptions {
+            format: false,
+            no_declaration: false,
+            no_empty_tags: true,
+            no_xhtml: false,
+            xhtml: false,
+            as_xml: false,
+            as_html: true,
+            non_significant_whitespace: false,
+        };
+        let html = document.to_string_with_options(options);
         article.html = Some(html);
         
         Ok(article)

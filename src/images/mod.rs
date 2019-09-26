@@ -5,7 +5,10 @@ use log::{
 };
 use libxml::parser::Parser;
 use libxml::xpath::Context;
-use libxml::tree::Node;
+use libxml::tree::{
+    Node,
+    SaveOptions,
+};
 use url;
 use failure::ResultExt;
 use std::error::Error;
@@ -45,7 +48,17 @@ impl ImageDownloader {
 
         self.download_images_from_context(&xpath_ctx)?;
 
-        Ok(doc.to_string(/*format:*/ false))
+        let options = SaveOptions {
+            format: false,
+            no_declaration: false,
+            no_empty_tags: true,
+            no_xhtml: false,
+            xhtml: false,
+            as_xml: false,
+            as_html: true,
+            non_significant_whitespace: false,
+        };
+        Ok(doc.to_string_with_options(options))
     }
 
     pub fn download_images_from_context(&self, context: &Context) -> Result<(), ImageDownloadError> {

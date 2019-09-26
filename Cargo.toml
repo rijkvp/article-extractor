@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 failure = "0.1"
-libxml = "0.2"
+libxml = { git = "https://github.com/KWARC/rust-libxml.git" }
 reqwest = "0.9"
 url = "1.7"
 regex = "1.3"
