@@ -60,10 +60,10 @@ impl ArticleScraper {
         })
     }
 
-    pub fn parse(&self, url: url::Url, download_images: bool) -> Result<Article, ScraperError> {
+    pub async fn parse(&self, url: url::Url, download_images: bool) -> Result<Article, ScraperError> {
 
         info!("Scraping article: {}", url.as_str());
-        let response = self.client.head(url.clone()).send()
+        let response = self.client.head(url.clone()).send().await
             .map_err(|err| {
                 error!("Failed head request to: {} - {}", url.as_str(), err.description());
                 err
@@ -105,7 +105,7 @@ impl ArticleScraper {
 
         ArticleScraper::generate_head(&mut root, &document)?;
 
-        self.parse_first_page(&mut article, &url, &mut root, config)?;
+        self.parse_pages(&mut article, &url, &mut root, config).await?;
 
         let context = Context::new(&document).map_err(|()| {
             error!("Failed to create xpath context for extracted article");
@@ -123,7 +123,7 @@ impl ArticleScraper {
         }
 
         if download_images {
-            if let Err(error) = self.image_downloader.download_images_from_context(&context) {
+            if let Err(error) = self.image_downloader.download_images_from_context(&context).await {
                 error!("Downloading images failed: {}", error);
             }
         }
@@ -145,9 +145,9 @@ impl ArticleScraper {
         Ok(article)
     }
 
-    fn parse_first_page(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
+    async fn parse_pages(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
 
-        let mut html = ArticleScraper::download(&url, &self.client)?;
+        let mut html = ArticleScraper::download(&url, &self.client).await?;
         parse_html!(html, config, xpath_ctx);
 
         // check for single page link
@@ -158,7 +158,7 @@ impl ArticleScraper {
                 // parse again with single page url
                 debug!("Single page link found {}", result);
                 let single_page_url = url::Url::parse(&result).context(ScraperErrorKind::Url)?;
-                return self.parse_single_page(article, &single_page_url, root, config);
+                return self.parse_single_page(article, &single_page_url, root, config).await;
             }
         }
 
@@ -166,22 +166,27 @@ impl ArticleScraper {
         ArticleScraper::strip_junk(&xpath_ctx, config, &url);
         ArticleScraper::extract_body(&xpath_ctx, root, config)?;
 
-        self.check_for_next_page(&xpath_ctx, config, root)
+        loop {
+            println!("loop");
+            if let Some(url) = self.check_for_next_page(&xpath_ctx, config) {
+                println!("url {}", url);
+                let mut html = ArticleScraper::download(&url, &self.client).await?;
+                parse_html!(html, config, new_xpath_ctx);
+                ArticleScraper::strip_junk(&new_xpath_ctx, config, &url);
+                ArticleScraper::extract_body(&new_xpath_ctx, root, config)?;
+                xpath_ctx = new_xpath_ctx;
+            } else {
+                println!("break");
+                break;
+            }
+        }
+
+        Ok(())
     }
 
-    fn parse_next_page(&self, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
-
-        let mut html = ArticleScraper::download(&url, &self.client)?;
-        parse_html!(html, config, xpath_ctx);
-        ArticleScraper::strip_junk(&xpath_ctx, config, &url);
-        ArticleScraper::extract_body(&xpath_ctx, root, config)?;
-
-        self.check_for_next_page(&xpath_ctx, config, root)
-    }
-
-    fn parse_single_page(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
+    async fn parse_single_page(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
         
-        let mut html = ArticleScraper::download(&url, &self.client)?;
+        let mut html = ArticleScraper::download(&url, &self.client).await?;
         parse_html!(html, config, xpath_ctx);
         ArticleScraper::extract_metadata(&xpath_ctx, config, article);
         ArticleScraper::strip_junk(&xpath_ctx, config, &url);
@@ -190,9 +195,9 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn download(url: &url::Url, client: &reqwest::Client) -> Result<String, ScraperError> {
+    async fn download(url: &url::Url, client: &reqwest::Client) -> Result<String, ScraperError> {
 
-        let mut response = client.get(url.as_str()).send()
+        let response = client.get(url.as_str()).send().await
             .map_err(|err| {
                 error!("Downloading HTML failed: GET {} - {}", url.as_str(), err.description());
                 err
@@ -200,13 +205,14 @@ impl ArticleScraper {
             .context(ScraperErrorKind::Http)?;
 
         if response.status().is_success() {
-            let text = response.text().context(ScraperErrorKind::Http)?;
+            let headers = response.headers().clone();
+            let text = response.text().await.context(ScraperErrorKind::Http)?;
             {
                 if let Some(decoded_html) = ArticleScraper::decode_html(&text, ArticleScraper::get_encoding_from_html(&text)) {
                     return Ok(decoded_html)
                 }
 
-                if let Some(decoded_html) = ArticleScraper::decode_html(&text, ArticleScraper::get_encoding_from_http_header(response.headers())) {
+                if let Some(decoded_html) = ArticleScraper::decode_html(&text, ArticleScraper::get_encoding_from_http_header(&headers)) {
                     return Ok(decoded_html)
                 }
             }
@@ -357,7 +363,7 @@ impl ArticleScraper {
         let xpath = &format!("//*[contains(@class, '{}') or contains(@id, '{}')]", id_or_class, id_or_class);
         evaluate_xpath!(context, xpath, node_vec);
         for mut node in node_vec {
-            node.unlink();
+            //node.unlink();
         }
         Ok(())
     }
@@ -441,8 +447,9 @@ impl ArticleScraper {
     }
 
     fn get_attribute(context: &Context, xpath: &str, attribute: &str) -> Result<String, ScraperError> {
-
+        println!("get attribute {}", attribute);
         evaluate_xpath!(context, xpath, node_vec);
+        println!("found {}", node_vec.len());
         xpath_result_empty!(node_vec, xpath);
         for node in node_vec {
             if let Some(value) = node.get_attribute(attribute) {
@@ -619,18 +626,19 @@ impl ArticleScraper {
         Ok(found_something)
     }
 
-    fn check_for_next_page(&self, context: &Context, config: &GrabberConfig, root: &mut Node) -> Result<(), ScraperError> {
+    fn check_for_next_page(&self, context: &Context, config: &GrabberConfig) -> Option<url::Url> {
 
         if let Some(next_page_xpath) = config.next_page_link.clone() {
             if let Ok(next_page_string) = ArticleScraper::get_attribute(&context, &next_page_xpath, "href") {
                 if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
-                    return self.parse_next_page(&next_page_url, root, config)
+                    println!("next_page_url: {}", next_page_url);
+                    return Some(next_page_url)
                 }
             }
         }
 
         // last page reached
-        Ok(())
+        None
     }
 
     fn generate_head(root: &mut Node, document: &Document) -> Result<(), ScraperError> {
@@ -692,28 +700,28 @@ impl ArticleScraper {
 mod tests {
     use crate::*;
     
-    #[test]
-    pub fn golem() {
+    #[tokio::test]
+    async fn golem() {
         let config_path = PathBuf::from(r"./resources/tests/golem");
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
         let grabber = ArticleScraper::new(config_path).unwrap();
-        let article = grabber.parse(url, true).unwrap();
+        let article = grabber.parse(url, true).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(article.title, Some(String::from("HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben")));
         assert_eq!(article.author, Some(String::from("Hauke Gierow")));
     }
 
-    #[test]
-    pub fn phoronix() {
+    #[tokio::test]
+    async fn phoronix() {
         let config_path = PathBuf::from(r"./resources/tests/phoronix");
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1").unwrap();
 
         let grabber = ArticleScraper::new(config_path).unwrap();
-        let article = grabber.parse(url, true).unwrap();
+        let article = grabber.parse(url, true).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(article.title, Some(String::from("Amazon EC2 Cloud Benchmarks Against Bare Metal Systems")));

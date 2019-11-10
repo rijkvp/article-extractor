@@ -34,7 +34,7 @@ impl ImageDownloader {
         }
     }
 
-    pub fn download_images_from_string(&self, html: &str) -> Result<String, ImageDownloadError> {
+    pub async fn download_images_from_string(&self, html: &str) -> Result<String, ImageDownloadError> {
         let parser = Parser::default_html();
         let doc = parser.parse_string(html).map_err(|_| {
             error!("Failed to parse HTML string");
@@ -46,7 +46,7 @@ impl ImageDownloader {
             ImageDownloadErrorKind::HtmlParse
         })?;
 
-        self.download_images_from_context(&xpath_ctx)?;
+        self.download_images_from_context(&xpath_ctx).await?;
 
         let options = SaveOptions {
             format: false,
@@ -61,19 +61,19 @@ impl ImageDownloader {
         Ok(doc.to_string_with_options(options))
     }
 
-    pub fn download_images_from_context(&self, context: &Context) -> Result<(), ImageDownloadError> {
+    pub async fn download_images_from_context(&self, context: &Context) -> Result<(), ImageDownloadError> {
         let xpath = "//img";
         evaluate_xpath!(context, xpath, node_vec);
         for mut node in node_vec {
             if let Some(url) = node.get_property("src") {
                 if !url.starts_with("data:") {
                     if let Ok(url) = url::Url::parse(&url) {
-                        let parent_url = match self.check_image_parent(&node, &url) {
+                        let parent_url = match self.check_image_parent(&node, &url).await {
                             Ok(url) => Some(url),
                             Err(_) => None,
                         };
 
-                        if let Ok((small_image, big_image)) = self.save_image(&url, &parent_url) {
+                        if let Ok((small_image, big_image)) = self.save_image(&url, &parent_url).await {
                             if let Err(_) = node.set_property("src", &small_image) {
                                 return Err(ImageDownloadErrorKind::HtmlParse)?;
                             }
@@ -91,9 +91,9 @@ impl ImageDownloader {
         Ok(())
     }
 
-    fn save_image(&self, image_url: &url::Url, parent_url: &Option<url::Url>) -> Result<(String, Option<String>), ImageDownloadError> {
+    async fn save_image(&self, image_url: &url::Url, parent_url: &Option<url::Url>) -> Result<(String, Option<String>), ImageDownloadError> {
 
-        let mut response = self.client.get(image_url.clone()).send().map_err(|err| {
+        let response = self.client.get(image_url.clone()).send().await.map_err(|err| {
             error!("GET {} failed - {}", image_url.as_str(), err.description());
             err
         }).context(ImageDownloadErrorKind::Http)?;
@@ -103,23 +103,27 @@ impl ImageDownloader {
             .context(ImageDownloadErrorKind::ContentType)?;
         let mut content_type_big : Option<String> = None;
 
-        let mut small_image : Vec<u8> = Vec::new();
+        let mut small_image = response
+            .bytes()
+            .await
+            .context(ImageDownloadErrorKind::IO)?
+            .as_ref()
+            .to_vec();
+        
         let mut big_image : Option<Vec<u8>> = None;
 
-        response.copy_to(&mut small_image)
-            .context(ImageDownloadErrorKind::IO)?;
-        
         if let Some(parent_url) = parent_url {
-            let mut response_big = self.client.get(parent_url.clone()).send()
+            let response_big = self.client.get(parent_url.clone()).send().await
                 .context(ImageDownloadErrorKind::Http)?;
-            content_type_big = Some(ImageDownloader::check_image_content_type(&response)?
+            content_type_big = Some(ImageDownloader::check_image_content_type(&response_big)?
                 .to_str()
                 .context(ImageDownloadErrorKind::ContentType)?
                 .to_owned());
-            let mut big_buffer : Vec<u8> = Vec::new();
-            response_big.copy_to(&mut big_buffer)
-                .context(ImageDownloadErrorKind::IO)?;
-            big_image = Some(big_buffer);
+            big_image = Some(response_big
+                .bytes()
+                .await
+                .context(ImageDownloadErrorKind::IO)?
+                .to_vec());
         }
 
         if content_type_small != "image/svg+xml" && content_type_small != "image/gif" {
@@ -215,14 +219,14 @@ impl ImageDownloader {
         }
     }
 
-    fn check_image_parent(&self, node: &Node, child_url: &url::Url) -> Result<url::Url, ImageDownloadError> {
+    async fn check_image_parent(&self, node: &Node, child_url: &url::Url) -> Result<url::Url, ImageDownloadError> {
         if let Some(parent) = node.get_parent() {
             if parent.get_name() == "a" {
                 if let Some(url) = parent.get_property("href") {
                     let parent_url = url::Url::parse(&url).context(ImageDownloadErrorKind::ParentDownload)?;
-                    let parent_response = self.client.head(parent_url.clone()).send().context(ImageDownloadErrorKind::ParentDownload)?;
+                    let parent_response = self.client.head(parent_url.clone()).send().await.context(ImageDownloadErrorKind::ParentDownload)?;
                     let _ = ImageDownloader::check_image_content_type(&parent_response).context(ImageDownloadErrorKind::ParentDownload)?;
-                    let child_response = self.client.get(child_url.clone()).send().context(ImageDownloadErrorKind::ParentDownload)?;
+                    let child_response = self.client.get(child_url.clone()).send().await.context(ImageDownloadErrorKind::ParentDownload)?;
                     let parent_length = Self::get_content_lenght(&parent_response).context(ImageDownloadErrorKind::ParentDownload)?;
                     let child_length = Self::get_content_lenght(&child_response).context(ImageDownloadErrorKind::ParentDownload)?;
 
@@ -260,12 +264,13 @@ mod tests {
     use std::fs;
     use std::io::Write;
 
-    #[test]
-    pub fn close_tags() {
+    #[tokio::test]
+    async fn close_tags() {
         let image_dowloader = ImageDownloader::new((2048, 2048));
         let hdyleaflet = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
             .expect("Failed to read HTML");
         let result = image_dowloader.download_images_from_string(&hdyleaflet)
+            .await
             .expect("Failed to downalod images");
         let mut file = fs::File::create(r"./resources/tests/planetGnome/fedora31_images_downloaded.html")
             .expect("Failed to create output file");
