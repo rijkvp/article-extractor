@@ -16,7 +16,7 @@ use self::error::{ImageDownloadError, ImageDownloadErrorKind};
 use base64;
 use std;
 use image;
-use super::ScraperErrorKind;
+use crate::ArticleScraper;
 
 mod error;
 
@@ -63,7 +63,8 @@ impl ImageDownloader {
 
     pub async fn download_images_from_context(&self, context: &Context) -> Result<(), ImageDownloadError> {
         let xpath = "//img";
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = ArticleScraper::evaluate_xpath(context, xpath, false)
+            .context(ImageDownloadErrorKind::HtmlParse)?;
         for mut node in node_vec {
             if let Some(url) = node.get_property("src") {
                 if !url.starts_with("data:") {
