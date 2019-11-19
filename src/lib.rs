@@ -205,7 +205,6 @@ impl ArticleScraper {
     pub fn evaluate_xpath(xpath_ctx: &Context, xpath: &str, thorw_if_empty: bool) -> Result<Vec<Node>, ScraperError> {
         let res = xpath_ctx.evaluate(xpath).map_err(|()| {
             error!("Evaluation of xpath {} yielded no results", xpath);
-            println!("Evaluation of xpath {} yielded no results", xpath);
             ScraperErrorKind::Xml
         })?;
 
@@ -213,7 +212,6 @@ impl ArticleScraper {
 
         if node_vec.len() == 0 {
             error!("Evaluation of xpath {} yielded no results", xpath);
-            println!("Evaluation of xpath {} yielded no results", xpath);
             if thorw_if_empty {
                 return Err(ScraperErrorKind::Xml)?
             }
@@ -385,7 +383,6 @@ impl ArticleScraper {
         }
 
         let query = &format!("{}[not(ancestor::{})]", xpath, ancestor);
-        //println!("{}", query);
         let node_vec = Self::evaluate_xpath(context, query, false)?;
         for mut node in node_vec {
             node.unlink();
@@ -395,7 +392,6 @@ impl ArticleScraper {
 
     fn strip_id_or_class(context: &Context, id_or_class: &String) -> Result<(), ScraperError> {
         let xpath = &format!("//*[contains(@class, '{}') or contains(@id, '{}')]", id_or_class, id_or_class);
-        //println!("{}", xpath);
         let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             node.unlink();
@@ -661,7 +657,6 @@ impl ArticleScraper {
         if let Some(next_page_xpath) = config.next_page_link.clone() {
             if let Ok(next_page_string) = ArticleScraper::get_attribute(&context, &next_page_xpath, "href") {
                 if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
-                    println!("next_page_url: {}", next_page_url);
                     return Some(next_page_url)
                 }
             }
