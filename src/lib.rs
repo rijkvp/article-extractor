@@ -146,7 +146,8 @@ impl ArticleScraper {
     async fn parse_pages(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
 
         let html = ArticleScraper::download(&url, &self.client).await?;
-        let mut xpath_ctx = Self::parse_html(html, config)?;
+        let mut document = Self::parse_html(html, config)?;
+        let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
 
         // check for single page link
         if let Some(xpath_single_page_link) = config.single_page_link.clone() {
@@ -166,7 +167,8 @@ impl ArticleScraper {
         loop {
             if let Some(url) = self.check_for_next_page(&xpath_ctx, config) {
                 let html = ArticleScraper::download(&url, &self.client).await?;
-                xpath_ctx = Self::parse_html(html, config)?;
+                document = Self::parse_html(html, config)?;
+                xpath_ctx = Self::get_xpath_ctx(&document)?;
                 ArticleScraper::strip_junk(&xpath_ctx, config, &url);
                 ArticleScraper::extract_body(&xpath_ctx, root, config)?;
             } else {
@@ -177,7 +179,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn parse_html(html: String, config: &GrabberConfig) -> Result<Context, ScraperError> {
+    fn parse_html(html: String, config: &GrabberConfig) -> Result<Document, ScraperError> {
         // replace matches in raw html
         
         let mut html = html;
@@ -187,11 +189,13 @@ impl ArticleScraper {
 
         // parse html
         let parser = Parser::default_html();
-        let doc = parser.parse_string(html.as_str()).map_err(|err| {
+        Ok(parser.parse_string(html.as_str()).map_err(|err| {
             error!("Parsing HTML failed for downloaded HTML {:?}", err);
             ScraperErrorKind::Xml
-        })?;
-        
+        })?)
+    }
+
+    fn get_xpath_ctx(doc: &Document) -> Result<Context, ScraperError> {
         Ok(Context::new(&doc).map_err(|()| {
             error!("Creating xpath context failed for downloaded HTML");
             ScraperErrorKind::Xml
@@ -221,7 +225,8 @@ impl ArticleScraper {
     async fn parse_single_page(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
         
         let html = ArticleScraper::download(&url, &self.client).await?;
-        let xpath_ctx = Self::parse_html(html, config)?;
+        let document = Self::parse_html(html, config)?;
+        let xpath_ctx = Self::get_xpath_ctx(&document)?;
         ArticleScraper::extract_metadata(&xpath_ctx, config, article);
         ArticleScraper::strip_junk(&xpath_ctx, config, &url);
         ArticleScraper::extract_body(&xpath_ctx, root, config)?;
@@ -725,19 +730,19 @@ impl ArticleScraper {
 mod tests {
     use crate::*;
     
-    // #[tokio::test]
-    // async fn golem() {
-    //     let config_path = PathBuf::from(r"./resources/tests/golem");
-    //     let out_path = PathBuf::from(r"./test_output");
-    //     let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
+    #[tokio::test]
+    async fn golem() {
+        let config_path = PathBuf::from(r"./resources/tests/golem");
+        let out_path = PathBuf::from(r"./test_output");
+        let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
-    //     let grabber = ArticleScraper::new(config_path).unwrap();
-    //     let article = grabber.parse(url, true).await.unwrap();
-    //     article.save_html(&out_path).unwrap();
+        let grabber = ArticleScraper::new(config_path).unwrap();
+        let article = grabber.parse(url, true).await.unwrap();
+        article.save_html(&out_path).unwrap();
 
-    //     assert_eq!(article.title, Some(String::from("HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben")));
-    //     assert_eq!(article.author, Some(String::from("Hauke Gierow")));
-    // }
+        assert_eq!(article.title, Some(String::from("HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben")));
+        assert_eq!(article.author, Some(String::from("Hauke Gierow")));
+    }
 
     #[tokio::test]
     async fn phoronix() {
