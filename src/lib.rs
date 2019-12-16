@@ -1,5 +1,3 @@
-#[macro_use]
-mod macros;
 mod config;
 mod error;
 mod article;
@@ -60,10 +58,10 @@ impl ArticleScraper {
         })
     }
 
-    pub fn parse(&self, url: url::Url, download_images: bool) -> Result<Article, ScraperError> {
+    pub async fn parse(&self, url: url::Url, download_images: bool) -> Result<Article, ScraperError> {
 
         info!("Scraping article: {}", url.as_str());
-        let response = self.client.head(url.clone()).send()
+        let response = self.client.head(url.clone()).send().await
             .map_err(|err| {
                 error!("Failed head request to: {} - {}", url.as_str(), err.description());
                 err
@@ -105,7 +103,7 @@ impl ArticleScraper {
 
         ArticleScraper::generate_head(&mut root, &document)?;
 
-        self.parse_first_page(&mut article, &url, &mut root, config)?;
+        self.parse_pages(&mut article, &url, &mut root, config).await?;
 
         let context = Context::new(&document).map_err(|()| {
             error!("Failed to create xpath context for extracted article");
@@ -123,7 +121,7 @@ impl ArticleScraper {
         }
 
         if download_images {
-            if let Err(error) = self.image_downloader.download_images_from_context(&context) {
+            if let Err(error) = self.image_downloader.download_images_from_context(&context).await {
                 error!("Downloading images failed: {}", error);
             }
         }
@@ -145,20 +143,20 @@ impl ArticleScraper {
         Ok(article)
     }
 
-    fn parse_first_page(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
+    async fn parse_pages(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
 
-        let mut html = ArticleScraper::download(&url, &self.client)?;
-        parse_html!(html, config, xpath_ctx);
+        let html = ArticleScraper::download(&url, &self.client).await?;
+        let mut document = Self::parse_html(html, config)?;
+        let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
 
         // check for single page link
-        let mut xpath_ctx = xpath_ctx;
         if let Some(xpath_single_page_link) = config.single_page_link.clone() {
             debug!("Single page link xpath specified in config {}", xpath_single_page_link);
             if let Ok(result) = xpath_ctx.findvalue(&xpath_single_page_link, None) {
                 // parse again with single page url
                 debug!("Single page link found {}", result);
                 let single_page_url = url::Url::parse(&result).context(ScraperErrorKind::Url)?;
-                return self.parse_single_page(article, &single_page_url, root, config);
+                return self.parse_single_page(article, &single_page_url, root, config).await;
             }
         }
 
@@ -166,23 +164,67 @@ impl ArticleScraper {
         ArticleScraper::strip_junk(&xpath_ctx, config, &url);
         ArticleScraper::extract_body(&xpath_ctx, root, config)?;
 
-        self.check_for_next_page(&xpath_ctx, config, root)
+        loop {
+            if let Some(url) = self.check_for_next_page(&xpath_ctx, config) {
+                let html = ArticleScraper::download(&url, &self.client).await?;
+                document = Self::parse_html(html, config)?;
+                xpath_ctx = Self::get_xpath_ctx(&document)?;
+                ArticleScraper::strip_junk(&xpath_ctx, config, &url);
+                ArticleScraper::extract_body(&xpath_ctx, root, config)?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(())
     }
 
-    fn parse_next_page(&self, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
-
-        let mut html = ArticleScraper::download(&url, &self.client)?;
-        parse_html!(html, config, xpath_ctx);
-        ArticleScraper::strip_junk(&xpath_ctx, config, &url);
-        ArticleScraper::extract_body(&xpath_ctx, root, config)?;
-
-        self.check_for_next_page(&xpath_ctx, config, root)
-    }
-
-    fn parse_single_page(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
+    fn parse_html(html: String, config: &GrabberConfig) -> Result<Document, ScraperError> {
+        // replace matches in raw html
         
-        let mut html = ArticleScraper::download(&url, &self.client)?;
-        parse_html!(html, config, xpath_ctx);
+        let mut html = html;
+        for replace in &config.replace {
+            html = html.replace(&replace.to_replace, &replace.replace_with);
+        }
+
+        // parse html
+        let parser = Parser::default_html();
+        Ok(parser.parse_string(html.as_str()).map_err(|err| {
+            error!("Parsing HTML failed for downloaded HTML {:?}", err);
+            ScraperErrorKind::Xml
+        })?)
+    }
+
+    fn get_xpath_ctx(doc: &Document) -> Result<Context, ScraperError> {
+        Ok(Context::new(&doc).map_err(|()| {
+            error!("Creating xpath context failed for downloaded HTML");
+            ScraperErrorKind::Xml
+        })?)
+    }
+
+    pub fn evaluate_xpath(xpath_ctx: &Context, xpath: &str, thorw_if_empty: bool) -> Result<Vec<Node>, ScraperError> {
+        let res = xpath_ctx.evaluate(xpath).map_err(|()| {
+            error!("Evaluation of xpath {} yielded no results", xpath);
+            ScraperErrorKind::Xml
+        })?;
+
+        let node_vec = res.get_nodes_as_vec();
+
+        if node_vec.len() == 0 {
+            error!("Evaluation of xpath {} yielded no results", xpath);
+            if thorw_if_empty {
+                return Err(ScraperErrorKind::Xml)?
+            }
+        }
+
+        Ok(node_vec)
+    }
+
+    async fn parse_single_page(&self, article: &mut Article, url: &url::Url, root: &mut Node, config: &GrabberConfig) -> Result<(), ScraperError> {
+        
+        let html = ArticleScraper::download(&url, &self.client).await?;
+        let document = Self::parse_html(html, config)?;
+        let xpath_ctx = Self::get_xpath_ctx(&document)?;
         ArticleScraper::extract_metadata(&xpath_ctx, config, article);
         ArticleScraper::strip_junk(&xpath_ctx, config, &url);
         ArticleScraper::extract_body(&xpath_ctx, root, config)?;
@@ -190,9 +232,9 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn download(url: &url::Url, client: &reqwest::Client) -> Result<String, ScraperError> {
+    async fn download(url: &url::Url, client: &reqwest::Client) -> Result<String, ScraperError> {
 
-        let mut response = client.get(url.as_str()).send()
+        let response = client.get(url.as_str()).send().await
             .map_err(|err| {
                 error!("Downloading HTML failed: GET {} - {}", url.as_str(), err.description());
                 err
@@ -200,13 +242,14 @@ impl ArticleScraper {
             .context(ScraperErrorKind::Http)?;
 
         if response.status().is_success() {
-            let text = response.text().context(ScraperErrorKind::Http)?;
+            let headers = response.headers().clone();
+            let text = response.text().await.context(ScraperErrorKind::Http)?;
             {
                 if let Some(decoded_html) = ArticleScraper::decode_html(&text, ArticleScraper::get_encoding_from_html(&text)) {
                     return Ok(decoded_html)
                 }
 
-                if let Some(decoded_html) = ArticleScraper::decode_html(&text, ArticleScraper::get_encoding_from_http_header(response.headers())) {
+                if let Some(decoded_html) = ArticleScraper::decode_html(&text, ArticleScraper::get_encoding_from_http_header(&headers)) {
                     return Ok(decoded_html)
                 }
             }
@@ -315,9 +358,7 @@ impl ArticleScraper {
     }
 
     fn extract_value(context: &Context, xpath: &str) -> Result<String, ScraperError> {
-
-        evaluate_xpath!(context, xpath, node_vec);
-        xpath_result_empty!(node_vec, xpath);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         if let Some(val) = node_vec.get(0) {
             return Ok(val.get_content())
         }
@@ -326,9 +367,7 @@ impl ArticleScraper {
     }
 
     fn extract_value_merge(context: &Context, xpath: &str) -> Result<String, ScraperError> {
-
-        evaluate_xpath!(context, xpath, node_vec);
-        xpath_result_empty!(node_vec, xpath);
+        let node_vec = Self::evaluate_xpath(context, xpath, true)?;
         let mut val = String::new();
         for node in node_vec {
             val.push_str(&node.get_content());
@@ -338,14 +377,13 @@ impl ArticleScraper {
     }
 
     fn strip_node(context: &Context, xpath: &String) -> Result<(), ScraperError> {
-
         let mut ancestor = xpath.clone();
         if ancestor.starts_with("//") {
             ancestor = ancestor.chars().skip(2).collect();
         }
 
         let query = &format!("{}[not(ancestor::{})]", xpath, ancestor);
-        evaluate_xpath!(context, query, node_vec);
+        let node_vec = Self::evaluate_xpath(context, query, false)?;
         for mut node in node_vec {
             node.unlink();
         }
@@ -353,9 +391,8 @@ impl ArticleScraper {
     }
 
     fn strip_id_or_class(context: &Context, id_or_class: &String) -> Result<(), ScraperError> {
-
         let xpath = &format!("//*[contains(@class, '{}') or contains(@id, '{}')]", id_or_class, id_or_class);
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             node.unlink();
         }
@@ -365,7 +402,7 @@ impl ArticleScraper {
     fn fix_lazy_images(context: &Context, class: &str, property_url: &str) -> Result<(), ScraperError> {
         
         let xpath = &format!("//img[contains(@class, '{}')]", class);
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if let Some(correct_url) = node.get_property(property_url) {
                 if let Err(_) = node.set_property("src", &correct_url) {
@@ -379,7 +416,7 @@ impl ArticleScraper {
     fn fix_iframe_size(context: &Context, site_name: &str) -> Result<(), ScraperError> {
 
         let xpath = &format!("//iframe[contains(@src, '{}')]", site_name);
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if let Some(mut parent) = node.get_parent() {
                 if let Ok(mut video_wrapper) = parent.new_child(None, "div") {
@@ -414,7 +451,7 @@ impl ArticleScraper {
         };
 
         let xpath = &format!("//{}[@{}]", xpath_tag, attribute);
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if let Err(_) = node.remove_property(attribute) {
                 return Err(ScraperErrorKind::Xml)?
@@ -431,7 +468,7 @@ impl ArticleScraper {
         };
 
         let xpath = &format!("//{}", xpath_tag);
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if let Err(_) = node.set_attribute(attribute, value) {
                 return Err(ScraperErrorKind::Xml)?
@@ -441,9 +478,7 @@ impl ArticleScraper {
     }
 
     fn get_attribute(context: &Context, xpath: &str, attribute: &str) -> Result<String, ScraperError> {
-
-        evaluate_xpath!(context, xpath, node_vec);
-        xpath_result_empty!(node_vec, xpath);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for node in node_vec {
             if let Some(value) = node.get_attribute(attribute) {
                 return Ok(value)
@@ -454,8 +489,7 @@ impl ArticleScraper {
     }
 
     fn repair_urls(context: &Context, xpath: &str, attribute: &str, article_url: &url::Url) -> Result<(), ScraperError> {
-
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if let Some(val) = node.get_attribute(attribute) {
                 if let Err(url::ParseError::RelativeUrlWithoutBase) = url::Url::parse(&val) {
@@ -596,8 +630,7 @@ impl ArticleScraper {
 
         let mut found_something = false;
         {
-            evaluate_xpath!(context, xpath, node_vec);
-            xpath_result_empty!(node_vec, xpath);
+            let node_vec = Self::evaluate_xpath(context, xpath, false)?;
             for mut node in node_vec {
                 if node.get_property("style").is_some() {
                     if let Err(_) = node.remove_property("style") {
@@ -619,18 +652,18 @@ impl ArticleScraper {
         Ok(found_something)
     }
 
-    fn check_for_next_page(&self, context: &Context, config: &GrabberConfig, root: &mut Node) -> Result<(), ScraperError> {
+    fn check_for_next_page(&self, context: &Context, config: &GrabberConfig) -> Option<url::Url> {
 
         if let Some(next_page_xpath) = config.next_page_link.clone() {
             if let Ok(next_page_string) = ArticleScraper::get_attribute(&context, &next_page_xpath, "href") {
                 if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
-                    return self.parse_next_page(&next_page_url, root, config)
+                    return Some(next_page_url)
                 }
             }
         }
 
         // last page reached
-        Ok(())
+        None
     }
 
     fn generate_head(root: &mut Node, document: &Document) -> Result<(), ScraperError> {
@@ -654,7 +687,7 @@ impl ArticleScraper {
         // this prevents libxml from self closing non void elements such as iframe
 
         let xpath = "//*[not(node())]";
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if node.get_name() == "meta" {
                 continue
@@ -669,7 +702,7 @@ impl ArticleScraper {
     fn eliminate_noscrip_tag(context: &Context) -> Result<(), ScraperError> {
 
         let xpath = "//noscript";
-        evaluate_xpath!(context, xpath, node_vec);
+        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
 
         for mut node in node_vec {
             if let Some(mut parent) = node.get_parent() {
@@ -692,28 +725,28 @@ impl ArticleScraper {
 mod tests {
     use crate::*;
     
-    #[test]
-    pub fn golem() {
+    #[tokio::test]
+    async fn golem() {
         let config_path = PathBuf::from(r"./resources/tests/golem");
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
         let grabber = ArticleScraper::new(config_path).unwrap();
-        let article = grabber.parse(url, true).unwrap();
+        let article = grabber.parse(url, true).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(article.title, Some(String::from("HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben")));
         assert_eq!(article.author, Some(String::from("Hauke Gierow")));
     }
 
-    #[test]
-    pub fn phoronix() {
+    #[tokio::test]
+    async fn phoronix() {
         let config_path = PathBuf::from(r"./resources/tests/phoronix");
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1").unwrap();
 
         let grabber = ArticleScraper::new(config_path).unwrap();
-        let article = grabber.parse(url, true).unwrap();
+        let article = grabber.parse(url, true).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(article.title, Some(String::from("Amazon EC2 Cloud Benchmarks Against Bare Metal Systems")));
