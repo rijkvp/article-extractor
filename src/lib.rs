@@ -732,7 +732,7 @@ impl ArticleScraper {
 mod tests {
     use crate::*;
     
-    #[tokio::test]
+    #[tokio::test(basic_scheduler)]
     async fn golem() {
         let config_path = PathBuf::from(r"./resources/tests/golem");
         let out_path = PathBuf::from(r"./test_output");
@@ -746,7 +746,7 @@ mod tests {
         assert_eq!(article.author, Some(String::from("Hauke Gierow")));
     }
 
-    #[tokio::test]
+    #[tokio::test(basic_scheduler)]
     async fn phoronix() {
         let config_path = PathBuf::from(r"./resources/tests/phoronix");
         let out_path = PathBuf::from(r"./test_output");
