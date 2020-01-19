@@ -392,7 +392,14 @@ impl ArticleScraper {
 
     fn strip_id_or_class(context: &Context, id_or_class: &String) -> Result<(), ScraperError> {
         let xpath = &format!("//*[contains(@class, '{}') or contains(@id, '{}')]", id_or_class, id_or_class);
-        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
+
+        let mut ancestor = xpath.clone();
+        if ancestor.starts_with("//") {
+            ancestor = ancestor.chars().skip(2).collect();
+        }
+
+        let query = &format!("{}[not(ancestor::{})]", xpath, ancestor);
+        let node_vec = Self::evaluate_xpath(context, query, false)?;
         for mut node in node_vec {
             node.unlink();
         }
@@ -725,7 +732,7 @@ impl ArticleScraper {
 mod tests {
     use crate::*;
     
-    #[tokio::test]
+    #[tokio::test(basic_scheduler)]
     async fn golem() {
         let config_path = PathBuf::from(r"./resources/tests/golem");
         let out_path = PathBuf::from(r"./test_output");
@@ -739,7 +746,7 @@ mod tests {
         assert_eq!(article.author, Some(String::from("Hauke Gierow")));
     }
 
-    #[tokio::test]
+    #[tokio::test(basic_scheduler)]
     async fn phoronix() {
         let config_path = PathBuf::from(r"./resources/tests/phoronix");
         let out_path = PathBuf::from(r"./test_output");
