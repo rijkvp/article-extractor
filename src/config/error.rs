@@ -1,4 +1,4 @@
-use failure::{Context, Fail, Backtrace, Error};
+use failure::{Backtrace, Context, Error, Fail};
 use std::fmt;
 
 #[derive(Debug)]
@@ -40,7 +40,9 @@ impl fmt::Display for ConfigError {
 
 impl From<ConfigErrorKind> for ConfigError {
     fn from(kind: ConfigErrorKind) -> ConfigError {
-        ConfigError { inner: Context::new(kind) }
+        ConfigError {
+            inner: Context::new(kind),
+        }
     }
 }
 
@@ -52,6 +54,8 @@ impl From<Context<ConfigErrorKind>> for ConfigError {
 
 impl From<Error> for ConfigError {
     fn from(_: Error) -> ConfigError {
-        ConfigError { inner: Context::new(ConfigErrorKind::Unknown) }
+        ConfigError {
+            inner: Context::new(ConfigErrorKind::Unknown),
+        }
     }
 }

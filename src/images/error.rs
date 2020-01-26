@@ -1,6 +1,6 @@
-use failure::{Context, Fail, Backtrace, Error};
-use std::fmt;
 use super::super::ScraperErrorKind;
+use failure::{Backtrace, Context, Error, Fail};
+use std::fmt;
 
 #[derive(Debug)]
 pub struct ImageDownloadError {
@@ -55,7 +55,9 @@ impl ImageDownloadError {
 
 impl From<ImageDownloadErrorKind> for ImageDownloadError {
     fn from(kind: ImageDownloadErrorKind) -> ImageDownloadError {
-        ImageDownloadError { inner: Context::new(kind) }
+        ImageDownloadError {
+            inner: Context::new(kind),
+        }
     }
 }
 
@@ -72,12 +74,16 @@ impl From<ScraperErrorKind> for ImageDownloadError {
             _ => ImageDownloadErrorKind::Unknown,
         };
 
-        ImageDownloadError { inner: Context::new(kind) }
+        ImageDownloadError {
+            inner: Context::new(kind),
+        }
     }
 }
 
 impl From<Error> for ImageDownloadError {
     fn from(_: Error) -> ImageDownloadError {
-        ImageDownloadError { inner: Context::new(ImageDownloadErrorKind::Unknown) }
+        ImageDownloadError {
+            inner: Context::new(ImageDownloadErrorKind::Unknown),
+        }
     }
 }

@@ -1,11 +1,11 @@
+use self::error::{ConfigError, ConfigErrorKind};
+use failure::ResultExt;
+use log::warn;
 use std::collections;
-use std::path::{PathBuf};
 use std::fs;
 use std::io;
 use std::io::BufRead;
-use failure::ResultExt;
-use log::error;
-use self::error::{ConfigError, ConfigErrorKind};
+use std::path::PathBuf;
 
 #[macro_use]
 mod macros;
@@ -13,11 +13,13 @@ mod error;
 
 pub type ConfigCollection = collections::HashMap<String, GrabberConfig>;
 
+#[derive(Clone)]
 pub struct Replace {
     pub to_replace: String,
     pub replace_with: String,
 }
 
+#[derive(Clone)]
 pub struct GrabberConfig {
     pub xpath_title: Vec<String>,
     pub xpath_author: Vec<String>,
@@ -32,33 +34,36 @@ pub struct GrabberConfig {
 }
 
 impl GrabberConfig {
-
     pub fn parse_directory(directory: &PathBuf) -> Result<ConfigCollection, ConfigError> {
         // create data dir if it doesn't already exist
         std::fs::DirBuilder::new()
             .recursive(true)
             .create(&directory)
             .context(ConfigErrorKind::IO)?;
-        
+
         let paths = fs::read_dir(directory).context(ConfigErrorKind::IO)?;
 
-		let mut collection: collections::HashMap<String, GrabberConfig> = collections::HashMap::new();
+        let mut collection: collections::HashMap<String, GrabberConfig> =
+            collections::HashMap::new();
 
         for path in paths {
             if let Ok(path) = path {
                 if let Some(extension) = path.path().extension() {
-                   if let Some(extension) = extension.to_str() {
-                       if extension == "txt" {
+                    if let Some(extension) = extension.to_str() {
+                        if extension == "txt" {
                             if let Ok(config) = GrabberConfig::new(path.path()) {
-                                collection.insert(path.file_name().to_string_lossy().into_owned(), config);
+                                collection.insert(
+                                    path.file_name().to_string_lossy().into_owned(),
+                                    config,
+                                );
                             }
-                       }
-                   } 
+                        }
+                    }
                 }
             }
         }
 
-		Ok(collection)
+        Ok(collection)
     }
 
     fn new(config_path: PathBuf) -> Result<GrabberConfig, ConfigError> {
@@ -99,47 +104,45 @@ impl GrabberConfig {
         let mut iterator = buffer.lines().peekable();
         while let Some(Ok(line)) = iterator.next() {
             let line = line.trim();
-            if line.starts_with("#") 
-            || line.starts_with(tidy)
-            || line.starts_with(prune)
-            || line.starts_with(test_url)
-            || line.starts_with(autodetect)
-            || line.is_empty() {
+            if line.starts_with("#")
+                || line.starts_with(tidy)
+                || line.starts_with(prune)
+                || line.starts_with(test_url)
+                || line.starts_with(autodetect)
+                || line.is_empty()
+            {
                 continue;
             }
 
+            extract_vec_multi!(line, title, xpath_title);
+            extract_vec_multi!(line, body, xpath_body);
+            extract_vec_multi!(line, date, xpath_date);
+            extract_vec_multi!(line, author, xpath_author);
 
-			extract_vec_multi!(line, title, xpath_title);
-			extract_vec_multi!(line, body, xpath_body);
-			extract_vec_multi!(line, date, xpath_date);
-			extract_vec_multi!(line, author, xpath_author);
+            extract_vec_single!(line, strip, xpath_strip);
+            extract_vec_single!(line, strip_id, strip_id_or_class);
+            extract_vec_single!(line, strip_img, strip_image_src);
 
-			extract_vec_single!(line, strip, xpath_strip);
-			extract_vec_single!(line, strip_id, strip_id_or_class);
-			extract_vec_single!(line, strip_img, strip_image_src);
-
-			extract_option_single!(line, single_page, single_page_link);
-			extract_option_single!(line, next_page, next_page_link);
+            extract_option_single!(line, single_page, single_page_link);
+            extract_option_single!(line, next_page, next_page_link);
 
             if line.starts_with(replace_single) {
                 let value = GrabberConfig::extract_value(replace_single, line);
                 let value: Vec<&str> = value.split("): ").map(|s| s.trim()).collect();
-                if value.len() != 2{
+                if value.len() != 2 {
                     continue;
                 }
 
                 if let Some(to_replace) = value.get(0) {
                     if let Some(replace_with) = value.get(1) {
-                        replace_vec.push( 
-                            Replace {
-                                to_replace: to_replace.to_string(),
-                                replace_with: replace_with.to_string(),
-                            }
-                        );
+                        replace_vec.push(Replace {
+                            to_replace: to_replace.to_string(),
+                            replace_with: replace_with.to_string(),
+                        });
                     }
                 }
 
-				continue;
+                continue;
             }
 
             if line.starts_with(find) {
@@ -155,12 +158,12 @@ impl GrabberConfig {
 
                     replace_vec.push(r);
                 }
-				continue;
+                continue;
             }
         }
 
         if xpath_body.len() == 0 {
-            error!("No body xpath found for {}", config_path.display());
+            warn!("No body xpath found for {}", config_path.display());
             Err(ConfigErrorKind::BadConfig)?
         }
 

@@ -1,4 +1,4 @@
-use failure::{Context, Fail, Backtrace, Error};
+use failure::{Backtrace, Context, Error, Fail};
 use std::fmt;
 
 #[derive(Debug)]
@@ -50,7 +50,9 @@ impl ScraperError {
 
 impl From<ScraperErrorKind> for ScraperError {
     fn from(kind: ScraperErrorKind) -> ScraperError {
-        ScraperError { inner: Context::new(kind) }
+        ScraperError {
+            inner: Context::new(kind),
+        }
     }
 }
 
@@ -62,6 +64,8 @@ impl From<Context<ScraperErrorKind>> for ScraperError {
 
 impl From<Error> for ScraperError {
     fn from(_: Error) -> ScraperError {
-        ScraperError { inner: Context::new(ScraperErrorKind::Unknown) }
+        ScraperError {
+            inner: Context::new(ScraperErrorKind::Unknown),
+        }
     }
 }
