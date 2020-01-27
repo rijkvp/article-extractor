@@ -590,6 +590,9 @@ impl ArticleScraper {
             };
         }
 
+        if !completed_url.ends_with('/') {
+            completed_url.push_str("/");
+        }
         completed_url.push_str(incomplete_url);
         let url = url::Url::parse(&completed_url).context(ScraperErrorKind::Url)?;
         return Ok(url);
