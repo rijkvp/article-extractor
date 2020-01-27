@@ -121,10 +121,10 @@ impl ArticleScraper {
             return Err(error);
         }
 
-        if let Err(error) = ArticleScraper::eliminate_noscrip_tag(&context) {
-            error!("Eliminating <noscript> tag failed - '{}'", error);
-            return Err(error);
-        }
+        // if let Err(error) = ArticleScraper::eliminate_noscript_tag(&context) {
+        //     error!("Eliminating <noscript> tag failed - {}", error);
+        //     return Err(error)
+        // }
 
         if download_images {
             if let Err(error) = self
@@ -646,7 +646,7 @@ impl ArticleScraper {
         );
 
         // strip all scripts
-        let _ = ArticleScraper::strip_node(&context, &String::from("//script"));
+        //let _ = ArticleScraper::strip_node(&context, &String::from("//script"));
 
         // strip all comments
         let _ = ArticleScraper::strip_node(&context, &String::from("//comment()"));
@@ -782,23 +782,21 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn eliminate_noscrip_tag(context: &Context) -> Result<(), ScraperError> {
-        let xpath = "//noscript";
-        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
-
-        for mut node in node_vec {
-            if let Some(mut parent) = node.get_parent() {
-                node.unlink();
-                let children = node.get_child_nodes();
-                for mut child in children {
-                    child.unlink();
-                    let _ = parent.add_child(&mut child);
-                }
-            }
-        }
-
-        Ok(())
-    }
+    // fn eliminate_noscript_tag(context: &Context) -> Result<(), ScraperError> {
+    //     let xpath = "//noscript";
+    //     let node_vec = Self::evaluate_xpath(context, xpath, false)?;
+    //     for mut node in node_vec {
+    //         if let Some(mut parent) = node.get_parent() {
+    //             node.unlink();
+    //             let children = node.get_child_nodes();
+    //             for mut child in children {
+    //                 child.unlink();
+    //                 let _ = parent.add_child(&mut child);
+    //             }
+    //         }
+    //     }
+    //     Ok(())
+    // }
 }
 
 #[cfg(test)]
