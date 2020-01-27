@@ -230,14 +230,14 @@ impl ArticleScraper {
         thorw_if_empty: bool,
     ) -> Result<Vec<Node>, ScraperError> {
         let res = xpath_ctx.evaluate(xpath).map_err(|()| {
-            error!("Evaluation of xpath '{}' yielded no results", xpath);
+            debug!("Evaluation of xpath '{}' yielded no results", xpath);
             ScraperErrorKind::Xml
         })?;
 
         let node_vec = res.get_nodes_as_vec();
 
         if node_vec.len() == 0 {
-            error!("Evaluation of xpath '{}' yielded no results", xpath);
+            debug!("Evaluation of xpath '{}' yielded no results", xpath);
             if thorw_if_empty {
                 return Err(ScraperErrorKind::Xml)?;
             }
