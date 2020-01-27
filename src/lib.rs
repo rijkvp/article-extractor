@@ -171,12 +171,14 @@ impl ArticleScraper {
                 xpath_single_page_link
             );
             if let Ok(result) = xpath_ctx.findvalue(&xpath_single_page_link, None) {
-                // parse again with single page url
-                debug!("Single page link found '{}'", result);
-                let single_page_url = url::Url::parse(&result).context(ScraperErrorKind::Url)?;
-                return self
-                    .parse_single_page(article, &single_page_url, root, config)
-                    .await;
+                if !result.trim().is_empty() {
+                    // parse again with single page url
+                    debug!("Single page link found '{}'", result);
+                    let single_page_url = url::Url::parse(&result).context(ScraperErrorKind::Url)?;
+                    return self
+                        .parse_single_page(article, &single_page_url, root, config)
+                        .await;
+                }
             }
         }
 
