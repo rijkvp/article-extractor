@@ -61,7 +61,7 @@ impl ArticleScraper {
         url: url::Url,
         download_images: bool,
     ) -> Result<Article, ScraperError> {
-        info!("Scraping article: {}", url.as_str());
+        info!("Scraping article: '{}'", url.as_str());
         let response = self
             .client
             .head(url.clone())
@@ -69,7 +69,7 @@ impl ArticleScraper {
             .await
             .map_err(|err| {
                 error!(
-                    "Failed head request to: {} - {}",
+                    "Failed head request to: '{}' - '{}'",
                     url.as_str(),
                     err.description()
                 );
@@ -80,7 +80,7 @@ impl ArticleScraper {
         // check if url redirects and we need to pick up the new url
         let mut url = url;
         if let Some(new_url) = ArticleScraper::check_redirect(&response) {
-            debug!("Url {} redirects to {}", url.as_str(), new_url.as_str());
+            debug!("Url '{}' redirects to '{}'", url.as_str(), new_url.as_str());
             url = new_url;
         }
 
@@ -117,12 +117,12 @@ impl ArticleScraper {
         })?;
 
         if let Err(error) = ArticleScraper::prevent_self_closing_tags(&context) {
-            error!("Preventing self closing tags failed - {}", error);
+            error!("Preventing self closing tags failed - '{}'", error);
             return Err(error);
         }
 
         if let Err(error) = ArticleScraper::eliminate_noscrip_tag(&context) {
-            error!("Eliminating <noscript> tag failed - {}", error);
+            error!("Eliminating <noscript> tag failed - '{}'", error);
             return Err(error);
         }
 
@@ -132,7 +132,7 @@ impl ArticleScraper {
                 .download_images_from_context(&context)
                 .await
             {
-                error!("Downloading images failed: {}", error);
+                error!("Downloading images failed: '{}'", error);
             }
         }
 
@@ -167,12 +167,12 @@ impl ArticleScraper {
         // check for single page link
         if let Some(xpath_single_page_link) = config.single_page_link.clone() {
             debug!(
-                "Single page link xpath specified in config {}",
+                "Single page link xpath specified in config '{}'",
                 xpath_single_page_link
             );
             if let Ok(result) = xpath_ctx.findvalue(&xpath_single_page_link, None) {
                 // parse again with single page url
-                debug!("Single page link found {}", result);
+                debug!("Single page link found '{}'", result);
                 let single_page_url = url::Url::parse(&result).context(ScraperErrorKind::Url)?;
                 return self
                     .parse_single_page(article, &single_page_url, root, config)
@@ -228,14 +228,14 @@ impl ArticleScraper {
         thorw_if_empty: bool,
     ) -> Result<Vec<Node>, ScraperError> {
         let res = xpath_ctx.evaluate(xpath).map_err(|()| {
-            error!("Evaluation of xpath {} yielded no results", xpath);
+            error!("Evaluation of xpath '{}' yielded no results", xpath);
             ScraperErrorKind::Xml
         })?;
 
         let node_vec = res.get_nodes_as_vec();
 
         if node_vec.len() == 0 {
-            error!("Evaluation of xpath {} yielded no results", xpath);
+            error!("Evaluation of xpath '{}' yielded no results", xpath);
             if thorw_if_empty {
                 return Err(ScraperErrorKind::Xml)?;
             }
@@ -268,7 +268,7 @@ impl ArticleScraper {
             .await
             .map_err(|err| {
                 error!(
-                    "Downloading HTML failed: GET {} - {}",
+                    "Downloading HTML failed: GET '{}' - '{}'",
                     url.as_str(),
                     err.description()
                 );
@@ -335,7 +335,7 @@ impl ArticleScraper {
                     return Some(decoded_html.into_owned());
                 }
             }
-            warn!("Could not decode HTML. Encoding: {}", encoding);
+            warn!("Could not decode HTML. Encoding: '{}'", encoding);
         }
         None
     }
@@ -361,7 +361,7 @@ impl ArticleScraper {
             match config_files.get(&config_name) {
                 Some(config) => return Ok(config.clone()),
                 None => {
-                    error!("No config file of the name {} fount", config_name);
+                    error!("No config file of the name '{}' fount", config_name);
                     Err(ScraperErrorKind::Config)?
                 }
             }
@@ -391,7 +391,7 @@ impl ArticleScraper {
 
     fn check_redirect(response: &reqwest::Response) -> Option<url::Url> {
         if response.status() == reqwest::StatusCode::PERMANENT_REDIRECT {
-            debug!("Article url redirects to {}", response.url().as_str());
+            debug!("Article url redirects to '{}'", response.url().as_str());
             return Some(response.url().clone());
         }
 
@@ -660,7 +660,7 @@ impl ArticleScraper {
         // try to get title
         for xpath_title in &config.xpath_title {
             if let Ok(title) = ArticleScraper::extract_value_merge(&context, xpath_title) {
-                debug!("Article title: {}", title);
+                debug!("Article title: '{}'", title);
                 article.title = Some(title);
                 break;
             }
@@ -669,7 +669,7 @@ impl ArticleScraper {
         // try to get the author
         for xpath_author in &config.xpath_author {
             if let Ok(author) = ArticleScraper::extract_value(&context, xpath_author) {
-                debug!("Article author: {}", author);
+                debug!("Article author: '{}'", author);
                 article.author = Some(author);
                 break;
             }
@@ -678,7 +678,7 @@ impl ArticleScraper {
         // try to get the date
         for xpath_date in &config.xpath_date {
             if let Ok(date_string) = ArticleScraper::extract_value(&context, xpath_date) {
-                debug!("Article date: {}", date_string);
+                debug!("Article date: '{}'", date_string);
                 if let Ok(date) = NaiveDateTime::from_str(&date_string) {
                     article.date = Some(date);
                     break;
