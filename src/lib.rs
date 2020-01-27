@@ -590,7 +590,7 @@ impl ArticleScraper {
             };
         }
 
-        if !completed_url.ends_with('/') {
+        if !completed_url.ends_with('/') && !incomplete_url.starts_with('/') {
             completed_url.push_str("/");
         }
         completed_url.push_str(incomplete_url);
