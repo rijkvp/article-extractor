@@ -15,7 +15,7 @@ use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
 use regex;
-use reqwest;
+use reqwest::{Client, Response};
 use std::collections;
 use std::error::Error;
 use std::path::PathBuf;
@@ -27,11 +27,15 @@ use url;
 pub struct ArticleScraper {
     pub image_downloader: ImageDownloader,
     config_files: Arc<RwLock<Option<ConfigCollection>>>,
-    client: reqwest::Client,
+    client: Client,
 }
 
 impl ArticleScraper {
-    pub fn new(config_path: PathBuf) -> Result<ArticleScraper, ScraperError> {
+    pub fn new(config_path: PathBuf) -> Self {
+        Self::new_with_client(config_path, Client::new())
+    }
+
+    pub fn new_with_client(config_path: PathBuf, client: Client) -> Self {
         let config_files = Arc::new(RwLock::new(None));
 
         let locked_config_files = config_files.clone();
@@ -49,11 +53,16 @@ impl ArticleScraper {
             }
         });
 
-        Ok(ArticleScraper {
-            image_downloader: ImageDownloader::new((2048, 2048)),
+        ArticleScraper {
+            image_downloader: ImageDownloader::new_with_client((2048, 2048), client.clone()),
             config_files,
-            client: reqwest::Client::new(),
-        })
+            client,
+        }
+    }
+
+    pub fn set_client(&mut self, client: Client) {
+        self.client = client.clone();
+        self.image_downloader.set_client(client);
     }
 
     pub async fn parse(
@@ -263,7 +272,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    async fn download(url: &url::Url, client: &reqwest::Client) -> Result<String, ScraperError> {
+    async fn download(url: &url::Url, client: &Client) -> Result<String, ScraperError> {
         let response = client
             .get(url.as_str())
             .send()
@@ -373,7 +382,7 @@ impl ArticleScraper {
         }
     }
 
-    fn check_content_type(response: &reqwest::Response) -> Result<bool, ScraperError> {
+    fn check_content_type(response: &Response) -> Result<bool, ScraperError> {
         if response.status().is_success() {
             if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
                 if let Ok(content_type) = content_type.to_str() {
@@ -391,7 +400,7 @@ impl ArticleScraper {
         Err(ScraperErrorKind::Http)?
     }
 
-    fn check_redirect(response: &reqwest::Response) -> Option<url::Url> {
+    fn check_redirect(response: &Response) -> Option<url::Url> {
         if response.status() == reqwest::StatusCode::PERMANENT_REDIRECT {
             debug!("Article url redirects to '{}'", response.url().as_str());
             return Some(response.url().clone());
@@ -809,7 +818,7 @@ mod tests {
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
-        let grabber = ArticleScraper::new(config_path).unwrap();
+        let grabber = ArticleScraper::new(config_path);
         let article = grabber.parse(url, true).await.unwrap();
         article.save_html(&out_path).unwrap();
 
@@ -831,7 +840,7 @@ mod tests {
         )
         .unwrap();
 
-        let grabber = ArticleScraper::new(config_path).unwrap();
+        let grabber = ArticleScraper::new(config_path);
         let article = grabber.parse(url, true).await.unwrap();
         article.save_html(&out_path).unwrap();
 

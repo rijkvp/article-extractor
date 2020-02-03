@@ -7,7 +7,7 @@ use libxml::parser::Parser;
 use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error};
-use reqwest;
+use reqwest::{Client, Response};
 use std;
 use std::error::Error;
 use url;
@@ -15,16 +15,24 @@ use url;
 mod error;
 
 pub struct ImageDownloader {
-    client: reqwest::Client,
+    client: Client,
     max_size: (u32, u32),
 }
 
 impl ImageDownloader {
-    pub fn new(max_size: (u32, u32)) -> ImageDownloader {
+    pub fn new(max_size: (u32, u32)) -> Self {
+        Self::new_with_client(max_size, Client::new())
+    }
+
+    pub fn new_with_client(max_size: (u32, u32), client: Client) -> Self {
         ImageDownloader {
-            client: reqwest::Client::new(),
-            max_size: max_size,
+            client,
+            max_size,
         }
+    }
+
+    pub fn set_client(&mut self, client: Client) {
+        self.client = client;
     }
 
     pub async fn download_images_from_string(
@@ -185,7 +193,7 @@ impl ImageDownloader {
     }
 
     fn check_image_content_type(
-        response: &reqwest::Response,
+        response: &Response,
     ) -> Result<reqwest::header::HeaderValue, ImageDownloadError> {
         if response.status().is_success() {
             if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
@@ -301,7 +309,7 @@ impl ImageDownloader {
         Err(ImageDownloadErrorKind::ParentDownload)?
     }
 
-    fn get_content_lenght(response: &reqwest::Response) -> Result<u64, ImageDownloadError> {
+    fn get_content_lenght(response: &Response) -> Result<u64, ImageDownloadError> {
         if response.status().is_success() {
             if let Some(content_length) = response.headers().get(reqwest::header::CONTENT_LENGTH) {
                 if let Ok(content_length) = content_length.to_str() {
