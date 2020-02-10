@@ -27,15 +27,10 @@ use url;
 pub struct ArticleScraper {
     pub image_downloader: ImageDownloader,
     config_files: Arc<RwLock<Option<ConfigCollection>>>,
-    client: Client,
 }
 
 impl ArticleScraper {
     pub fn new(config_path: PathBuf) -> Self {
-        Self::new_with_client(config_path, Client::new())
-    }
-
-    pub fn new_with_client(config_path: PathBuf, client: Client) -> Self {
         let config_files = Arc::new(RwLock::new(None));
 
         let locked_config_files = config_files.clone();
@@ -54,25 +49,19 @@ impl ArticleScraper {
         });
 
         ArticleScraper {
-            image_downloader: ImageDownloader::new_with_client((2048, 2048), client.clone()),
+            image_downloader: ImageDownloader::new((2048, 2048)),
             config_files,
-            client,
         }
-    }
-
-    pub fn set_client(&mut self, client: Client) {
-        self.client = client.clone();
-        self.image_downloader.set_client(client);
     }
 
     pub async fn parse(
         &self,
         url: url::Url,
         download_images: bool,
+        client: &Client,
     ) -> Result<Article, ScraperError> {
         info!("Scraping article: '{}'", url.as_str());
-        let response = self
-            .client
+        let response = client
             .head(url.clone())
             .send()
             .await
@@ -117,7 +106,7 @@ impl ArticleScraper {
 
         ArticleScraper::generate_head(&mut root, &document)?;
 
-        self.parse_pages(&mut article, &url, &mut root, &config)
+        self.parse_pages(&mut article, &url, &mut root, &config, client)
             .await?;
 
         let context = Context::new(&document).map_err(|()| {
@@ -138,7 +127,7 @@ impl ArticleScraper {
         if download_images {
             if let Err(error) = self
                 .image_downloader
-                .download_images_from_context(&context)
+                .download_images_from_context(&context, client)
                 .await
             {
                 error!("Downloading images failed: '{}'", error);
@@ -168,8 +157,9 @@ impl ArticleScraper {
         url: &url::Url,
         root: &mut Node,
         config: &GrabberConfig,
+        client: &Client,
     ) -> Result<(), ScraperError> {
-        let html = ArticleScraper::download(&url, &self.client).await?;
+        let html = ArticleScraper::download(&url, client).await?;
         let mut document = Self::parse_html(html, config)?;
         let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
 
@@ -183,9 +173,10 @@ impl ArticleScraper {
                 if !result.trim().is_empty() {
                     // parse again with single page url
                     debug!("Single page link found '{}'", result);
-                    let single_page_url = url::Url::parse(&result).context(ScraperErrorKind::Url)?;
+                    let single_page_url =
+                        url::Url::parse(&result).context(ScraperErrorKind::Url)?;
                     return self
-                        .parse_single_page(article, &single_page_url, root, config)
+                        .parse_single_page(article, &single_page_url, root, config, client)
                         .await;
                 }
             }
@@ -197,7 +188,7 @@ impl ArticleScraper {
 
         loop {
             if let Some(url) = self.check_for_next_page(&xpath_ctx, config) {
-                let html = ArticleScraper::download(&url, &self.client).await?;
+                let html = ArticleScraper::download(&url, client).await?;
                 document = Self::parse_html(html, config)?;
                 xpath_ctx = Self::get_xpath_ctx(&document)?;
                 ArticleScraper::strip_junk(&xpath_ctx, config, &url);
@@ -261,8 +252,9 @@ impl ArticleScraper {
         url: &url::Url,
         root: &mut Node,
         config: &GrabberConfig,
+        client: &Client,
     ) -> Result<(), ScraperError> {
-        let html = ArticleScraper::download(&url, &self.client).await?;
+        let html = ArticleScraper::download(&url, client).await?;
         let document = Self::parse_html(html, config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         ArticleScraper::extract_metadata(&xpath_ctx, config, article);
@@ -811,6 +803,7 @@ impl ArticleScraper {
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use reqwest::Client;
 
     #[tokio::test(basic_scheduler)]
     async fn golem() {
@@ -819,7 +812,7 @@ mod tests {
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
         let grabber = ArticleScraper::new(config_path);
-        let article = grabber.parse(url, true).await.unwrap();
+        let article = grabber.parse(url, true, &Client::new()).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(
@@ -841,7 +834,7 @@ mod tests {
         .unwrap();
 
         let grabber = ArticleScraper::new(config_path);
-        let article = grabber.parse(url, true).await.unwrap();
+        let article = grabber.parse(url, true, &Client::new()).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(
