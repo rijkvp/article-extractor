@@ -331,7 +331,7 @@ mod tests {
             .await
             .expect("Failed to downalod images");
         let mut file =
-            fs::File::create(r"./resources/tests/planetGnome/fedora31_images_downloaded.html")
+            fs::File::create(r"./test_output/fedora31_images_downloaded.html")
                 .expect("Failed to create output file");
         file.write_all(result.as_bytes())
             .expect("Failed to write result to file");
