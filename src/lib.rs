@@ -17,7 +17,6 @@ use log::{debug, error, info, warn};
 use regex;
 use reqwest::{Client, Response};
 use std::collections;
-use std::error::Error;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
@@ -66,11 +65,7 @@ impl ArticleScraper {
             .send()
             .await
             .map_err(|err| {
-                error!(
-                    "Failed head request to: '{}' - '{}'",
-                    url.as_str(),
-                    err.description()
-                );
+                error!("Failed head request to: '{}' - '{}'", url.as_str(), err);
                 err
             })
             .context(ScraperErrorKind::Http)?;
@@ -273,7 +268,7 @@ impl ArticleScraper {
                 error!(
                     "Downloading HTML failed: GET '{}' - '{}'",
                     url.as_str(),
-                    err.description()
+                    err
                 );
                 err
             })

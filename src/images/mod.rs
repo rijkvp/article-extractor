@@ -8,8 +8,6 @@ use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error};
 use reqwest::{Client, Response};
-use std;
-use std::error::Error;
 use url;
 
 mod error;
@@ -103,7 +101,7 @@ impl ImageDownloader {
             .send()
             .await
             .map_err(|err| {
-                error!("GET {} failed - {}", image_url.as_str(), err.description());
+                error!("GET {} failed - {}", image_url.as_str(), err);
                 err
             })
             .context(ImageDownloadErrorKind::Http)?;
@@ -218,7 +216,7 @@ impl ImageDownloader {
             .context(ImageDownloadErrorKind::ImageScale)?;
 
         image
-            .write_to(&mut original_image, image::ImageOutputFormat::PNG)
+            .write_to(&mut original_image, image::ImageOutputFormat::Png)
             .map_err(|err| {
                 error!("Failed to save resized image to resize");
                 err
@@ -230,11 +228,11 @@ impl ImageDownloader {
             image = image.resize(
                 max_dimensions.0,
                 max_dimensions.1,
-                image::FilterType::Lanczos3,
+                image::imageops::FilterType::Lanczos3,
             );
             let mut resized_buf: Vec<u8> = Vec::new();
             image
-                .write_to(&mut resized_buf, image::ImageOutputFormat::PNG)
+                .write_to(&mut resized_buf, image::ImageOutputFormat::Png)
                 .map_err(|err| {
                     error!("Failed to save resized image to resize");
                     err
@@ -249,9 +247,13 @@ impl ImageDownloader {
     fn get_image_dimensions(image: &image::DynamicImage) -> (u32, u32) {
         match image {
             image::DynamicImage::ImageLuma8(image) => (image.width(), image.height()),
+            image::DynamicImage::ImageLuma16(image) => (image.width(), image.height()),
             image::DynamicImage::ImageLumaA8(image) => (image.width(), image.height()),
+            image::DynamicImage::ImageLumaA16(image) => (image.width(), image.height()),
             image::DynamicImage::ImageRgb8(image) => (image.width(), image.height()),
             image::DynamicImage::ImageRgba8(image) => (image.width(), image.height()),
+            image::DynamicImage::ImageRgb16(image) => (image.width(), image.height()),
+            image::DynamicImage::ImageRgba16(image) => (image.width(), image.height()),
             image::DynamicImage::ImageBgr8(image) => (image.width(), image.height()),
             image::DynamicImage::ImageBgra8(image) => (image.width(), image.height()),
         }

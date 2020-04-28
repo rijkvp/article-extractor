@@ -3,6 +3,9 @@ name = "article_scraper"
 version = "1.0.0"
 authors = ["Jan Lukas Gernert <jangernert@gmail.com>"]
 edition = "2018"
+license = "GPL-3.0-or-later"
+description = "Scrap article contents from the web. Powered by fivefilters full text feed configurations."
+repository = "https://gitlab.com/news-flash/article_scraper"
 
 [dependencies]
 failure = "0.1"
