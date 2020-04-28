@@ -7,7 +7,7 @@ use libxml::parser::Parser;
 use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error};
-use reqwest;
+use reqwest::{Client, Response};
 use std;
 use std::error::Error;
 use url;
@@ -15,21 +15,18 @@ use url;
 mod error;
 
 pub struct ImageDownloader {
-    client: reqwest::Client,
     max_size: (u32, u32),
 }
 
 impl ImageDownloader {
-    pub fn new(max_size: (u32, u32)) -> ImageDownloader {
-        ImageDownloader {
-            client: reqwest::Client::new(),
-            max_size: max_size,
-        }
+    pub fn new(max_size: (u32, u32)) -> Self {
+        ImageDownloader { max_size }
     }
 
     pub async fn download_images_from_string(
         &self,
         html: &str,
+        client: &Client,
     ) -> Result<String, ImageDownloadError> {
         let parser = Parser::default_html();
         let doc = parser.parse_string(html).map_err(|_| {
@@ -42,7 +39,8 @@ impl ImageDownloader {
             ImageDownloadErrorKind::HtmlParse
         })?;
 
-        self.download_images_from_context(&xpath_ctx).await?;
+        self.download_images_from_context(&xpath_ctx, client)
+            .await?;
 
         let options = SaveOptions {
             format: false,
@@ -60,6 +58,7 @@ impl ImageDownloader {
     pub async fn download_images_from_context(
         &self,
         context: &Context,
+        client: &Client,
     ) -> Result<(), ImageDownloadError> {
         let xpath = "//img";
         let node_vec = ArticleScraper::evaluate_xpath(context, xpath, false)
@@ -68,13 +67,13 @@ impl ImageDownloader {
             if let Some(url) = node.get_property("src") {
                 if !url.starts_with("data:") {
                     if let Ok(url) = url::Url::parse(&url) {
-                        let parent_url = match self.check_image_parent(&node, &url).await {
+                        let parent_url = match self.check_image_parent(&node, &url, client).await {
                             Ok(url) => Some(url),
                             Err(_) => None,
                         };
 
                         if let Ok((small_image, big_image)) =
-                            self.save_image(&url, &parent_url).await
+                            self.save_image(&url, &parent_url, client).await
                         {
                             if let Err(_) = node.set_property("src", &small_image) {
                                 return Err(ImageDownloadErrorKind::HtmlParse)?;
@@ -97,9 +96,9 @@ impl ImageDownloader {
         &self,
         image_url: &url::Url,
         parent_url: &Option<url::Url>,
+        client: &Client,
     ) -> Result<(String, Option<String>), ImageDownloadError> {
-        let response = self
-            .client
+        let response = client
             .get(image_url.clone())
             .send()
             .await
@@ -125,8 +124,7 @@ impl ImageDownloader {
         let mut big_image: Option<Vec<u8>> = None;
 
         if let Some(parent_url) = parent_url {
-            let response_big = self
-                .client
+            let response_big = client
                 .get(parent_url.clone())
                 .send()
                 .await
@@ -185,7 +183,7 @@ impl ImageDownloader {
     }
 
     fn check_image_content_type(
-        response: &reqwest::Response,
+        response: &Response,
     ) -> Result<reqwest::header::HeaderValue, ImageDownloadError> {
         if response.status().is_success() {
             if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
@@ -263,22 +261,21 @@ impl ImageDownloader {
         &self,
         node: &Node,
         child_url: &url::Url,
+        client: &Client,
     ) -> Result<url::Url, ImageDownloadError> {
         if let Some(parent) = node.get_parent() {
             if parent.get_name() == "a" {
                 if let Some(url) = parent.get_property("href") {
                     let parent_url =
                         url::Url::parse(&url).context(ImageDownloadErrorKind::ParentDownload)?;
-                    let parent_response = self
-                        .client
+                    let parent_response = client
                         .head(parent_url.clone())
                         .send()
                         .await
                         .context(ImageDownloadErrorKind::ParentDownload)?;
                     let _ = ImageDownloader::check_image_content_type(&parent_response)
                         .context(ImageDownloadErrorKind::ParentDownload)?;
-                    let child_response = self
-                        .client
+                    let child_response = client
                         .get(child_url.clone())
                         .send()
                         .await
@@ -301,7 +298,7 @@ impl ImageDownloader {
         Err(ImageDownloadErrorKind::ParentDownload)?
     }
 
-    fn get_content_lenght(response: &reqwest::Response) -> Result<u64, ImageDownloadError> {
+    fn get_content_lenght(response: &Response) -> Result<u64, ImageDownloadError> {
         if response.status().is_success() {
             if let Some(content_length) = response.headers().get(reqwest::header::CONTENT_LENGTH) {
                 if let Ok(content_length) = content_length.to_str() {
@@ -318,6 +315,7 @@ impl ImageDownloader {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reqwest::Client;
     use std::fs;
     use std::io::Write;
 
@@ -327,7 +325,7 @@ mod tests {
         let hdyleaflet = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
             .expect("Failed to read HTML");
         let result = image_dowloader
-            .download_images_from_string(&hdyleaflet)
+            .download_images_from_string(&hdyleaflet, &Client::new())
             .await
             .expect("Failed to downalod images");
         let mut file =

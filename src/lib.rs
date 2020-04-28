@@ -15,7 +15,7 @@ use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
 use regex;
-use reqwest;
+use reqwest::{Client, Response};
 use std::collections;
 use std::error::Error;
 use std::path::PathBuf;
@@ -27,11 +27,10 @@ use url;
 pub struct ArticleScraper {
     pub image_downloader: ImageDownloader,
     config_files: Arc<RwLock<Option<ConfigCollection>>>,
-    client: reqwest::Client,
 }
 
 impl ArticleScraper {
-    pub fn new(config_path: PathBuf) -> Result<ArticleScraper, ScraperError> {
+    pub fn new(config_path: PathBuf) -> Self {
         let config_files = Arc::new(RwLock::new(None));
 
         let locked_config_files = config_files.clone();
@@ -49,21 +48,20 @@ impl ArticleScraper {
             }
         });
 
-        Ok(ArticleScraper {
+        ArticleScraper {
             image_downloader: ImageDownloader::new((2048, 2048)),
             config_files,
-            client: reqwest::Client::new(),
-        })
+        }
     }
 
     pub async fn parse(
         &self,
         url: url::Url,
         download_images: bool,
+        client: &Client,
     ) -> Result<Article, ScraperError> {
         info!("Scraping article: '{}'", url.as_str());
-        let response = self
-            .client
+        let response = client
             .head(url.clone())
             .send()
             .await
@@ -108,7 +106,7 @@ impl ArticleScraper {
 
         ArticleScraper::generate_head(&mut root, &document)?;
 
-        self.parse_pages(&mut article, &url, &mut root, &config)
+        self.parse_pages(&mut article, &url, &mut root, &config, client)
             .await?;
 
         let context = Context::new(&document).map_err(|()| {
@@ -121,15 +119,15 @@ impl ArticleScraper {
             return Err(error);
         }
 
-        if let Err(error) = ArticleScraper::eliminate_noscrip_tag(&context) {
-            error!("Eliminating <noscript> tag failed - '{}'", error);
-            return Err(error);
-        }
+        // if let Err(error) = ArticleScraper::eliminate_noscript_tag(&context) {
+        //     error!("Eliminating <noscript> tag failed - {}", error);
+        //     return Err(error)
+        // }
 
         if download_images {
             if let Err(error) = self
                 .image_downloader
-                .download_images_from_context(&context)
+                .download_images_from_context(&context, client)
                 .await
             {
                 error!("Downloading images failed: '{}'", error);
@@ -159,8 +157,9 @@ impl ArticleScraper {
         url: &url::Url,
         root: &mut Node,
         config: &GrabberConfig,
+        client: &Client,
     ) -> Result<(), ScraperError> {
-        let html = ArticleScraper::download(&url, &self.client).await?;
+        let html = ArticleScraper::download(&url, client).await?;
         let mut document = Self::parse_html(html, config)?;
         let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
 
@@ -174,9 +173,10 @@ impl ArticleScraper {
                 if !result.trim().is_empty() {
                     // parse again with single page url
                     debug!("Single page link found '{}'", result);
-                    let single_page_url = url::Url::parse(&result).context(ScraperErrorKind::Url)?;
+                    let single_page_url =
+                        url::Url::parse(&result).context(ScraperErrorKind::Url)?;
                     return self
-                        .parse_single_page(article, &single_page_url, root, config)
+                        .parse_single_page(article, &single_page_url, root, config, client)
                         .await;
                 }
             }
@@ -188,7 +188,7 @@ impl ArticleScraper {
 
         loop {
             if let Some(url) = self.check_for_next_page(&xpath_ctx, config) {
-                let html = ArticleScraper::download(&url, &self.client).await?;
+                let html = ArticleScraper::download(&url, client).await?;
                 document = Self::parse_html(html, config)?;
                 xpath_ctx = Self::get_xpath_ctx(&document)?;
                 ArticleScraper::strip_junk(&xpath_ctx, config, &url);
@@ -252,8 +252,9 @@ impl ArticleScraper {
         url: &url::Url,
         root: &mut Node,
         config: &GrabberConfig,
+        client: &Client,
     ) -> Result<(), ScraperError> {
-        let html = ArticleScraper::download(&url, &self.client).await?;
+        let html = ArticleScraper::download(&url, client).await?;
         let document = Self::parse_html(html, config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         ArticleScraper::extract_metadata(&xpath_ctx, config, article);
@@ -263,7 +264,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    async fn download(url: &url::Url, client: &reqwest::Client) -> Result<String, ScraperError> {
+    async fn download(url: &url::Url, client: &Client) -> Result<String, ScraperError> {
         let response = client
             .get(url.as_str())
             .send()
@@ -373,7 +374,7 @@ impl ArticleScraper {
         }
     }
 
-    fn check_content_type(response: &reqwest::Response) -> Result<bool, ScraperError> {
+    fn check_content_type(response: &Response) -> Result<bool, ScraperError> {
         if response.status().is_success() {
             if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
                 if let Ok(content_type) = content_type.to_str() {
@@ -391,7 +392,7 @@ impl ArticleScraper {
         Err(ScraperErrorKind::Http)?
     }
 
-    fn check_redirect(response: &reqwest::Response) -> Option<url::Url> {
+    fn check_redirect(response: &Response) -> Option<url::Url> {
         if response.status() == reqwest::StatusCode::PERMANENT_REDIRECT {
             debug!("Article url redirects to '{}'", response.url().as_str());
             return Some(response.url().clone());
@@ -646,7 +647,7 @@ impl ArticleScraper {
         );
 
         // strip all scripts
-        let _ = ArticleScraper::strip_node(&context, &String::from("//script"));
+        //let _ = ArticleScraper::strip_node(&context, &String::from("//script"));
 
         // strip all comments
         let _ = ArticleScraper::strip_node(&context, &String::from("//comment()"));
@@ -782,28 +783,27 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn eliminate_noscrip_tag(context: &Context) -> Result<(), ScraperError> {
-        let xpath = "//noscript";
-        let node_vec = Self::evaluate_xpath(context, xpath, false)?;
-
-        for mut node in node_vec {
-            if let Some(mut parent) = node.get_parent() {
-                node.unlink();
-                let children = node.get_child_nodes();
-                for mut child in children {
-                    child.unlink();
-                    let _ = parent.add_child(&mut child);
-                }
-            }
-        }
-
-        Ok(())
-    }
+    // fn eliminate_noscript_tag(context: &Context) -> Result<(), ScraperError> {
+    //     let xpath = "//noscript";
+    //     let node_vec = Self::evaluate_xpath(context, xpath, false)?;
+    //     for mut node in node_vec {
+    //         if let Some(mut parent) = node.get_parent() {
+    //             node.unlink();
+    //             let children = node.get_child_nodes();
+    //             for mut child in children {
+    //                 child.unlink();
+    //                 let _ = parent.add_child(&mut child);
+    //             }
+    //         }
+    //     }
+    //     Ok(())
+    // }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use reqwest::Client;
 
     #[tokio::test(basic_scheduler)]
     async fn golem() {
@@ -811,8 +811,8 @@ mod tests {
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
-        let grabber = ArticleScraper::new(config_path).unwrap();
-        let article = grabber.parse(url, true).await.unwrap();
+        let grabber = ArticleScraper::new(config_path);
+        let article = grabber.parse(url, true, &Client::new()).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(
@@ -833,8 +833,8 @@ mod tests {
         )
         .unwrap();
 
-        let grabber = ArticleScraper::new(config_path).unwrap();
-        let article = grabber.parse(url, true).await.unwrap();
+        let grabber = ArticleScraper::new(config_path);
+        let article = grabber.parse(url, true, &Client::new()).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(
