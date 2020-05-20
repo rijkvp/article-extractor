@@ -7,7 +7,7 @@ use self::error::{ScraperError, ScraperErrorKind};
 use crate::article::Article;
 use crate::config::{ConfigCollection, GrabberConfig};
 use crate::images::ImageDownloader;
-use chrono::NaiveDateTime;
+use chrono::DateTime;
 use encoding_rs::Encoding;
 use failure::ResultExt;
 use libxml::parser::Parser;
@@ -677,7 +677,7 @@ impl ArticleScraper {
         for xpath_date in &config.xpath_date {
             if let Ok(date_string) = ArticleScraper::extract_value(&context, xpath_date) {
                 debug!("Article date: '{}'", date_string);
-                if let Ok(date) = NaiveDateTime::from_str(&date_string) {
+                if let Ok(date) = DateTime::from_str(&date_string) {
                     article.date = Some(date);
                     break;
                 } else {

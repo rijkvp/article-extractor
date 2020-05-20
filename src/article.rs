@@ -1,5 +1,5 @@
 use crate::error::{ScraperError, ScraperErrorKind};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use failure::ResultExt;
 use std;
 use std::io::Write;
@@ -10,7 +10,7 @@ pub struct Article {
     pub title: Option<String>,
     pub author: Option<String>,
     pub url: Url,
-    pub date: Option<NaiveDateTime>,
+    pub date: Option<DateTime<Utc>>,
     pub html: Option<String>,
 }
 
