@@ -483,7 +483,7 @@ impl ArticleScraper {
             }
 
             error!("Failed to get parent of iframe");
-            return Err(ScraperErrorKind::Xml.into());
+            // return Err(ScraperErrorKind::Xml.into());
         }
         Ok(())
     }
