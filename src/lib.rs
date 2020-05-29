@@ -14,14 +14,12 @@ use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
-use regex;
 use reqwest::{Client, Response};
 use std::collections;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
 use std::thread;
-use url;
 
 pub struct ArticleScraper {
     pub image_downloader: ImageDownloader,
@@ -79,7 +77,7 @@ impl ArticleScraper {
 
         // check if we are dealing with text/html
         if !ArticleScraper::check_content_type(&response)? {
-            return Err(ScraperErrorKind::ContentType)?;
+            return Err(ScraperErrorKind::ContentType.into());
         }
 
         // check if we have a config for the url
@@ -181,16 +179,12 @@ impl ArticleScraper {
         ArticleScraper::strip_junk(&xpath_ctx, config, &url);
         ArticleScraper::extract_body(&xpath_ctx, root, config)?;
 
-        loop {
-            if let Some(url) = self.check_for_next_page(&xpath_ctx, config) {
-                let html = ArticleScraper::download(&url, client).await?;
-                document = Self::parse_html(html, config)?;
-                xpath_ctx = Self::get_xpath_ctx(&document)?;
-                ArticleScraper::strip_junk(&xpath_ctx, config, &url);
-                ArticleScraper::extract_body(&xpath_ctx, root, config)?;
-            } else {
-                break;
-            }
+        while let Some(url) = self.check_for_next_page(&xpath_ctx, config) {
+            let html = ArticleScraper::download(&url, client).await?;
+            document = Self::parse_html(html, config)?;
+            xpath_ctx = Self::get_xpath_ctx(&document)?;
+            ArticleScraper::strip_junk(&xpath_ctx, config, &url);
+            ArticleScraper::extract_body(&xpath_ctx, root, config)?;
         }
 
         Ok(())
@@ -231,10 +225,10 @@ impl ArticleScraper {
 
         let node_vec = res.get_nodes_as_vec();
 
-        if node_vec.len() == 0 {
+        if node_vec.is_empty() {
             debug!("Evaluation of xpath '{}' yielded no results", xpath);
             if thorw_if_empty {
-                return Err(ScraperErrorKind::Xml)?;
+                return Err(ScraperErrorKind::Xml.into());
             }
         }
 
@@ -297,7 +291,7 @@ impl ArticleScraper {
             return Ok(text);
         }
 
-        Err(ScraperErrorKind::Http)?
+        Err(ScraperErrorKind::Http.into())
     }
 
     fn get_encoding_from_http_header(headers: &reqwest::header::HeaderMap) -> Option<&str> {
@@ -349,7 +343,7 @@ impl ArticleScraper {
             }
             None => {
                 error!("Getting config failed due to bad Url");
-                return Err(ScraperErrorKind::Config)?;
+                return Err(ScraperErrorKind::Config.into());
             }
         };
 
@@ -357,15 +351,15 @@ impl ArticleScraper {
 
         if let Some(config_files) = &*self.config_files.read().unwrap() {
             match config_files.get(&config_name) {
-                Some(config) => return Ok(config.clone()),
+                Some(config) => Ok(config.clone()),
                 None => {
                     error!("No config file of the name '{}' fount", config_name);
-                    Err(ScraperErrorKind::Config)?
+                    Err(ScraperErrorKind::Config.into())
                 }
             }
         } else {
             error!("Config files have not been parsed yet.");
-            return Err(ScraperErrorKind::Config)?;
+            Err(ScraperErrorKind::Config.into())
         }
     }
 
@@ -384,7 +378,7 @@ impl ArticleScraper {
         }
 
         error!("Failed to determine content type");
-        Err(ScraperErrorKind::Http)?
+        Err(ScraperErrorKind::Http.into())
     }
 
     fn check_redirect(response: &Response) -> Option<url::Url> {
@@ -402,7 +396,7 @@ impl ArticleScraper {
             return Ok(val.get_content());
         }
 
-        Err(ScraperErrorKind::Xml)?
+        Err(ScraperErrorKind::Xml.into())
     }
 
     fn extract_value_merge(context: &Context, xpath: &str) -> Result<String, ScraperError> {
@@ -412,11 +406,11 @@ impl ArticleScraper {
             val.push_str(&node.get_content());
         }
 
-        return Ok(val.trim().to_string());
+        Ok(val.trim().to_string())
     }
 
-    fn strip_node(context: &Context, xpath: &String) -> Result<(), ScraperError> {
-        let mut ancestor = xpath.clone();
+    fn strip_node(context: &Context, xpath: &str) -> Result<(), ScraperError> {
+        let mut ancestor = xpath.to_string();
         if ancestor.starts_with("//") {
             ancestor = ancestor.chars().skip(2).collect();
         }
@@ -429,7 +423,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn strip_id_or_class(context: &Context, id_or_class: &String) -> Result<(), ScraperError> {
+    fn strip_id_or_class(context: &Context, id_or_class: &str) -> Result<(), ScraperError> {
         let xpath = &format!(
             "//*[contains(@class, '{}') or contains(@id, '{}')]",
             id_or_class, id_or_class
@@ -457,8 +451,8 @@ impl ArticleScraper {
         let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if let Some(correct_url) = node.get_property(property_url) {
-                if let Err(_) = node.set_property("src", &correct_url) {
-                    return Err(ScraperErrorKind::Xml)?;
+                if node.set_property("src", &correct_url).is_err() {
+                    return Err(ScraperErrorKind::Xml.into());
                 }
             }
         }
@@ -485,11 +479,11 @@ impl ArticleScraper {
                 }
 
                 error!("Failed to add video wrapper <div> as parent of iframe");
-                return Err(ScraperErrorKind::Xml)?;
+                return Err(ScraperErrorKind::Xml.into());
             }
 
             error!("Failed to get parent of iframe");
-            return Err(ScraperErrorKind::Xml)?;
+            return Err(ScraperErrorKind::Xml.into());
         }
         Ok(())
     }
@@ -507,8 +501,8 @@ impl ArticleScraper {
         let xpath = &format!("//{}[@{}]", xpath_tag, attribute);
         let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            if let Err(_) = node.remove_property(attribute) {
-                return Err(ScraperErrorKind::Xml)?;
+            if node.remove_property(attribute).is_err() {
+                return Err(ScraperErrorKind::Xml.into());
             }
         }
         Ok(())
@@ -528,8 +522,8 @@ impl ArticleScraper {
         let xpath = &format!("//{}", xpath_tag);
         let node_vec = Self::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            if let Err(_) = node.set_attribute(attribute, value) {
-                return Err(ScraperErrorKind::Xml)?;
+            if node.set_attribute(attribute, value).is_err() {
+                return Err(ScraperErrorKind::Xml.into());
             }
         }
         Ok(())
@@ -547,7 +541,7 @@ impl ArticleScraper {
             }
         }
 
-        Err(ScraperErrorKind::Xml)?
+        Err(ScraperErrorKind::Xml.into())
     }
 
     fn repair_urls(
@@ -561,8 +555,8 @@ impl ArticleScraper {
             if let Some(val) = node.get_attribute(attribute) {
                 if let Err(url::ParseError::RelativeUrlWithoutBase) = url::Url::parse(&val) {
                     if let Ok(fixed_url) = ArticleScraper::complete_url(article_url, &val) {
-                        if let Err(_) = node.set_attribute(attribute, fixed_url.as_str()) {
-                            return Err(ScraperErrorKind::Xml)?;
+                        if node.set_attribute(attribute, fixed_url.as_str()).is_err() {
+                            return Err(ScraperErrorKind::Scrape.into());
                         }
                     }
                 }
@@ -584,7 +578,7 @@ impl ArticleScraper {
                     completed_url.push_str("//");
                     completed_url.push_str(host);
                 }
-                _ => return Err(ScraperErrorKind::Url)?,
+                _ => return Err(ScraperErrorKind::Scrape.into()),
             };
         }
 
@@ -593,7 +587,7 @@ impl ArticleScraper {
         }
         completed_url.push_str(incomplete_url);
         let url = url::Url::parse(&completed_url).context(ScraperErrorKind::Url)?;
-        return Ok(url);
+        Ok(url)
     }
 
     fn strip_junk(context: &Context, config: &GrabberConfig, url: &url::Url) {
@@ -698,7 +692,7 @@ impl ArticleScraper {
         }
 
         if !found_something {
-            return Err(ScraperErrorKind::Scrape)?;
+            return Err(ScraperErrorKind::Scrape.into());
         }
 
         Ok(())
@@ -713,18 +707,16 @@ impl ArticleScraper {
         {
             let node_vec = Self::evaluate_xpath(context, xpath, false)?;
             for mut node in node_vec {
-                if node.get_property("style").is_some() {
-                    if let Err(_) = node.remove_property("style") {
-                        return Err(ScraperErrorKind::Xml)?;
-                    }
+                if node.get_property("style").is_some() && node.remove_property("style").is_err() {
+                    return Err(ScraperErrorKind::Xml.into());
                 }
 
                 node.unlink();
-                if let Ok(_) = root.add_child(&mut node) {
+                if root.add_child(&mut node).is_ok() {
                     found_something = true;
                 } else {
                     error!("Failed to add body to prepared document");
-                    return Err(ScraperErrorKind::Xml)?;
+                    return Err(ScraperErrorKind::Xml.into());
                 }
             }
         }
@@ -751,14 +743,14 @@ impl ArticleScraper {
         if let Ok(mut head_node) = Node::new("head", None, document) {
             if let Ok(()) = root.add_prev_sibling(&mut head_node) {
                 if let Ok(mut meta) = head_node.new_child(None, "meta") {
-                    if let Ok(_) = meta.set_property("charset", "utf-8") {
+                    if meta.set_property("charset", "utf-8").is_ok() {
                         return Ok(());
                     }
                 }
             }
         }
 
-        Err(ScraperErrorKind::Xml)?
+        Err(ScraperErrorKind::Xml.into())
     }
 
     fn prevent_self_closing_tags(context: &Context) -> Result<(), ScraperError> {

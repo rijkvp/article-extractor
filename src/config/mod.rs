@@ -104,7 +104,7 @@ impl GrabberConfig {
         let mut iterator = buffer.lines().peekable();
         while let Some(Ok(line)) = iterator.next() {
             let line = line.trim();
-            if line.starts_with("#")
+            if line.starts_with('#')
                 || line.starts_with(tidy)
                 || line.starts_with(prune)
                 || line.starts_with(test_url)
@@ -136,8 +136,8 @@ impl GrabberConfig {
                 if let Some(to_replace) = value.get(0) {
                     if let Some(replace_with) = value.get(1) {
                         replace_vec.push(Replace {
-                            to_replace: to_replace.to_string(),
-                            replace_with: replace_with.to_string(),
+                            to_replace: (*to_replace).to_string(),
+                            replace_with: (*replace_with).to_string(),
                         });
                     }
                 }
@@ -162,22 +162,22 @@ impl GrabberConfig {
             }
         }
 
-        if xpath_body.len() == 0 {
+        if xpath_body.is_empty() {
             warn!("No body xpath found for {}", config_path.display());
-            Err(ConfigErrorKind::BadConfig)?
+            return Err(ConfigErrorKind::BadConfig.into());
         }
 
         let config = GrabberConfig {
-            xpath_title: xpath_title,
-            xpath_author: xpath_author,
-            xpath_date: xpath_date,
-            xpath_body: xpath_body,
-            xpath_strip: xpath_strip,
-            strip_id_or_class: strip_id_or_class,
-            strip_image_src: strip_image_src,
+            xpath_title,
+            xpath_author,
+            xpath_date,
+            xpath_body,
+            xpath_strip,
+            strip_id_or_class,
+            strip_image_src,
             replace: replace_vec,
-            single_page_link: single_page_link,
-            next_page_link: next_page_link,
+            single_page_link,
+            next_page_link,
         };
 
         Ok(config)
