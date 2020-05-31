@@ -63,7 +63,7 @@ impl From<ImageDownloadErrorKind> for ImageDownloadError {
 
 impl From<Context<ImageDownloadErrorKind>> for ImageDownloadError {
     fn from(inner: Context<ImageDownloadErrorKind>) -> ImageDownloadError {
-        ImageDownloadError { inner: inner }
+        ImageDownloadError { inner }
     }
 }
 

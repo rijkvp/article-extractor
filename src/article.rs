@@ -1,7 +1,6 @@
 use crate::error::{ScraperError, ScraperErrorKind};
 use chrono::{DateTime, Utc};
 use failure::ResultExt;
-use std;
 use std::io::Write;
 use std::path::PathBuf;
 use url::Url;
@@ -32,6 +31,6 @@ impl Article {
             }
         }
 
-        Err(ScraperErrorKind::Unknown)?
+        Err(ScraperErrorKind::Unknown.into())
     }
 }

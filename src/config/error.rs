@@ -48,7 +48,7 @@ impl From<ConfigErrorKind> for ConfigError {
 
 impl From<Context<ConfigErrorKind>> for ConfigError {
     fn from(inner: Context<ConfigErrorKind>) -> ConfigError {
-        ConfigError { inner: inner }
+        ConfigError { inner }
     }
 }
 

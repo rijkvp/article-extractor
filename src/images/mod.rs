@@ -1,14 +1,11 @@
 use self::error::{ImageDownloadError, ImageDownloadErrorKind};
 use crate::ArticleScraper;
-use base64;
 use failure::ResultExt;
-use image;
 use libxml::parser::Parser;
 use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error};
 use reqwest::{Client, Response};
-use url;
 
 mod error;
 
@@ -73,12 +70,12 @@ impl ImageDownloader {
                         if let Ok((small_image, big_image)) =
                             self.save_image(&url, &parent_url, client).await
                         {
-                            if let Err(_) = node.set_property("src", &small_image) {
-                                return Err(ImageDownloadErrorKind::HtmlParse)?;
+                            if node.set_property("src", &small_image).is_err() {
+                                return Err(ImageDownloadErrorKind::HtmlParse.into());
                             }
                             if let Some(big_image) = big_image {
-                                if let Err(_) = node.set_property("big-src", &big_image) {
-                                    return Err(ImageDownloadErrorKind::HtmlParse)?;
+                                if node.set_property("big-src", &big_image).is_err() {
+                                    return Err(ImageDownloadErrorKind::HtmlParse.into());
                                 }
                             }
                         }
@@ -195,10 +192,10 @@ impl ImageDownloader {
             }
 
             error!("{} is not an image", response.url());
-            return Err(ImageDownloadErrorKind::ContentType)?;
+            return Err(ImageDownloadErrorKind::ContentType.into());
         }
 
-        Err(ImageDownloadErrorKind::Http)?
+        Err(ImageDownloadErrorKind::Http.into())
     }
 
     fn scale_image(
@@ -297,7 +294,7 @@ impl ImageDownloader {
         }
 
         debug!("Image parent element not relevant");
-        Err(ImageDownloadErrorKind::ParentDownload)?
+        Err(ImageDownloadErrorKind::ParentDownload.into())
     }
 
     fn get_content_lenght(response: &Response) -> Result<u64, ImageDownloadError> {
@@ -310,7 +307,7 @@ impl ImageDownloader {
                 }
             }
         }
-        Err(ImageDownloadErrorKind::ContentLenght)?
+        Err(ImageDownloadErrorKind::ContentLenght.into())
     }
 }
 
@@ -330,9 +327,8 @@ mod tests {
             .download_images_from_string(&hdyleaflet, &Client::new())
             .await
             .expect("Failed to downalod images");
-        let mut file =
-            fs::File::create(r"./test_output/fedora31_images_downloaded.html")
-                .expect("Failed to create output file");
+        let mut file = fs::File::create(r"./test_output/fedora31_images_downloaded.html")
+            .expect("Failed to create output file");
         file.write_all(result.as_bytes())
             .expect("Failed to write result to file");
     }

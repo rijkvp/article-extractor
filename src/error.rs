@@ -58,7 +58,7 @@ impl From<ScraperErrorKind> for ScraperError {
 
 impl From<Context<ScraperErrorKind>> for ScraperError {
     fn from(inner: Context<ScraperErrorKind>) -> ScraperError {
-        ScraperError { inner: inner }
+        ScraperError { inner }
     }
 }
 
