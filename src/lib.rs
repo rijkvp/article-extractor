@@ -69,11 +69,12 @@ impl ArticleScraper {
             .context(ScraperErrorKind::Http)?;
 
         // check if url redirects and we need to pick up the new url
-        let mut url = url;
-        if let Some(new_url) = ArticleScraper::check_redirect(&response) {
+        let url = if let Some(new_url) = ArticleScraper::check_redirect(&response, &url) {
             debug!("Url '{}' redirects to '{}'", url.as_str(), new_url.as_str());
-            url = new_url;
-        }
+            new_url
+        } else {
+            url
+        };
 
         // check if we are dealing with text/html
         if !ArticleScraper::check_content_type(&response)? {
@@ -381,9 +382,11 @@ impl ArticleScraper {
         Err(ScraperErrorKind::Http.into())
     }
 
-    fn check_redirect(response: &Response) -> Option<url::Url> {
+    fn check_redirect(response: &Response, original_url: &url::Url) -> Option<url::Url> {
         if response.status() == reqwest::StatusCode::PERMANENT_REDIRECT {
             debug!("Article url redirects to '{}'", response.url().as_str());
+            return Some(response.url().clone());
+        } else if response.url() != original_url {
             return Some(response.url().clone());
         }
 
