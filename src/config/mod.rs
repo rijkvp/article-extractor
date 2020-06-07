@@ -1,7 +1,7 @@
 use self::error::{ConfigError, ConfigErrorKind};
 use failure::ResultExt;
 use log::warn;
-use std::collections;
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::io::BufRead;
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 mod macros;
 mod error;
 
-pub type ConfigCollection = collections::HashMap<String, GrabberConfig>;
+pub type ConfigCollection = HashMap<String, GrabberConfig>;
 
 #[derive(Clone)]
 pub struct Replace {
@@ -43,8 +43,7 @@ impl GrabberConfig {
 
         let paths = fs::read_dir(directory).context(ConfigErrorKind::IO)?;
 
-        let mut collection: collections::HashMap<String, GrabberConfig> =
-            collections::HashMap::new();
+        let mut collection: HashMap<String, GrabberConfig> = HashMap::new();
 
         for path in paths {
             if let Ok(path) = path {

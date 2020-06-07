@@ -15,11 +15,12 @@ use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
+use parking_lot::RwLock;
 use reqwest::{Client, Response};
-use std::collections;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::thread;
 
 pub struct ArticleScraper {
@@ -34,15 +35,9 @@ impl ArticleScraper {
         let locked_config_files = config_files.clone();
         thread::spawn(move || {
             if let Ok(config_files) = GrabberConfig::parse_directory(&config_path) {
-                locked_config_files
-                    .write()
-                    .expect("Failed to lock config file cache")
-                    .replace(config_files);
+                locked_config_files.write().replace(config_files);
             } else {
-                locked_config_files
-                    .write()
-                    .expect("Failed to lock config file cache")
-                    .replace(collections::HashMap::new());
+                locked_config_files.write().replace(HashMap::new());
             }
         });
 
@@ -60,8 +55,11 @@ impl ArticleScraper {
     ) -> Result<Article, ScraperError> {
         info!("Scraping article: '{}'", url.as_str());
 
-        if let Some(article) = youtube::Youtube::handle(&url) {
-            return Ok(article);
+        // custom youtube handling, but prefer config if exists
+        if !self.grabber_config_exists("youtube.com")? {
+            if let Some(article) = youtube::Youtube::handle(&url) {
+                return Ok(article);
+            }
         }
 
         let response = client
@@ -118,11 +116,6 @@ impl ArticleScraper {
             error!("Preventing self closing tags failed - '{}'", error);
             return Err(error);
         }
-
-        // if let Err(error) = ArticleScraper::eliminate_noscript_tag(&context) {
-        //     error!("Eliminating <noscript> tag failed - {}", error);
-        //     return Err(error)
-        // }
 
         if download_images {
             if let Err(error) = self
@@ -304,7 +297,8 @@ impl ArticleScraper {
     fn get_encoding_from_http_header(headers: &reqwest::header::HeaderMap) -> Option<&str> {
         if let Some(content_type) = headers.get(reqwest::header::CONTENT_TYPE) {
             if let Ok(content_type) = content_type.to_str() {
-                let regex = regex::Regex::new(r#"charset=([^"']+)"#).unwrap();
+                let regex =
+                    regex::Regex::new(r#"charset=([^"']+)"#).expect("Failed to parse regex");
                 if let Some(captures) = regex.captures(content_type) {
                     if let Some(regex_match) = captures.get(1) {
                         return Some(regex_match.as_str());
@@ -316,7 +310,8 @@ impl ArticleScraper {
     }
 
     fn get_encoding_from_html(html: &str) -> Option<&str> {
-        let regex = regex::Regex::new(r#"<meta.*?charset=([^"']+)"#).unwrap();
+        let regex =
+            regex::Regex::new(r#"<meta.*?charset=([^"']+)"#).expect("Failed to parse regex");
         if let Some(captures) = regex.captures(html) {
             if let Some(regex_match) = captures.get(1) {
                 return Some(regex_match.as_str());
@@ -339,24 +334,26 @@ impl ArticleScraper {
         None
     }
 
-    fn get_grabber_config(&self, url: &url::Url) -> Result<GrabberConfig, ScraperError> {
-        let config_name = match url.host_str() {
+    fn get_host_name(url: &url::Url) -> Result<String, ScraperError> {
+        match url.host_str() {
             Some(name) => {
                 let mut name = name;
-                if name.starts_with("www.") {
+                if name.starts_with("www.") && name.len() > 4 {
                     name = &name[4..]
                 }
-                name
+                Ok(name.into())
             }
             None => {
                 error!("Getting config failed due to bad Url");
                 return Err(ScraperErrorKind::Config.into());
             }
-        };
+        }
+    }
 
-        let config_name = config_name.to_owned() + ".txt";
+    fn get_grabber_config(&self, url: &url::Url) -> Result<GrabberConfig, ScraperError> {
+        let config_name = Self::get_host_name(url)? + ".txt";
 
-        if let Some(config_files) = &*self.config_files.read().unwrap() {
+        if let Some(config_files) = self.config_files.read().as_ref() {
             match config_files.get(&config_name) {
                 Some(config) => Ok(config.clone()),
                 None => {
@@ -364,6 +361,15 @@ impl ArticleScraper {
                     Err(ScraperErrorKind::Config.into())
                 }
             }
+        } else {
+            error!("Config files have not been parsed yet.");
+            Err(ScraperErrorKind::Config.into())
+        }
+    }
+
+    fn grabber_config_exists(&self, host: &str) -> Result<bool, ScraperError> {
+        if let Some(config_files) = self.config_files.read().as_ref() {
+            Ok(config_files.contains_key(&(host.to_owned() + ".txt")))
         } else {
             error!("Config files have not been parsed yet.");
             Err(ScraperErrorKind::Config.into())
@@ -778,22 +784,6 @@ impl ArticleScraper {
 
         Ok(())
     }
-
-    // fn eliminate_noscript_tag(context: &Context) -> Result<(), ScraperError> {
-    //     let xpath = "//noscript";
-    //     let node_vec = Self::evaluate_xpath(context, xpath, false)?;
-    //     for mut node in node_vec {
-    //         if let Some(mut parent) = node.get_parent() {
-    //             node.unlink();
-    //             let children = node.get_child_nodes();
-    //             for mut child in children {
-    //                 child.unlink();
-    //                 let _ = parent.add_child(&mut child);
-    //             }
-    //         }
-    //     }
-    //     Ok(())
-    // }
 }
 
 #[cfg(test)]
