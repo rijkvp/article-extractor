@@ -16,7 +16,7 @@ impl Youtube {
                         author: None,
                         url: url.clone(),
                         html: Some(html),
-                    })
+                    });
                 }
             }
         }

@@ -1,8 +1,8 @@
 mod article;
 mod config;
 mod error;
-mod youtube;
 pub mod images;
+mod youtube;
 
 use self::error::{ScraperError, ScraperErrorKind};
 use crate::article::Article;
@@ -844,10 +844,7 @@ mod tests {
     #[tokio::test(basic_scheduler)]
     async fn youtube() {
         let config_path = PathBuf::from(r"./resources/tests/");
-        let url = url::Url::parse(
-            "https://www.youtube.com/watch?v=lHRkYLcmFY8",
-        )
-        .unwrap();
+        let url = url::Url::parse("https://www.youtube.com/watch?v=lHRkYLcmFY8").unwrap();
 
         let grabber = ArticleScraper::new(config_path);
         let article = grabber.parse(url, false, &Client::new()).await.unwrap();
