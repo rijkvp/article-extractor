@@ -345,7 +345,7 @@ impl ArticleScraper {
             }
             None => {
                 error!("Getting config failed due to bad Url");
-                return Err(ScraperErrorKind::Config.into());
+                Err(ScraperErrorKind::Config.into())
             }
         }
     }
