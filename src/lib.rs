@@ -1,6 +1,7 @@
 mod article;
 mod config;
 mod error;
+mod youtube;
 pub mod images;
 
 use self::error::{ScraperError, ScraperErrorKind};
@@ -58,6 +59,11 @@ impl ArticleScraper {
         client: &Client,
     ) -> Result<Article, ScraperError> {
         info!("Scraping article: '{}'", url.as_str());
+
+        if let Some(article) = youtube::Youtube::handle(&url) {
+            return Ok(article);
+        }
+
         let response = client
             .head(url.clone())
             .send()
@@ -832,6 +838,23 @@ mod tests {
             Some(String::from(
                 "Amazon EC2 Cloud Benchmarks Against Bare Metal Systems"
             ))
+        );
+    }
+
+    #[tokio::test(basic_scheduler)]
+    async fn youtube() {
+        let config_path = PathBuf::from(r"./resources/tests/");
+        let url = url::Url::parse(
+            "https://www.youtube.com/watch?v=lHRkYLcmFY8",
+        )
+        .unwrap();
+
+        let grabber = ArticleScraper::new(config_path);
+        let article = grabber.parse(url, false, &Client::new()).await.unwrap();
+
+        assert_eq!(
+            article.html,
+            Some("<iframe width=\"650\" height=\"350\" frameborder=\"0\" src=\"https://www.youtube-nocookie.com/embed/lHRkYLcmFY8\" allowfullscreen></iframe>".into())
         );
     }
 }
