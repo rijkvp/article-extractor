@@ -791,7 +791,7 @@ mod tests {
     use crate::*;
     use reqwest::Client;
 
-    #[tokio::test(basic_scheduler)]
+    #[tokio::test(flavor = "current_thread")]
     async fn golem() {
         let config_path = PathBuf::from(r"./resources/tests/golem");
         let out_path = PathBuf::from(r"./test_output");
@@ -810,7 +810,7 @@ mod tests {
         assert_eq!(article.author, Some(String::from("Hauke Gierow")));
     }
 
-    #[tokio::test(basic_scheduler)]
+    #[tokio::test(flavor = "current_thread")]
     async fn phoronix() {
         let config_path = PathBuf::from(r"./resources/tests/phoronix");
         let out_path = PathBuf::from(r"./test_output");
@@ -831,7 +831,7 @@ mod tests {
         );
     }
 
-    #[tokio::test(basic_scheduler)]
+    #[tokio::test(flavor = "current_thread")]
     async fn youtube() {
         let config_path = PathBuf::from(r"./resources/tests/");
         let url = url::Url::parse("https://www.youtube.com/watch?v=lHRkYLcmFY8").unwrap();

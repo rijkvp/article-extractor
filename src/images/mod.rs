@@ -318,7 +318,7 @@ mod tests {
     use std::fs;
     use std::io::Write;
 
-    #[tokio::test(basic_scheduler)]
+    #[tokio::test(flavor = "current_thread")]
     async fn close_tags() {
         let image_dowloader = ImageDownloader::new((2048, 2048));
         let hdyleaflet = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
