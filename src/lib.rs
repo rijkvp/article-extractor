@@ -508,10 +508,7 @@ impl ArticleScraper {
         tag: Option<&str>,
         attribute: &str,
     ) -> Result<(), ScraperError> {
-        let xpath_tag = match tag {
-            Some(tag) => tag,
-            None => "*",
-        };
+        let xpath_tag = tag.unwrap_or("*");
 
         let xpath = &format!("//{}[@{}]", xpath_tag, attribute);
         let node_vec = Self::evaluate_xpath(context, xpath, false)?;
@@ -529,10 +526,7 @@ impl ArticleScraper {
         attribute: &str,
         value: &str,
     ) -> Result<(), ScraperError> {
-        let xpath_tag = match tag {
-            Some(tag) => tag,
-            None => "*",
-        };
+        let xpath_tag = tag.unwrap_or("*");
 
         let xpath = &format!("//{}", xpath_tag);
         let node_vec = Self::evaluate_xpath(context, xpath, false)?;
@@ -598,7 +592,7 @@ impl ArticleScraper {
         }
 
         if !completed_url.ends_with('/') && !incomplete_url.starts_with('/') {
-            completed_url.push_str("/");
+            completed_url.push('/');
         }
         completed_url.push_str(incomplete_url);
         let url = url::Url::parse(&completed_url).context(ScraperErrorKind::Url)?;

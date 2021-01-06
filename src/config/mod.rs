@@ -191,7 +191,7 @@ impl GrabberConfig {
         }
     }
 
-    fn split_values<'a>(values: &'a str) -> Vec<&'a str> {
+    fn split_values(values: &str) -> Vec<&str> {
         values.split('|').map(|s| s.trim()).collect()
     }
 }
