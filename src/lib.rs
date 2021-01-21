@@ -49,7 +49,7 @@ impl ArticleScraper {
 
     pub async fn parse(
         &self,
-        url: url::Url,
+        url: &url::Url,
         download_images: bool,
         client: &Client,
     ) -> Result<Article, ScraperError> {
@@ -77,7 +77,7 @@ impl ArticleScraper {
             debug!("Url '{}' redirects to '{}'", url.as_str(), new_url.as_str());
             new_url
         } else {
-            url
+            url.clone()
         };
 
         // check if we are dealing with text/html
@@ -213,7 +213,7 @@ impl ArticleScraper {
         })?)
     }
 
-    pub fn evaluate_xpath(
+    fn evaluate_xpath(
         xpath_ctx: &Context,
         xpath: &str,
         thorw_if_empty: bool,
@@ -792,7 +792,7 @@ mod tests {
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
         let grabber = ArticleScraper::new(config_path);
-        let article = grabber.parse(url, true, &Client::new()).await.unwrap();
+        let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(
@@ -814,7 +814,7 @@ mod tests {
         .unwrap();
 
         let grabber = ArticleScraper::new(config_path);
-        let article = grabber.parse(url, true, &Client::new()).await.unwrap();
+        let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
         article.save_html(&out_path).unwrap();
 
         assert_eq!(
@@ -831,7 +831,7 @@ mod tests {
         let url = url::Url::parse("https://www.youtube.com/watch?v=lHRkYLcmFY8").unwrap();
 
         let grabber = ArticleScraper::new(config_path);
-        let article = grabber.parse(url, false, &Client::new()).await.unwrap();
+        let article = grabber.parse(&url, false, &Client::new()).await.unwrap();
 
         assert_eq!(
             article.html,
