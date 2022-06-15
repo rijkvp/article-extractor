@@ -357,7 +357,7 @@ impl ArticleScraper {
             match config_files.get(&config_name) {
                 Some(config) => Ok(config.clone()),
                 None => {
-                    error!("No config file of the name '{}' fount", config_name);
+                    error!("No config file of the name '{}' found", config_name);
                     Err(ScraperErrorKind::Config.into())
                 }
             }
