@@ -1,4 +1,3 @@
-use std::io::Cursor;
 use self::error::{ImageDownloadError, ImageDownloadErrorKind};
 use crate::ArticleScraper;
 use failure::ResultExt;
@@ -7,6 +6,7 @@ use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error};
 use reqwest::{Client, Response};
+use std::io::Cursor;
 
 mod error;
 
@@ -214,7 +214,10 @@ impl ImageDownloader {
             .context(ImageDownloadErrorKind::ImageScale)?;
 
         image
-            .write_to(&mut Cursor::new(&mut original_image), image::ImageOutputFormat::Png)
+            .write_to(
+                &mut Cursor::new(&mut original_image),
+                image::ImageOutputFormat::Png,
+            )
             .map_err(|err| {
                 error!("Failed to save resized image to resize");
                 err
@@ -230,7 +233,10 @@ impl ImageDownloader {
             );
             let mut resized_buf: Vec<u8> = Vec::new();
             image
-                .write_to(&mut Cursor::new(&mut resized_buf), image::ImageOutputFormat::Png)
+                .write_to(
+                    &mut Cursor::new(&mut resized_buf),
+                    image::ImageOutputFormat::Png,
+                )
                 .map_err(|err| {
                     error!("Failed to save resized image to resize");
                     err

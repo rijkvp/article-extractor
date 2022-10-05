@@ -2,12 +2,15 @@ mod article;
 mod config;
 mod error;
 pub mod images;
-mod youtube;
 mod util;
+mod youtube;
+
+#[cfg(test)]
+mod tests;
 
 use self::error::{ScraperError, ScraperErrorKind};
 use crate::article::Article;
-use crate::config::{ConfigCollection, GrabberConfig};
+use crate::config::{ConfigCollection, ConfigEntry};
 use crate::images::ImageDownloader;
 use chrono::DateTime;
 use encoding_rs::Encoding;
@@ -16,27 +19,18 @@ use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
-use parking_lot::RwLock;
 use reqwest::{Client, Response};
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 use std::str::FromStr;
-use std::sync::Arc;
 
 pub struct ArticleScraper {
     pub image_downloader: ImageDownloader,
-    config_files: Arc<RwLock<Option<ConfigCollection>>>,
+    config_files: ConfigCollection,
 }
 
 impl ArticleScraper {
-    pub async fn new(config_path: PathBuf) -> Self {
-        let config_files = Arc::new(RwLock::new(None));
-
-        if let Ok(loaded_config_files) = GrabberConfig::parse_directory(&config_path).await {
-            config_files.write().replace(loaded_config_files);
-        } else {
-            config_files.write().replace(HashMap::new());
-        }
+    pub async fn new(config_path: Option<&Path>) -> Self {
+        let config_files = ConfigCollection::parse(config_path).await;
         ArticleScraper {
             image_downloader: ImageDownloader::new((2048, 2048)),
             config_files,
@@ -52,7 +46,7 @@ impl ArticleScraper {
         info!("Scraping article: '{}'", url.as_str());
 
         // custom youtube handling, but prefer config if exists
-        if !self.grabber_config_exists("youtube.com")? {
+        if !self.config_files.contains_config("youtube.com.txt") {
             if let Some(article) = youtube::Youtube::handle(&url) {
                 return Ok(article);
             }
@@ -145,7 +139,7 @@ impl ArticleScraper {
         article: &mut Article,
         url: &url::Url,
         root: &mut Node,
-        config: &GrabberConfig,
+        config: &ConfigEntry,
         client: &Client,
     ) -> Result<(), ScraperError> {
         let html = ArticleScraper::download(&url, client).await?;
@@ -186,7 +180,7 @@ impl ArticleScraper {
         Ok(())
     }
 
-    fn parse_html(html: String, config: &GrabberConfig) -> Result<Document, ScraperError> {
+    fn parse_html(html: String, config: &ConfigEntry) -> Result<Document, ScraperError> {
         // replace matches in raw html
 
         let mut html = html;
@@ -236,7 +230,7 @@ impl ArticleScraper {
         article: &mut Article,
         url: &url::Url,
         root: &mut Node,
-        config: &GrabberConfig,
+        config: &ConfigEntry,
         client: &Client,
     ) -> Result<(), ScraperError> {
         let html = ArticleScraper::download(&url, client).await?;
@@ -346,29 +340,15 @@ impl ArticleScraper {
         }
     }
 
-    fn get_grabber_config(&self, url: &url::Url) -> Result<GrabberConfig, ScraperError> {
+    fn get_grabber_config(&self, url: &url::Url) -> Result<ConfigEntry, ScraperError> {
         let config_name = Self::get_host_name(url)? + ".txt";
 
-        if let Some(config_files) = self.config_files.read().as_ref() {
-            match config_files.get(&config_name) {
-                Some(config) => Ok(config.clone()),
-                None => {
-                    error!("No config file of the name '{}' found", config_name);
-                    Err(ScraperErrorKind::Config.into())
-                }
+        match self.config_files.get(&config_name) {
+            Some(config) => Ok(config.clone()),
+            None => {
+                error!("No config file of the name '{}' found", config_name);
+                Err(ScraperErrorKind::Config.into())
             }
-        } else {
-            error!("Config files have not been parsed yet.");
-            Err(ScraperErrorKind::Config.into())
-        }
-    }
-
-    fn grabber_config_exists(&self, host: &str) -> Result<bool, ScraperError> {
-        if let Some(config_files) = self.config_files.read().as_ref() {
-            Ok(config_files.contains_key(&(host.to_owned() + ".txt")))
-        } else {
-            error!("Config files have not been parsed yet.");
-            Err(ScraperErrorKind::Config.into())
         }
     }
 
@@ -595,7 +575,7 @@ impl ArticleScraper {
         Ok(url)
     }
 
-    fn strip_junk(context: &Context, config: &GrabberConfig, url: &url::Url) {
+    fn strip_junk(context: &Context, config: &ConfigEntry, url: &url::Url) {
         // strip specified xpath
         for xpath_strip in &config.xpath_strip {
             let _ = ArticleScraper::strip_node(&context, xpath_strip);
@@ -653,7 +633,7 @@ impl ArticleScraper {
         let _ = ArticleScraper::strip_node(&context, &String::from("//*[@type='text/css']"));
     }
 
-    fn extract_metadata(context: &Context, config: &GrabberConfig, article: &mut Article) {
+    fn extract_metadata(context: &Context, config: &ConfigEntry, article: &mut Article) {
         // try to get title
         for xpath_title in &config.xpath_title {
             if let Ok(title) = ArticleScraper::extract_value_merge(&context, xpath_title) {
@@ -689,7 +669,7 @@ impl ArticleScraper {
     fn extract_body(
         context: &Context,
         root: &mut Node,
-        config: &GrabberConfig,
+        config: &ConfigEntry,
     ) -> Result<(), ScraperError> {
         let mut found_something = false;
         for xpath_body in &config.xpath_body {
@@ -729,7 +709,7 @@ impl ArticleScraper {
         Ok(found_something)
     }
 
-    fn check_for_next_page(&self, context: &Context, config: &GrabberConfig) -> Option<url::Url> {
+    fn check_for_next_page(&self, context: &Context, config: &ConfigEntry) -> Option<url::Url> {
         if let Some(next_page_xpath) = config.next_page_link.clone() {
             if let Ok(next_page_string) =
                 ArticleScraper::get_attribute(&context, &next_page_xpath, "href")
@@ -773,65 +753,5 @@ impl ArticleScraper {
         }
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::*;
-    use reqwest::Client;
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn golem() {
-        let config_path = PathBuf::from(r"./resources/tests/golem");
-        let out_path = PathBuf::from(r"./test_output");
-        let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
-
-        let grabber = ArticleScraper::new(config_path).await;
-        let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
-        article.save_html(&out_path).unwrap();
-
-        assert_eq!(
-            article.title,
-            Some(String::from(
-                "HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben"
-            ))
-        );
-        assert_eq!(article.author, Some(String::from("Hauke Gierow")));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn phoronix() {
-        let config_path = PathBuf::from(r"./resources/tests/phoronix");
-        let out_path = PathBuf::from(r"./test_output");
-        let url = url::Url::parse(
-            "http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1",
-        )
-        .unwrap();
-
-        let grabber = ArticleScraper::new(config_path).await;
-        let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
-        article.save_html(&out_path).unwrap();
-
-        assert_eq!(
-            article.title,
-            Some(String::from(
-                "Amazon EC2 Cloud Benchmarks Against Bare Metal Systems"
-            ))
-        );
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn youtube() {
-        let config_path = PathBuf::from(r"./resources/tests/");
-        let url = url::Url::parse("https://www.youtube.com/watch?v=lHRkYLcmFY8").unwrap();
-
-        let grabber = ArticleScraper::new(config_path).await;
-        let article = grabber.parse(&url, false, &Client::new()).await.unwrap();
-
-        assert_eq!(
-            article.html,
-            Some("<iframe width=\"650\" height=\"350\" frameborder=\"0\" src=\"https://www.youtube-nocookie.com/embed/lHRkYLcmFY8\" allowfullscreen></iframe>".into())
-        );
     }
 }
