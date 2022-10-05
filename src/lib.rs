@@ -3,6 +3,7 @@ mod config;
 mod error;
 pub mod images;
 mod youtube;
+mod util;
 
 use self::error::{ScraperError, ScraperErrorKind};
 use crate::article::Article;
@@ -21,7 +22,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::thread;
 
 pub struct ArticleScraper {
     pub image_downloader: ImageDownloader,
@@ -29,18 +29,14 @@ pub struct ArticleScraper {
 }
 
 impl ArticleScraper {
-    pub fn new(config_path: PathBuf) -> Self {
+    pub async fn new(config_path: PathBuf) -> Self {
         let config_files = Arc::new(RwLock::new(None));
 
-        let locked_config_files = config_files.clone();
-        thread::spawn(move || {
-            if let Ok(config_files) = GrabberConfig::parse_directory(&config_path) {
-                locked_config_files.write().replace(config_files);
-            } else {
-                locked_config_files.write().replace(HashMap::new());
-            }
-        });
-
+        if let Ok(loaded_config_files) = GrabberConfig::parse_directory(&config_path).await {
+            config_files.write().replace(loaded_config_files);
+        } else {
+            config_files.write().replace(HashMap::new());
+        }
         ArticleScraper {
             image_downloader: ImageDownloader::new((2048, 2048)),
             config_files,
@@ -791,7 +787,7 @@ mod tests {
         let out_path = PathBuf::from(r"./test_output");
         let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
-        let grabber = ArticleScraper::new(config_path);
+        let grabber = ArticleScraper::new(config_path).await;
         let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
         article.save_html(&out_path).unwrap();
 
@@ -813,7 +809,7 @@ mod tests {
         )
         .unwrap();
 
-        let grabber = ArticleScraper::new(config_path);
+        let grabber = ArticleScraper::new(config_path).await;
         let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
         article.save_html(&out_path).unwrap();
 
@@ -830,7 +826,7 @@ mod tests {
         let config_path = PathBuf::from(r"./resources/tests/");
         let url = url::Url::parse("https://www.youtube.com/watch?v=lHRkYLcmFY8").unwrap();
 
-        let grabber = ArticleScraper::new(config_path);
+        let grabber = ArticleScraper::new(config_path).await;
         let article = grabber.parse(&url, false, &Client::new()).await.unwrap();
 
         assert_eq!(

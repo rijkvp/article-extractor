@@ -1,10 +1,12 @@
+use crate::util::Util;
+
 use self::error::{ConfigError, ConfigErrorKind};
 use failure::ResultExt;
 use log::warn;
 use std::collections::HashMap;
-use std::fs;
-use std::io;
-use std::io::BufRead;
+use tokio::fs;
+use tokio::io;
+use tokio::io::AsyncBufReadExt;
 use std::path::PathBuf;
 
 #[macro_use]
@@ -34,29 +36,22 @@ pub struct GrabberConfig {
 }
 
 impl GrabberConfig {
-    pub fn parse_directory(directory: &PathBuf) -> Result<ConfigCollection, ConfigError> {
+    pub async fn parse_directory(directory: &PathBuf) -> Result<ConfigCollection, ConfigError> {
         // create data dir if it doesn't already exist
         std::fs::DirBuilder::new()
             .recursive(true)
             .create(&directory)
             .context(ConfigErrorKind::IO)?;
 
-        let paths = fs::read_dir(directory).context(ConfigErrorKind::IO)?;
+        let mut dir = tokio::fs::read_dir(directory).await.context(ConfigErrorKind::IO)?;
+        let mut collection = HashMap::new();
 
-        let mut collection: HashMap<String, GrabberConfig> = HashMap::new();
-
-        for path in paths {
-            if let Ok(path) = path {
-                if let Some(extension) = path.path().extension() {
-                    if let Some(extension) = extension.to_str() {
-                        if extension == "txt" {
-                            if let Ok(config) = GrabberConfig::new(path.path()) {
-                                collection.insert(
-                                    path.file_name().to_string_lossy().into_owned(),
-                                    config,
-                                );
-                            }
-                        }
+        while let Ok(entry) = dir.next_entry().await {
+            if let Some(entry) = entry {
+                if Util::check_extension(&entry, "txt") {
+                    if let Ok(config) = GrabberConfig::new(entry.path()).await {
+                        let file_name = entry.file_name().to_string_lossy().into_owned();
+                        collection.insert(file_name, config);
                     }
                 }
             }
@@ -65,9 +60,11 @@ impl GrabberConfig {
         Ok(collection)
     }
 
-    fn new(config_path: PathBuf) -> Result<GrabberConfig, ConfigError> {
-        let file = fs::File::open(&config_path).context(ConfigErrorKind::IO)?;
-        let buffer = io::BufReader::new(&file);
+    
+
+    async fn new(config_path: PathBuf) -> Result<GrabberConfig, ConfigError> {
+        let mut file = fs::File::open(&config_path).await.context(ConfigErrorKind::IO)?;
+        let buffer = io::BufReader::new(&mut file);
 
         let mut xpath_title: Vec<String> = Vec::new();
         let mut xpath_author: Vec<String> = Vec::new();
@@ -100,8 +97,9 @@ impl GrabberConfig {
         let test_url = "test_url:";
         let autodetect = "autodetect_on_failure:";
 
-        let mut iterator = buffer.lines().peekable();
-        while let Some(Ok(line)) = iterator.next() {
+        let mut lines = buffer.lines();
+
+        while let Ok(Some(line)) = lines.next_line().await {
             let line = line.trim();
             if line.starts_with('#')
                 || line.starts_with(tidy)
@@ -126,7 +124,7 @@ impl GrabberConfig {
             extract_option_single!(line, next_page, next_page_link);
 
             if line.starts_with(replace_single) {
-                let value = GrabberConfig::extract_value(replace_single, line);
+                let value = Util::extract_value(replace_single, line);
                 let value: Vec<&str> = value.split("): ").map(|s| s.trim()).collect();
                 if value.len() != 2 {
                     continue;
@@ -145,18 +143,17 @@ impl GrabberConfig {
             }
 
             if line.starts_with(find) {
-                let value1 = GrabberConfig::extract_value(find, line);
+                let to_replace = Util::extract_value(find, line).into();
 
-                if let Some(&Ok(ref next_line)) = iterator.peek() {
-                    let value2 = GrabberConfig::extract_value(replace, &next_line);
+                if let Ok(Some(ref next_line)) = lines.next_line().await {
+                    let replace_with = Util::extract_value(replace, &next_line).into();
 
-                    let r = Replace {
-                        to_replace: value1.to_string(),
-                        replace_with: value2.to_string(),
-                    };
-
-                    replace_vec.push(r);
+                    replace_vec.push(Replace {
+                        to_replace,
+                        replace_with,
+                    });
                 }
+                
                 continue;
             }
         }
@@ -180,18 +177,5 @@ impl GrabberConfig {
         };
 
         Ok(config)
-    }
-
-    fn extract_value<'a>(identifier: &str, line: &'a str) -> &'a str {
-        let value = &line[identifier.len()..];
-        let value = value.trim();
-        match value.find('#') {
-            Some(pos) => &value[..pos],
-            None => value,
-        }
-    }
-
-    fn split_values(values: &str) -> Vec<&str> {
-        values.split('|').map(|s| s.trim()).collect()
     }
 }
