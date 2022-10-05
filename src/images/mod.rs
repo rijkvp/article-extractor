@@ -1,3 +1,4 @@
+use std::io::Cursor;
 use self::error::{ImageDownloadError, ImageDownloadErrorKind};
 use crate::ArticleScraper;
 use failure::ResultExt;
@@ -213,14 +214,14 @@ impl ImageDownloader {
             .context(ImageDownloadErrorKind::ImageScale)?;
 
         image
-            .write_to(&mut original_image, image::ImageOutputFormat::Png)
+            .write_to(&mut Cursor::new(&mut original_image), image::ImageOutputFormat::Png)
             .map_err(|err| {
                 error!("Failed to save resized image to resize");
                 err
             })
             .context(ImageDownloadErrorKind::ImageScale)?;
 
-        let dimensions = Self::get_image_dimensions(&image);
+        let dimensions = (image.width(), image.height());
         if dimensions.0 > max_dimensions.0 || dimensions.1 > max_dimensions.1 {
             image = image.resize(
                 max_dimensions.0,
@@ -229,7 +230,7 @@ impl ImageDownloader {
             );
             let mut resized_buf: Vec<u8> = Vec::new();
             image
-                .write_to(&mut resized_buf, image::ImageOutputFormat::Png)
+                .write_to(&mut Cursor::new(&mut resized_buf), image::ImageOutputFormat::Png)
                 .map_err(|err| {
                     error!("Failed to save resized image to resize");
                     err
@@ -239,21 +240,6 @@ impl ImageDownloader {
         }
 
         Ok((original_image, resized_image))
-    }
-
-    fn get_image_dimensions(image: &image::DynamicImage) -> (u32, u32) {
-        match image {
-            image::DynamicImage::ImageLuma8(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageLuma16(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageLumaA8(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageLumaA16(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageRgb8(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageRgba8(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageRgb16(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageRgba16(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageBgr8(image) => (image.width(), image.height()),
-            image::DynamicImage::ImageBgra8(image) => (image.width(), image.height()),
-        }
     }
 
     async fn check_image_parent(

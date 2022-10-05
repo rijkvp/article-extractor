@@ -11,12 +11,12 @@ repository = "https://gitlab.com/news-flash/article_scraper"
 failure = "0.1"
 libxml = "0.2"
 reqwest = { version = "0.11", features = ["json", "native-tls"] }
-tokio = { version = "1.0", features = ["macros"] }
+tokio = { version = "1.21", features = ["macros"] }
 url = "2.2"
 regex = "1.4"
 encoding_rs = "0.8"
 chrono = "0.4"
 base64 = "0.13"
-image = "0.23"
+image = "0.24"
 log = "0.4"
-parking_lot = "0.11"
+parking_lot = "0.12"
