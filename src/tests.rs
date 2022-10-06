@@ -10,12 +10,7 @@ async fn phoronix() {
             .unwrap();
 
     let grabber = ArticleScraper::new(None).await;
-
-    let start = chrono::Utc::now();
     let article = grabber.parse(&url, false, &Client::new()).await.unwrap();
-    let end = chrono::Utc::now();
-    let duration = end - start;
-    println!("duration: {}ms", duration.num_milliseconds());
     article.save_html(&out_path).unwrap();
 
     assert_eq!(
