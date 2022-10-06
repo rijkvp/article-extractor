@@ -10,8 +10,6 @@ pub struct ConfigError {
 pub enum ConfigErrorKind {
     #[fail(display = "IO Error")]
     IO,
-    #[fail(display = "Config does not contain body xpath")]
-    BadConfig,
     #[fail(display = "Unknown Error")]
     Unknown,
 }

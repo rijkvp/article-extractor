@@ -22,6 +22,7 @@ use log::{debug, error, info, warn};
 use reqwest::{Client, Response};
 use std::path::Path;
 use std::str::FromStr;
+use util::Util;
 
 pub struct ArticleScraper {
     pub image_downloader: ImageDownloader,
@@ -76,7 +77,11 @@ impl ArticleScraper {
         }
 
         // check if we have a config for the url
-        let config = self.get_grabber_config(&url)?;
+        let config = self.get_grabber_config(&url);
+        let global_config = self
+            .config_files
+            .get("global.txt")
+            .ok_or_else(|| ScraperErrorKind::Config)?;
 
         let mut article = Article {
             title: None,
@@ -94,7 +99,7 @@ impl ArticleScraper {
 
         ArticleScraper::generate_head(&mut root, &document)?;
 
-        self.parse_pages(&mut article, &url, &mut root, &config, client)
+        self.parse_pages(&mut article, &url, &mut root, config, global_config, client)
             .await?;
 
         let context = Context::new(&document).map_err(|()| {
@@ -139,15 +144,20 @@ impl ArticleScraper {
         article: &mut Article,
         url: &url::Url,
         root: &mut Node,
-        config: &ConfigEntry,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
         client: &Client,
     ) -> Result<(), ScraperError> {
         let html = ArticleScraper::download(&url, client).await?;
-        let mut document = Self::parse_html(html, config)?;
+        let mut document = Self::parse_html(html, config, global_config)?;
         let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
 
         // check for single page link
-        if let Some(xpath_single_page_link) = config.single_page_link.clone() {
+        let rule = Util::select_rule(
+            config.and_then(|c| c.single_page_link.as_deref()),
+            global_config.single_page_link.as_deref(),
+        );
+        if let Some(xpath_single_page_link) = rule {
             debug!(
                 "Single page link xpath specified in config '{}'",
                 xpath_single_page_link
@@ -159,32 +169,49 @@ impl ArticleScraper {
                     let single_page_url =
                         url::Url::parse(&result).context(ScraperErrorKind::Url)?;
                     return self
-                        .parse_single_page(article, &single_page_url, root, config, client)
+                        .parse_single_page(
+                            article,
+                            &single_page_url,
+                            root,
+                            config,
+                            global_config,
+                            client,
+                        )
                         .await;
                 }
             }
         }
 
-        ArticleScraper::extract_metadata(&xpath_ctx, config, article);
-        ArticleScraper::strip_junk(&xpath_ctx, config, &url);
-        ArticleScraper::extract_body(&xpath_ctx, root, config)?;
+        ArticleScraper::extract_metadata(&xpath_ctx, config, global_config, article);
+        ArticleScraper::strip_junk(&xpath_ctx, config, global_config, &url);
+        ArticleScraper::extract_body(&xpath_ctx, root, config, global_config)?;
 
-        while let Some(url) = self.check_for_next_page(&xpath_ctx, config) {
+        while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
             let html = ArticleScraper::download(&url, client).await?;
-            document = Self::parse_html(html, config)?;
+            document = Self::parse_html(html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
-            ArticleScraper::strip_junk(&xpath_ctx, config, &url);
-            ArticleScraper::extract_body(&xpath_ctx, root, config)?;
+            ArticleScraper::strip_junk(&xpath_ctx, config, global_config, &url);
+            ArticleScraper::extract_body(&xpath_ctx, root, config, global_config)?;
         }
 
         Ok(())
     }
 
-    fn parse_html(html: String, config: &ConfigEntry) -> Result<Document, ScraperError> {
+    fn parse_html(
+        html: String,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
+    ) -> Result<Document, ScraperError> {
         // replace matches in raw html
 
         let mut html = html;
-        for replace in &config.replace {
+        if let Some(config) = config {
+            for replace in &config.replace {
+                html = html.replace(&replace.to_replace, &replace.replace_with);
+            }
+        }
+
+        for replace in &global_config.replace {
             html = html.replace(&replace.to_replace, &replace.replace_with);
         }
 
@@ -230,15 +257,16 @@ impl ArticleScraper {
         article: &mut Article,
         url: &url::Url,
         root: &mut Node,
-        config: &ConfigEntry,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
         client: &Client,
     ) -> Result<(), ScraperError> {
         let html = ArticleScraper::download(&url, client).await?;
-        let document = Self::parse_html(html, config)?;
+        let document = Self::parse_html(html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
-        ArticleScraper::extract_metadata(&xpath_ctx, config, article);
-        ArticleScraper::strip_junk(&xpath_ctx, config, &url);
-        ArticleScraper::extract_body(&xpath_ctx, root, config)?;
+        ArticleScraper::extract_metadata(&xpath_ctx, config, global_config, article);
+        ArticleScraper::strip_junk(&xpath_ctx, config, global_config, &url);
+        ArticleScraper::extract_body(&xpath_ctx, root, config, global_config)?;
 
         Ok(())
     }
@@ -340,16 +368,17 @@ impl ArticleScraper {
         }
     }
 
-    fn get_grabber_config(&self, url: &url::Url) -> Result<ConfigEntry, ScraperError> {
-        let config_name = Self::get_host_name(url)? + ".txt";
+    fn get_grabber_config(&self, url: &url::Url) -> Option<&ConfigEntry> {
+        let conf = Self::get_host_name(url)
+            .ok()
+            .map(|url| url + ".txt")
+            .and_then(|name| self.config_files.get(&name));
 
-        match self.config_files.get(&config_name) {
-            Some(config) => Ok(config.clone()),
-            None => {
-                error!("No config file of the name '{}' found", config_name);
-                Err(ScraperErrorKind::Config.into())
-            }
+        if conf.is_none() {
+            log::warn!("No config found for url '{}'", url);
         }
+
+        conf
     }
 
     fn check_content_type(response: &Response) -> Result<bool, ScraperError> {
@@ -575,19 +604,45 @@ impl ArticleScraper {
         Ok(url)
     }
 
-    fn strip_junk(context: &Context, config: &ConfigEntry, url: &url::Url) {
+    fn strip_junk(
+        context: &Context,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
+        url: &url::Url,
+    ) {
         // strip specified xpath
-        for xpath_strip in &config.xpath_strip {
+        if let Some(config) = config {
+            for xpath_strip in &config.xpath_strip {
+                let _ = ArticleScraper::strip_node(&context, xpath_strip);
+            }
+        }
+
+        for xpath_strip in &global_config.xpath_strip {
             let _ = ArticleScraper::strip_node(&context, xpath_strip);
         }
 
         // strip everything with specified 'id' or 'class'
-        for xpaht_strip_class in &config.strip_id_or_class {
+        if let Some(config) = config {
+            for xpaht_strip_class in &config.strip_id_or_class {
+                let _ = ArticleScraper::strip_id_or_class(&context, xpaht_strip_class);
+            }
+        }
+
+        for xpaht_strip_class in &global_config.strip_id_or_class {
             let _ = ArticleScraper::strip_id_or_class(&context, xpaht_strip_class);
         }
 
         // strip any <img> element where @src attribute contains this substring
-        for xpath_strip_img_src in &config.strip_image_src {
+        if let Some(config) = config {
+            for xpath_strip_img_src in &config.strip_image_src {
+                let _ = ArticleScraper::strip_node(
+                    &context,
+                    &format!("//img[contains(@src,'{}')]", xpath_strip_img_src),
+                );
+            }
+        }
+
+        for xpath_strip_img_src in &global_config.strip_image_src {
             let _ = ArticleScraper::strip_node(
                 &context,
                 &format!("//img[contains(@src,'{}')]", xpath_strip_img_src),
@@ -620,9 +675,6 @@ impl ArticleScraper {
             &String::from("//*[contains(@style,'display:none')]"),
         );
 
-        // strip all scripts
-        //let _ = ArticleScraper::strip_node(&context, &String::from("//script"));
-
         // strip all comments
         let _ = ArticleScraper::strip_node(&context, &String::from("//comment()"));
 
@@ -633,34 +685,79 @@ impl ArticleScraper {
         let _ = ArticleScraper::strip_node(&context, &String::from("//*[@type='text/css']"));
     }
 
-    fn extract_metadata(context: &Context, config: &ConfigEntry, article: &mut Article) {
+    fn extract_metadata(
+        context: &Context,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
+        article: &mut Article,
+    ) {
         // try to get title
-        for xpath_title in &config.xpath_title {
-            if let Ok(title) = ArticleScraper::extract_value_merge(&context, xpath_title) {
-                debug!("Article title: '{}'", title);
-                article.title = Some(title);
-                break;
+        if let Some(config) = config {
+            for xpath_title in &config.xpath_title {
+                if let Ok(title) = ArticleScraper::extract_value_merge(&context, xpath_title) {
+                    debug!("Article title: '{}'", title);
+                    article.title = Some(title);
+                    break;
+                }
+            }
+        }
+
+        if article.title.is_none() {
+            for xpath_title in &global_config.xpath_title {
+                if let Ok(title) = ArticleScraper::extract_value_merge(&context, xpath_title) {
+                    debug!("Article title: '{}'", title);
+                    article.title = Some(title);
+                    break;
+                }
             }
         }
 
         // try to get the author
-        for xpath_author in &config.xpath_author {
-            if let Ok(author) = ArticleScraper::extract_value(&context, xpath_author) {
-                debug!("Article author: '{}'", author);
-                article.author = Some(author);
-                break;
+        if let Some(config) = config {
+            for xpath_author in &config.xpath_author {
+                if let Ok(author) = ArticleScraper::extract_value(&context, xpath_author) {
+                    debug!("Article author: '{}'", author);
+                    article.author = Some(author);
+                    break;
+                }
+            }
+        }
+
+        if article.title.is_none() {
+            for xpath_author in &global_config.xpath_author {
+                if let Ok(author) = ArticleScraper::extract_value(&context, xpath_author) {
+                    debug!("Article author: '{}'", author);
+                    article.author = Some(author);
+                    break;
+                }
             }
         }
 
         // try to get the date
-        for xpath_date in &config.xpath_date {
-            if let Ok(date_string) = ArticleScraper::extract_value(&context, xpath_date) {
-                debug!("Article date: '{}'", date_string);
-                if let Ok(date) = DateTime::from_str(&date_string) {
-                    article.date = Some(date);
-                    break;
-                } else {
-                    warn!("Parsing the date string '{}' failed", date_string);
+        if let Some(config) = config {
+            for xpath_date in &config.xpath_date {
+                if let Ok(date_string) = ArticleScraper::extract_value(&context, xpath_date) {
+                    debug!("Article date: '{}'", date_string);
+                    if let Ok(date) = DateTime::from_str(&date_string) {
+                        article.date = Some(date);
+                        break;
+                    } else {
+                        warn!("Parsing the date string '{}' failed", date_string);
+                    }
+                }
+            }
+        }
+
+        if article.title.is_none() {
+            for xpath_date in &global_config.xpath_date {
+                if let Ok(date_string) = ArticleScraper::extract_value(&context, xpath_date) {
+                    debug!("Article date: '{}'", date_string);
+                    if let Ok(date) = DateTime::from_str(&date_string) {
+                        article.date = Some(date);
+                        break;
+                    } else {
+                        warn!("Parsing the date string '{}' failed", date_string);
+                    }
                 }
             }
         }
@@ -669,14 +766,25 @@ impl ArticleScraper {
     fn extract_body(
         context: &Context,
         root: &mut Node,
-        config: &ConfigEntry,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
     ) -> Result<(), ScraperError> {
         let mut found_something = false;
-        for xpath_body in &config.xpath_body {
-            found_something = ArticleScraper::extract_body_single(&context, root, xpath_body)?;
+
+        if let Some(config) = config {
+            for xpath_body in &config.xpath_body {
+                found_something = ArticleScraper::extract_body_single(&context, root, xpath_body)?;
+            }
         }
 
         if !found_something {
+            for xpath_body in &global_config.xpath_body {
+                found_something = ArticleScraper::extract_body_single(&context, root, xpath_body)?;
+            }
+        }
+
+        if !found_something {
+            log::error!("no body found");
             return Err(ScraperErrorKind::Scrape.into());
         }
 
@@ -709,10 +817,25 @@ impl ArticleScraper {
         Ok(found_something)
     }
 
-    fn check_for_next_page(&self, context: &Context, config: &ConfigEntry) -> Option<url::Url> {
-        if let Some(next_page_xpath) = config.next_page_link.clone() {
+    fn check_for_next_page(
+        &self,
+        context: &Context,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
+    ) -> Option<url::Url> {
+        if let Some(config) = config {
+            if let Some(next_page_xpath) = config.next_page_link.as_deref() {
+                if let Ok(next_page_string) =
+                    ArticleScraper::get_attribute(&context, next_page_xpath, "href")
+                {
+                    if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
+                        return Some(next_page_url);
+                    }
+                }
+            }
+        } else if let Some(next_page_xpath) = global_config.next_page_link.as_deref() {
             if let Ok(next_page_string) =
-                ArticleScraper::get_attribute(&context, &next_page_xpath, "href")
+                ArticleScraper::get_attribute(&context, next_page_xpath, "href")
             {
                 if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
                     return Some(next_page_url);

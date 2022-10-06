@@ -15,17 +15,15 @@ pub struct ConfigCollection {
 
 impl ConfigCollection {
     pub async fn parse(directory: Option<&Path>) -> ConfigCollection {
-
         let mut user_entries = HashMap::new();
         let mut embedded_entries = HashMap::new();
 
         for (file_name, entry) in EmbededConfigFiles::iter()
             .filter_map(|file_name| EmbededConfigFiles::get(&file_name).map(|e| (file_name, e)))
         {
-            if let Ok(entry) = ConfigEntry::parse_data(entry.data).await {
-                let file_name: &str = file_name.borrow();
-                embedded_entries.insert(file_name.to_owned(), entry);
-            }
+            let entry = ConfigEntry::parse_data(entry.data).await.unwrap();
+            let file_name: &str = file_name.borrow();
+            embedded_entries.insert(file_name.to_owned(), entry);
         }
 
         if let Some(directory) = directory {

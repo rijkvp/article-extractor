@@ -2,7 +2,6 @@ use crate::util::Util;
 
 use super::error::{ConfigError, ConfigErrorKind};
 use failure::ResultExt;
-use log::warn;
 use std::borrow::Cow;
 use std::io::Cursor;
 use std::path::Path;
@@ -138,11 +137,6 @@ impl ConfigEntry {
 
                 continue;
             }
-        }
-
-        if xpath_body.is_empty() {
-            warn!("No body xpath found for");
-            return Err(ConfigErrorKind::BadConfig.into());
         }
 
         let config = ConfigEntry {

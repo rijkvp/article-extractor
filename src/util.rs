@@ -23,4 +23,15 @@ impl Util {
     pub fn split_values(values: &str) -> Vec<&str> {
         values.split('|').map(|s| s.trim()).collect()
     }
+
+    pub fn select_rule<'a>(
+        site_specific_rule: Option<&'a str>,
+        global_rule: Option<&'a str>,
+    ) -> Option<&'a str> {
+        if site_specific_rule.is_some() {
+            site_specific_rule
+        } else {
+            global_rule
+        }
+    }
 }

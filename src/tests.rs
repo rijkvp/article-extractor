@@ -1,35 +1,21 @@
 use crate::*;
-use std::path::PathBuf;
 use reqwest::Client;
-
-#[tokio::test(flavor = "current_thread")]
-async fn golem() {
-    let out_path = PathBuf::from(r"./test_output");
-    let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
-
-    let grabber = ArticleScraper::new(None).await;
-    let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
-    article.save_html(&out_path).unwrap();
-
-    assert_eq!(
-        article.title,
-        Some(String::from(
-            "HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben"
-        ))
-    );
-    assert_eq!(article.author, Some(String::from("Hauke Gierow")));
-}
+use std::path::PathBuf;
 
 #[tokio::test(flavor = "current_thread")]
 async fn phoronix() {
     let out_path = PathBuf::from(r"./test_output");
-    let url = url::Url::parse(
-        "http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1",
-    )
-    .unwrap();
+    let url =
+        url::Url::parse("http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1")
+            .unwrap();
 
     let grabber = ArticleScraper::new(None).await;
-    let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
+
+    let start = chrono::Utc::now();
+    let article = grabber.parse(&url, false, &Client::new()).await.unwrap();
+    let end = chrono::Utc::now();
+    let duration = end - start;
+    println!("duration: {}ms", duration.num_milliseconds());
     article.save_html(&out_path).unwrap();
 
     assert_eq!(
