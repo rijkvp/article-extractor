@@ -15,6 +15,12 @@ pub struct Replace {
 }
 
 #[derive(Clone)]
+pub struct Header {
+    pub name: String,
+    pub value: String,
+}
+
+#[derive(Clone)]
 pub struct ConfigEntry {
     pub xpath_title: Vec<String>,
     pub xpath_author: Vec<String>,
@@ -24,6 +30,7 @@ pub struct ConfigEntry {
     pub strip_id_or_class: Vec<String>,
     pub strip_image_src: Vec<String>,
     pub replace: Vec<Replace>,
+    pub header: Vec<Header>,
     pub single_page_link: Option<String>,
     pub next_page_link: Option<String>,
 }
@@ -55,6 +62,7 @@ impl ConfigEntry {
         let mut strip_id_or_class: Vec<String> = Vec::new();
         let mut strip_image_src: Vec<String> = Vec::new();
         let mut replace_vec: Vec<Replace> = Vec::new();
+        let mut header_vec: Vec<Header> = Vec::new();
         let mut next_page_link: Option<String> = None;
         let mut single_page_link: Option<String> = None;
 
@@ -71,6 +79,7 @@ impl ConfigEntry {
         let find = "find_string:";
         let replace = "replace_string:";
         let replace_single = "replace_string(";
+        let http_header = "http_header(";
 
         // ignore these
         let tidy = "tidy:";
@@ -123,6 +132,25 @@ impl ConfigEntry {
                 continue;
             }
 
+            if line.starts_with(http_header) {
+                let value = Util::extract_value(http_header, line);
+                let value: Vec<&str> = value.split("): ").map(|s| s.trim()).collect();
+                if value.len() != 2 {
+                    continue;
+                }
+
+                if let Some(name) = value.get(0) {
+                    if let Some(value) = value.get(1) {
+                        header_vec.push(Header {
+                            name: (*name).to_string(),
+                            value: (*value).to_string(),
+                        });
+                    }
+                }
+
+                continue;
+            }
+
             if line.starts_with(find) {
                 let to_replace = Util::extract_value(find, line).into();
 
@@ -148,6 +176,7 @@ impl ConfigEntry {
             strip_id_or_class,
             strip_image_src,
             replace: replace_vec,
+            header: header_vec,
             single_page_link,
             next_page_link,
         };

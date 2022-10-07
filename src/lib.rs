@@ -19,6 +19,7 @@ use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
+use reqwest::header::HeaderMap;
 use reqwest::{Client, Response};
 use std::path::Path;
 use std::str::FromStr;
@@ -53,8 +54,18 @@ impl ArticleScraper {
             }
         }
 
+        // check if we have a config for the url
+        let config = self.get_grabber_config(&url);
+        let global_config = self
+            .config_files
+            .get("global.txt")
+            .ok_or_else(|| ScraperErrorKind::Config)?;
+
+        let headers = Util::generate_headers(config, global_config)?;
+
         let response = client
             .head(url.clone())
+            .headers(headers)
             .send()
             .await
             .map_err(|err| {
@@ -75,13 +86,6 @@ impl ArticleScraper {
         if !ArticleScraper::check_content_type(&response)? {
             return Err(ScraperErrorKind::ContentType.into());
         }
-
-        // check if we have a config for the url
-        let config = self.get_grabber_config(&url);
-        let global_config = self
-            .config_files
-            .get("global.txt")
-            .ok_or_else(|| ScraperErrorKind::Config)?;
 
         let mut article = Article {
             title: None,
@@ -148,7 +152,8 @@ impl ArticleScraper {
         global_config: &ConfigEntry,
         client: &Client,
     ) -> Result<(), ScraperError> {
-        let html = ArticleScraper::download(&url, client).await?;
+        let headers = Util::generate_headers(config, global_config)?;
+        let html = ArticleScraper::download(&url, client, headers).await?;
         let mut document = Self::parse_html(html, config, global_config)?;
         let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
 
@@ -187,7 +192,8 @@ impl ArticleScraper {
         ArticleScraper::extract_body(&xpath_ctx, root, config, global_config)?;
 
         while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
-            let html = ArticleScraper::download(&url, client).await?;
+            let headers = Util::generate_headers(config, global_config)?;
+            let html = ArticleScraper::download(&url, client, headers).await?;
             document = Self::parse_html(html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
             ArticleScraper::strip_junk(&xpath_ctx, config, global_config, &url);
@@ -261,7 +267,8 @@ impl ArticleScraper {
         global_config: &ConfigEntry,
         client: &Client,
     ) -> Result<(), ScraperError> {
-        let html = ArticleScraper::download(&url, client).await?;
+        let headers = Util::generate_headers(config, global_config)?;
+        let html = ArticleScraper::download(&url, client, headers).await?;
         let document = Self::parse_html(html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         ArticleScraper::extract_metadata(&xpath_ctx, config, global_config, article);
@@ -271,9 +278,10 @@ impl ArticleScraper {
         Ok(())
     }
 
-    async fn download(url: &url::Url, client: &Client) -> Result<String, ScraperError> {
+    async fn download(url: &url::Url, client: &Client, headers: HeaderMap) -> Result<String, ScraperError> {
         let response = client
             .get(url.as_str())
+            .headers(headers)
             .send()
             .await
             .map_err(|err| {
@@ -423,7 +431,9 @@ impl ArticleScraper {
         let node_vec = Self::evaluate_xpath(context, xpath, true)?;
         let mut val = String::new();
         for node in node_vec {
-            val.push_str(&node.get_content());
+            let part = node.get_content().split_whitespace().map(|s| format!("{} ", s)).collect::<String>();
+            val.push_str(&part);
+            val.push_str(" ");
         }
 
         Ok(val.trim().to_string())

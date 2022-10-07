@@ -3,6 +3,24 @@ use reqwest::Client;
 use std::path::PathBuf;
 
 #[tokio::test(flavor = "current_thread")]
+async fn golem() {
+    let out_path = PathBuf::from(r"./test_output");
+    let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
+
+    let grabber = ArticleScraper::new(None).await;
+    let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
+    article.save_html(&out_path).unwrap();
+
+    assert_eq!(
+        article.title,
+        Some(String::from(
+            "HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben"
+        ))
+    );
+    assert_eq!(article.author, Some(String::from("Hauke Gierow")));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn phoronix() {
     let out_path = PathBuf::from(r"./test_output");
     let url =
