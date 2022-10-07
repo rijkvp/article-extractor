@@ -154,10 +154,7 @@ impl ImageDownloader {
         }
 
         let small_image_base64 = base64::encode(&small_image);
-        let big_image_base64 = match big_image {
-            Some(big_image) => Some(base64::encode(&big_image)),
-            None => None,
-        };
+        let big_image_base64 = big_image.map(base64::encode);
         let small_image_string =
             format!("data:{};base64,{}", content_type_small, small_image_base64);
         let big_image_string = match big_image_base64 {

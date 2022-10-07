@@ -78,7 +78,7 @@ impl Util {
     }
 
     pub fn find_page_url(xpath_ctx: &Context, xpath_page_link: &str) -> Option<url::Url> {
-        let res = Self::evaluate_xpath(&xpath_ctx, &xpath_page_link, false).ok()?;
+        let res = Self::evaluate_xpath(xpath_ctx, xpath_page_link, false).ok()?;
         let mut url = None;
 
         for node in res {
@@ -168,7 +168,7 @@ impl Util {
                 .map(|s| format!("{} ", s))
                 .collect::<String>();
             val.push_str(&part);
-            val.push_str(" ");
+            val.push(' ');
         }
 
         Ok(val.trim().to_string())

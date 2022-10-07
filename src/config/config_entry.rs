@@ -120,7 +120,7 @@ impl ConfigEntry {
                     continue;
                 }
 
-                if let Some(to_replace) = value.get(0) {
+                if let Some(to_replace) = value.first() {
                     if let Some(replace_with) = value.get(1) {
                         replace_vec.push(Replace {
                             to_replace: (*to_replace).to_string(),
@@ -139,7 +139,7 @@ impl ConfigEntry {
                     continue;
                 }
 
-                if let Some(name) = value.get(0) {
+                if let Some(name) = value.first() {
                     if let Some(value) = value.get(1) {
                         header_vec.push(Header {
                             name: (*name).to_string(),

@@ -49,17 +49,17 @@ impl ArticleScraper {
 
         // custom youtube handling, but prefer config if exists
         if !self.config_files.contains_config("youtube.com.txt") {
-            if let Some(article) = youtube::Youtube::handle(&url) {
+            if let Some(article) = youtube::Youtube::handle(url) {
                 return Ok(article);
             }
         }
 
         // check if we have a config for the url
-        let config = self.get_grabber_config(&url);
+        let config = self.get_grabber_config(url);
         let global_config = self
             .config_files
             .get("global.txt")
-            .ok_or_else(|| ScraperErrorKind::Config)?;
+            .ok_or(ScraperErrorKind::Config)?;
 
         let headers = Util::generate_headers(config, global_config)?;
 
@@ -75,7 +75,7 @@ impl ArticleScraper {
             .context(ScraperErrorKind::Http)?;
 
         // check if url redirects and we need to pick up the new url
-        let url = if let Some(new_url) = Util::check_redirect(&response, &url) {
+        let url = if let Some(new_url) = Util::check_redirect(&response, url) {
             debug!("Url '{}' redirects to '{}'", url.as_str(), new_url.as_str());
             new_url
         } else {
@@ -153,7 +153,7 @@ impl ArticleScraper {
         client: &Client,
     ) -> Result<(), ScraperError> {
         let headers = Util::generate_headers(config, global_config)?;
-        let html = ArticleScraper::download(&url, client, headers).await?;
+        let html = ArticleScraper::download(url, client, headers).await?;
         let mut document = Self::parse_html(html, config, global_config)?;
         let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
 
@@ -168,7 +168,7 @@ impl ArticleScraper {
                 xpath_single_page_link
             );
 
-            if let Some(single_page_url) = Util::find_page_url(&xpath_ctx, &xpath_single_page_link)
+            if let Some(single_page_url) = Util::find_page_url(&xpath_ctx, xpath_single_page_link)
             {
                 // parse again with single page url
                 debug!("Single page link found '{}'", single_page_url);
@@ -187,7 +187,7 @@ impl ArticleScraper {
         }
 
         ArticleScraper::extract_metadata(&xpath_ctx, config, global_config, article);
-        ArticleScraper::strip_junk(&xpath_ctx, config, global_config, &url);
+        ArticleScraper::strip_junk(&xpath_ctx, config, global_config, url);
         ArticleScraper::extract_body(&xpath_ctx, root, config, global_config)?;
 
         while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
@@ -229,7 +229,7 @@ impl ArticleScraper {
     }
 
     fn get_xpath_ctx(doc: &Document) -> Result<Context, ScraperError> {
-        Ok(Context::new(&doc).map_err(|()| {
+        Ok(Context::new(doc).map_err(|()| {
             error!("Creating xpath context failed for downloaded HTML");
             ScraperErrorKind::Xml
         })?)
@@ -245,11 +245,11 @@ impl ArticleScraper {
         client: &Client,
     ) -> Result<(), ScraperError> {
         let headers = Util::generate_headers(config, global_config)?;
-        let html = ArticleScraper::download(&url, client, headers).await?;
+        let html = ArticleScraper::download(url, client, headers).await?;
         let document = Self::parse_html(html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         ArticleScraper::extract_metadata(&xpath_ctx, config, global_config, article);
-        ArticleScraper::strip_junk(&xpath_ctx, config, global_config, &url);
+        ArticleScraper::strip_junk(&xpath_ctx, config, global_config, url);
         ArticleScraper::extract_body(&xpath_ctx, root, config, global_config)?;
 
         Ok(())
@@ -521,30 +521,30 @@ impl ArticleScraper {
         // strip specified xpath
         if let Some(config) = config {
             for xpath_strip in &config.xpath_strip {
-                let _ = Util::strip_node(&context, xpath_strip);
+                let _ = Util::strip_node(context, xpath_strip);
             }
         }
 
         for xpath_strip in &global_config.xpath_strip {
-            let _ = Util::strip_node(&context, xpath_strip);
+            let _ = Util::strip_node(context, xpath_strip);
         }
 
         // strip everything with specified 'id' or 'class'
         if let Some(config) = config {
             for xpaht_strip_class in &config.strip_id_or_class {
-                let _ = Util::strip_id_or_class(&context, xpaht_strip_class);
+                let _ = Util::strip_id_or_class(context, xpaht_strip_class);
             }
         }
 
         for xpaht_strip_class in &global_config.strip_id_or_class {
-            let _ = Util::strip_id_or_class(&context, xpaht_strip_class);
+            let _ = Util::strip_id_or_class(context, xpaht_strip_class);
         }
 
         // strip any <img> element where @src attribute contains this substring
         if let Some(config) = config {
             for xpath_strip_img_src in &config.strip_image_src {
                 let _ = Util::strip_node(
-                    &context,
+                    context,
                     &format!("//img[contains(@src,'{}')]", xpath_strip_img_src),
                 );
             }
@@ -552,45 +552,45 @@ impl ArticleScraper {
 
         for xpath_strip_img_src in &global_config.strip_image_src {
             let _ = Util::strip_node(
-                &context,
+                context,
                 &format!("//img[contains(@src,'{}')]", xpath_strip_img_src),
             );
         }
 
-        let _ = ArticleScraper::fix_lazy_images(&context, "lazyload", "data-src");
-        let _ = ArticleScraper::fix_iframe_size(&context, "youtube.com");
-        let _ = ArticleScraper::remove_attribute(&context, None, "style");
-        let _ = ArticleScraper::remove_attribute(&context, Some("a"), "onclick");
-        let _ = ArticleScraper::remove_attribute(&context, Some("img"), "srcset");
-        let _ = ArticleScraper::remove_attribute(&context, Some("img"), "sizes");
-        let _ = ArticleScraper::add_attribute(&context, Some("a"), "target", "_blank");
+        let _ = ArticleScraper::fix_lazy_images(context, "lazyload", "data-src");
+        let _ = ArticleScraper::fix_iframe_size(context, "youtube.com");
+        let _ = ArticleScraper::remove_attribute(context, None, "style");
+        let _ = ArticleScraper::remove_attribute(context, Some("a"), "onclick");
+        let _ = ArticleScraper::remove_attribute(context, Some("img"), "srcset");
+        let _ = ArticleScraper::remove_attribute(context, Some("img"), "sizes");
+        let _ = ArticleScraper::add_attribute(context, Some("a"), "target", "_blank");
 
-        let _ = ArticleScraper::repair_urls(&context, "//img", "src", &url);
-        let _ = ArticleScraper::repair_urls(&context, "//a", "src", &url);
-        let _ = ArticleScraper::repair_urls(&context, "//a", "href", &url);
-        let _ = ArticleScraper::repair_urls(&context, "//object", "data", &url);
-        let _ = ArticleScraper::repair_urls(&context, "//iframe", "src", &url);
+        let _ = ArticleScraper::repair_urls(context, "//img", "src", url);
+        let _ = ArticleScraper::repair_urls(context, "//a", "src", url);
+        let _ = ArticleScraper::repair_urls(context, "//a", "href", url);
+        let _ = ArticleScraper::repair_urls(context, "//object", "data", url);
+        let _ = ArticleScraper::repair_urls(context, "//iframe", "src", url);
 
         // strip elements using Readability.com and Instapaper.com ignore class names
         // .entry-unrelated and .instapaper_ignore
         // See http://blog.instapaper.com/post/730281947
-        let _ = Util::strip_node(&context, &String::from(
-            "//*[contains(@class,' entry-unrelated ') or contains(@class,' instapaper_ignore ')]"));
+        let _ = Util::strip_node(context, 
+            "//*[contains(@class,' entry-unrelated ') or contains(@class,' instapaper_ignore ')]");
 
         // strip elements that contain style="display: none;"
         let _ = Util::strip_node(
-            &context,
-            &String::from("//*[contains(@style,'display:none')]"),
+            context,
+            "//*[contains(@style,'display:none')]",
         );
 
         // strip all comments
-        let _ = Util::strip_node(&context, &String::from("//comment()"));
+        let _ = Util::strip_node(context, "//comment()");
 
         // strip all empty url-tags <a/>
-        let _ = Util::strip_node(&context, &String::from("//a[not(node())]"));
+        let _ = Util::strip_node(context, "//a[not(node())]");
 
         // strip all external css and fonts
-        let _ = Util::strip_node(&context, &String::from("//*[@type='text/css']"));
+        let _ = Util::strip_node(context, "//*[@type='text/css']");
     }
 
     fn extract_metadata(
@@ -602,7 +602,7 @@ impl ArticleScraper {
         // try to get title
         if let Some(config) = config {
             for xpath_title in &config.xpath_title {
-                if let Ok(title) = Util::extract_value_merge(&context, xpath_title) {
+                if let Ok(title) = Util::extract_value_merge(context, xpath_title) {
                     debug!("Article title: '{}'", title);
                     article.title = Some(title);
                     break;
@@ -612,7 +612,7 @@ impl ArticleScraper {
 
         if article.title.is_none() {
             for xpath_title in &global_config.xpath_title {
-                if let Ok(title) = Util::extract_value_merge(&context, xpath_title) {
+                if let Ok(title) = Util::extract_value_merge(context, xpath_title) {
                     debug!("Article title: '{}'", title);
                     article.title = Some(title);
                     break;
@@ -623,7 +623,7 @@ impl ArticleScraper {
         // try to get the author
         if let Some(config) = config {
             for xpath_author in &config.xpath_author {
-                if let Ok(author) = Util::extract_value(&context, xpath_author) {
+                if let Ok(author) = Util::extract_value(context, xpath_author) {
                     debug!("Article author: '{}'", author);
                     article.author = Some(author);
                     break;
@@ -633,7 +633,7 @@ impl ArticleScraper {
 
         if article.author.is_none() {
             for xpath_author in &global_config.xpath_author {
-                if let Ok(author) = Util::extract_value(&context, xpath_author) {
+                if let Ok(author) = Util::extract_value(context, xpath_author) {
                     debug!("Article author: '{}'", author);
                     article.author = Some(author);
                     break;
@@ -644,7 +644,7 @@ impl ArticleScraper {
         // try to get the date
         if let Some(config) = config {
             for xpath_date in &config.xpath_date {
-                if let Ok(date_string) = Util::extract_value(&context, xpath_date) {
+                if let Ok(date_string) = Util::extract_value(context, xpath_date) {
                     debug!("Article date: '{}'", date_string);
                     if let Ok(date) = DateTime::from_str(&date_string) {
                         article.date = Some(date);
@@ -658,7 +658,7 @@ impl ArticleScraper {
 
         if article.date.is_none() {
             for xpath_date in &global_config.xpath_date {
-                if let Ok(date_string) = Util::extract_value(&context, xpath_date) {
+                if let Ok(date_string) = Util::extract_value(context, xpath_date) {
                     debug!("Article date: '{}'", date_string);
                     if let Ok(date) = DateTime::from_str(&date_string) {
                         article.date = Some(date);
@@ -681,13 +681,13 @@ impl ArticleScraper {
 
         if let Some(config) = config {
             for xpath_body in &config.xpath_body {
-                found_something = ArticleScraper::extract_body_single(&context, root, xpath_body)?;
+                found_something = ArticleScraper::extract_body_single(context, root, xpath_body)?;
             }
         }
 
         if !found_something {
             for xpath_body in &global_config.xpath_body {
-                found_something = ArticleScraper::extract_body_single(&context, root, xpath_body)?;
+                found_something = ArticleScraper::extract_body_single(context, root, xpath_body)?;
             }
         }
 
@@ -734,7 +734,7 @@ impl ArticleScraper {
         if let Some(config) = config {
             if let Some(next_page_xpath) = config.next_page_link.as_deref() {
                 if let Ok(next_page_string) =
-                    ArticleScraper::get_attribute(&context, next_page_xpath, "href")
+                    ArticleScraper::get_attribute(context, next_page_xpath, "href")
                 {
                     if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
                         return Some(next_page_url);
@@ -743,7 +743,7 @@ impl ArticleScraper {
             }
         } else if let Some(next_page_xpath) = global_config.next_page_link.as_deref() {
             if let Ok(next_page_string) =
-                ArticleScraper::get_attribute(&context, next_page_xpath, "href")
+                ArticleScraper::get_attribute(context, next_page_xpath, "href")
             {
                 if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
                     return Some(next_page_url);

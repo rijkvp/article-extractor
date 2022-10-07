@@ -18,7 +18,7 @@ impl Article {
         if let Some(ref html) = self.html {
             if let Ok(()) = std::fs::create_dir_all(&path) {
                 let mut file_name = match self.title.clone() {
-                    Some(file_name) => file_name.replace("/", "_"),
+                    Some(file_name) => file_name.replace('/', "_"),
                     None => "Unknown Title".to_owned(),
                 };
                 file_name.push_str(".html");
