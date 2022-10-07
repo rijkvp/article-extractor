@@ -168,8 +168,7 @@ impl ArticleScraper {
                 xpath_single_page_link
             );
 
-            if let Some(single_page_url) = Util::find_page_url(&xpath_ctx, xpath_single_page_link)
-            {
+            if let Some(single_page_url) = Util::find_page_url(&xpath_ctx, xpath_single_page_link) {
                 // parse again with single page url
                 debug!("Single page link found '{}'", single_page_url);
 
@@ -574,14 +573,13 @@ impl ArticleScraper {
         // strip elements using Readability.com and Instapaper.com ignore class names
         // .entry-unrelated and .instapaper_ignore
         // See http://blog.instapaper.com/post/730281947
-        let _ = Util::strip_node(context, 
-            "//*[contains(@class,' entry-unrelated ') or contains(@class,' instapaper_ignore ')]");
-
-        // strip elements that contain style="display: none;"
         let _ = Util::strip_node(
             context,
-            "//*[contains(@style,'display:none')]",
+            "//*[contains(@class,' entry-unrelated ') or contains(@class,' instapaper_ignore ')]",
         );
+
+        // strip elements that contain style="display: none;"
+        let _ = Util::strip_node(context, "//*[contains(@style,'display:none')]");
 
         // strip all comments
         let _ = Util::strip_node(context, "//comment()");
