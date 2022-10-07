@@ -1,5 +1,5 @@
 use self::error::{ImageDownloadError, ImageDownloadErrorKind};
-use crate::ArticleScraper;
+use crate::util::Util;
 use failure::ResultExt;
 use libxml::parser::Parser;
 use libxml::tree::{Node, SaveOptions};
@@ -57,7 +57,7 @@ impl ImageDownloader {
         client: &Client,
     ) -> Result<(), ImageDownloadError> {
         let xpath = "//img";
-        let node_vec = ArticleScraper::evaluate_xpath(context, xpath, false)
+        let node_vec = Util::evaluate_xpath(context, xpath, false)
             .context(ImageDownloadErrorKind::HtmlParse)?;
         for mut node in node_vec {
             if let Some(url) = node.get_property("src") {

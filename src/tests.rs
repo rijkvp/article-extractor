@@ -41,13 +41,19 @@ async fn phoronix() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn youtube() {
-    let url = url::Url::parse("https://www.youtube.com/watch?v=lHRkYLcmFY8").unwrap();
+    let out_path = PathBuf::from(r"./test_output");
+    let url = url::Url::parse("https://www.youtube.com/watch?v=8KjaIumu-jI").unwrap();
 
     let grabber = ArticleScraper::new(None).await;
     let article = grabber.parse(&url, false, &Client::new()).await.unwrap();
+    article.save_html(&out_path).unwrap();
 
     assert_eq!(
-        article.html,
-        Some("<iframe width=\"650\" height=\"350\" frameborder=\"0\" src=\"https://www.youtube-nocookie.com/embed/lHRkYLcmFY8\" allowfullscreen></iframe>".into())
+        article.title.as_deref(),
+        Some("RIGGED! Arena Shuffler is BROKEN | 13 Land Mono Red Burn")
     );
+    assert!(article
+        .html
+        .map(|html| html.contains("https://www.youtube.com/embed/8KjaIumu-jI?feature=oembed"))
+        .unwrap_or(false));
 }

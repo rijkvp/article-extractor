@@ -114,7 +114,7 @@ impl ConfigEntry {
             extract_option_single!(line, next_page, next_page_link);
 
             if line.starts_with(replace_single) {
-                let value = Util::extract_value(replace_single, line);
+                let value = Util::str_extract_value(replace_single, line);
                 let value: Vec<&str> = value.split("): ").map(|s| s.trim()).collect();
                 if value.len() != 2 {
                     continue;
@@ -133,7 +133,7 @@ impl ConfigEntry {
             }
 
             if line.starts_with(http_header) {
-                let value = Util::extract_value(http_header, line);
+                let value = Util::str_extract_value(http_header, line);
                 let value: Vec<&str> = value.split("): ").map(|s| s.trim()).collect();
                 if value.len() != 2 {
                     continue;
@@ -152,10 +152,10 @@ impl ConfigEntry {
             }
 
             if line.starts_with(find) {
-                let to_replace = Util::extract_value(find, line).into();
+                let to_replace = Util::str_extract_value(find, line).into();
 
                 if let Ok(Some(next_line)) = lines.next_line().await {
-                    let replace_with = Util::extract_value(replace, &next_line).into();
+                    let replace_with = Util::str_extract_value(replace, &next_line).into();
 
                     replace_vec.push(Replace {
                         to_replace,
