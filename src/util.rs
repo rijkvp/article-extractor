@@ -65,8 +65,8 @@ impl Util {
         }
 
         for header in &global_rule.header {
-            let name =
-                HeaderName::from_bytes(header.name.as_bytes()).context(FullTextParserErrorKind::Config)?;
+            let name = HeaderName::from_bytes(header.name.as_bytes())
+                .context(FullTextParserErrorKind::Config)?;
             let value = header
                 .value
                 .parse::<HeaderValue>()
@@ -158,7 +158,10 @@ impl Util {
         Err(FullTextParserErrorKind::Xml.into())
     }
 
-    pub fn extract_value_merge(context: &Context, xpath: &str) -> Result<String, FullTextParserError> {
+    pub fn extract_value_merge(
+        context: &Context,
+        xpath: &str,
+    ) -> Result<String, FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, xpath, true)?;
         let mut val = String::new();
         for node in node_vec {
@@ -188,7 +191,10 @@ impl Util {
         Ok(())
     }
 
-    pub fn strip_id_or_class(context: &Context, id_or_class: &str) -> Result<(), FullTextParserError> {
+    pub fn strip_id_or_class(
+        context: &Context,
+        id_or_class: &str,
+    ) -> Result<(), FullTextParserError> {
         let xpath = &format!(
             "//*[contains(@class, '{}') or contains(@id, '{}')]",
             id_or_class, id_or_class

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
+use std::fs::File;
 use std::io::{Error, ErrorKind, Write};
 use std::path::PathBuf;
-use std::fs::File;
 use url::Url;
 
 pub struct Article {
@@ -28,6 +28,9 @@ impl Article {
             }
         }
 
-        Err(Error::new(ErrorKind::NotFound, "Article does not contain HTML"))
+        Err(Error::new(
+            ErrorKind::NotFound,
+            "Article does not contain HTML",
+        ))
     }
 }

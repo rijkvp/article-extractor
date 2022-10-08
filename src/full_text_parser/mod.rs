@@ -1,13 +1,14 @@
-pub mod error;
 pub mod config;
+pub mod error;
 mod fingerprints;
 
 #[cfg(test)]
 mod tests;
 
+use self::config::{ConfigCollection, ConfigEntry};
 use self::error::{FullTextParserError, FullTextParserErrorKind};
 use crate::article::Article;
-use self::config::{ConfigCollection, ConfigEntry};
+use crate::util::Util;
 use chrono::DateTime;
 use encoding_rs::Encoding;
 use failure::ResultExt;
@@ -20,7 +21,6 @@ use reqwest::header::HeaderMap;
 use reqwest::Client;
 use std::path::Path;
 use std::str::FromStr;
-use crate::util::Util;
 
 pub struct FullTextParser {
     config_files: ConfigCollection,
@@ -29,9 +29,7 @@ pub struct FullTextParser {
 impl FullTextParser {
     pub async fn new(config_path: Option<&Path>) -> Self {
         let config_files = ConfigCollection::parse(config_path).await;
-        Self {
-            config_files,
-        }
+        Self { config_files }
     }
 
     pub async fn parse(
@@ -83,7 +81,8 @@ impl FullTextParser {
         };
 
         let mut document = Document::new().map_err(|()| FullTextParserErrorKind::Xml)?;
-        let mut root = Node::new("article", None, &document).map_err(|()| FullTextParserErrorKind::Xml)?;
+        let mut root =
+            Node::new("article", None, &document).map_err(|()| FullTextParserErrorKind::Xml)?;
         document.set_root_element(&root);
 
         Self::generate_head(&mut root, &document)?;
@@ -263,7 +262,10 @@ impl FullTextParser {
 
         if response.status().is_success() {
             let headers = response.headers().clone();
-            let text = response.text().await.context(FullTextParserErrorKind::Http)?;
+            let text = response
+                .text()
+                .await
+                .context(FullTextParserErrorKind::Http)?;
             {
                 if let Some(decoded_html) =
                     Self::decode_html(&text, Self::get_encoding_from_html(&text))
