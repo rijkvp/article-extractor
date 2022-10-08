@@ -6,9 +6,9 @@ use reqwest::{
 };
 use tokio::fs::DirEntry;
 
-use crate::{
+use crate::full_text_parser::{
     config::ConfigEntry,
-    error::{ScraperError, ScraperErrorKind},
+    error::{FullTextParserError, FullTextParserErrorKind},
 };
 
 pub struct Util;
@@ -49,28 +49,28 @@ impl Util {
     pub fn generate_headers(
         site_specific_rule: Option<&ConfigEntry>,
         global_rule: &ConfigEntry,
-    ) -> Result<HeaderMap, ScraperError> {
+    ) -> Result<HeaderMap, FullTextParserError> {
         let mut headers = HeaderMap::new();
 
         if let Some(config) = site_specific_rule {
             for header in &config.header {
                 let name = HeaderName::from_bytes(header.name.as_bytes())
-                    .context(ScraperErrorKind::Config)?;
+                    .context(FullTextParserErrorKind::Config)?;
                 let value = header
                     .value
                     .parse::<HeaderValue>()
-                    .context(ScraperErrorKind::Config)?;
+                    .context(FullTextParserErrorKind::Config)?;
                 headers.insert(name, value);
             }
         }
 
         for header in &global_rule.header {
             let name =
-                HeaderName::from_bytes(header.name.as_bytes()).context(ScraperErrorKind::Config)?;
+                HeaderName::from_bytes(header.name.as_bytes()).context(FullTextParserErrorKind::Config)?;
             let value = header
                 .value
                 .parse::<HeaderValue>()
-                .context(ScraperErrorKind::Config)?;
+                .context(FullTextParserErrorKind::Config)?;
             headers.insert(name, value);
         }
 
@@ -102,10 +102,10 @@ impl Util {
         xpath_ctx: &Context,
         xpath: &str,
         thorw_if_empty: bool,
-    ) -> Result<Vec<Node>, ScraperError> {
+    ) -> Result<Vec<Node>, FullTextParserError> {
         let res = xpath_ctx.evaluate(xpath).map_err(|()| {
             log::debug!("Evaluation of xpath '{}' yielded no results", xpath);
-            ScraperErrorKind::Xml
+            FullTextParserErrorKind::Xml
         })?;
 
         let node_vec = res.get_nodes_as_vec();
@@ -113,14 +113,14 @@ impl Util {
         if node_vec.is_empty() {
             log::debug!("Evaluation of xpath '{}' yielded no results", xpath);
             if thorw_if_empty {
-                return Err(ScraperErrorKind::Xml.into());
+                return Err(FullTextParserErrorKind::Xml.into());
             }
         }
 
         Ok(node_vec)
     }
 
-    pub fn check_content_type(response: &Response) -> Result<bool, ScraperError> {
+    pub fn check_content_type(response: &Response) -> Result<bool, FullTextParserError> {
         if response.status().is_success() {
             if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
                 if let Ok(content_type) = content_type.to_str() {
@@ -135,7 +135,7 @@ impl Util {
         }
 
         log::error!("Failed to determine content type");
-        Err(ScraperErrorKind::Http.into())
+        Err(FullTextParserErrorKind::Http.into())
     }
 
     pub fn check_redirect(response: &Response, original_url: &url::Url) -> Option<url::Url> {
@@ -149,16 +149,16 @@ impl Util {
         None
     }
 
-    pub fn extract_value(context: &Context, xpath: &str) -> Result<String, ScraperError> {
+    pub fn extract_value(context: &Context, xpath: &str) -> Result<String, FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         if let Some(val) = node_vec.get(0) {
             return Ok(val.get_content());
         }
 
-        Err(ScraperErrorKind::Xml.into())
+        Err(FullTextParserErrorKind::Xml.into())
     }
 
-    pub fn extract_value_merge(context: &Context, xpath: &str) -> Result<String, ScraperError> {
+    pub fn extract_value_merge(context: &Context, xpath: &str) -> Result<String, FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, xpath, true)?;
         let mut val = String::new();
         for node in node_vec {
@@ -174,7 +174,7 @@ impl Util {
         Ok(val.trim().to_string())
     }
 
-    pub fn strip_node(context: &Context, xpath: &str) -> Result<(), ScraperError> {
+    pub fn strip_node(context: &Context, xpath: &str) -> Result<(), FullTextParserError> {
         let mut ancestor = xpath.to_string();
         if ancestor.starts_with("//") {
             ancestor = ancestor.chars().skip(2).collect();
@@ -188,7 +188,7 @@ impl Util {
         Ok(())
     }
 
-    pub fn strip_id_or_class(context: &Context, id_or_class: &str) -> Result<(), ScraperError> {
+    pub fn strip_id_or_class(context: &Context, id_or_class: &str) -> Result<(), FullTextParserError> {
         let xpath = &format!(
             "//*[contains(@class, '{}') or contains(@id, '{}')]",
             id_or_class, id_or_class

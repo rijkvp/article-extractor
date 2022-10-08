@@ -66,8 +66,4 @@ impl ConfigCollection {
             self.embedded_entries.get(key)
         }
     }
-
-    pub fn contains_config(&self, key: &str) -> bool {
-        self.user_entries.contains_key(key) || self.embedded_entries.contains_key(key)
-    }
 }

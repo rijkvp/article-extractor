@@ -1,4 +1,4 @@
-use crate::*;
+use super::FullTextParser;
 use reqwest::Client;
 use std::path::PathBuf;
 
@@ -7,8 +7,8 @@ async fn golem() {
     let out_path = PathBuf::from(r"./test_output");
     let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
-    let grabber = ArticleScraper::new(None).await;
-    let article = grabber.parse(&url, true, &Client::new()).await.unwrap();
+    let grabber = FullTextParser::new(None).await;
+    let article = grabber.parse(&url, &Client::new()).await.unwrap();
     article.save_html(&out_path).unwrap();
 
     assert_eq!(
@@ -27,8 +27,8 @@ async fn phoronix() {
         url::Url::parse("http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1")
             .unwrap();
 
-    let grabber = ArticleScraper::new(None).await;
-    let article = grabber.parse(&url, false, &Client::new()).await.unwrap();
+    let grabber = FullTextParser::new(None).await;
+    let article = grabber.parse(&url, &Client::new()).await.unwrap();
     article.save_html(&out_path).unwrap();
 
     assert_eq!(
@@ -44,8 +44,8 @@ async fn youtube() {
     let out_path = PathBuf::from(r"./test_output");
     let url = url::Url::parse("https://www.youtube.com/watch?v=8KjaIumu-jI").unwrap();
 
-    let grabber = ArticleScraper::new(None).await;
-    let article = grabber.parse(&url, false, &Client::new()).await.unwrap();
+    let grabber = FullTextParser::new(None).await;
+    let article = grabber.parse(&url, &Client::new()).await.unwrap();
     article.save_html(&out_path).unwrap();
 
     assert_eq!(

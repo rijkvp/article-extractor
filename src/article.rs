@@ -1,8 +1,7 @@
-use crate::error::{ScraperError, ScraperErrorKind};
 use chrono::{DateTime, Utc};
-use failure::ResultExt;
-use std::io::Write;
+use std::io::{Error, ErrorKind, Write};
 use std::path::PathBuf;
+use std::fs::File;
 use url::Url;
 
 pub struct Article {
@@ -14,7 +13,7 @@ pub struct Article {
 }
 
 impl Article {
-    pub fn save_html(&self, path: &PathBuf) -> Result<(), ScraperError> {
+    pub fn save_html(&self, path: &PathBuf) -> Result<(), Error> {
         if let Some(ref html) = self.html {
             if let Ok(()) = std::fs::create_dir_all(&path) {
                 let mut file_name = match self.title.clone() {
@@ -23,14 +22,12 @@ impl Article {
                 };
                 file_name.push_str(".html");
                 let path = path.join(file_name);
-                let mut html_file = std::fs::File::create(&path).context(ScraperErrorKind::IO)?;
-                html_file
-                    .write_all(html.as_bytes())
-                    .context(ScraperErrorKind::IO)?;
+                let mut html_file = File::create(&path)?;
+                html_file.write_all(html.as_bytes())?;
                 return Ok(());
             }
         }
 
-        Err(ScraperErrorKind::Unknown.into())
+        Err(Error::new(ErrorKind::NotFound, "Article does not contain HTML"))
     }
 }

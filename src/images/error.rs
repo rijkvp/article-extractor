@@ -1,4 +1,4 @@
-use super::super::ScraperErrorKind;
+use crate::full_text_parser::error::FullTextParserErrorKind;
 use failure::{Backtrace, Context, Error, Fail};
 use std::fmt;
 
@@ -67,10 +67,10 @@ impl From<Context<ImageDownloadErrorKind>> for ImageDownloadError {
     }
 }
 
-impl From<ScraperErrorKind> for ImageDownloadError {
-    fn from(kind: ScraperErrorKind) -> ImageDownloadError {
+impl From<FullTextParserErrorKind> for ImageDownloadError {
+    fn from(kind: FullTextParserErrorKind) -> ImageDownloadError {
         let kind = match kind {
-            ScraperErrorKind::Xml => ImageDownloadErrorKind::HtmlParse,
+            FullTextParserErrorKind::Xml => ImageDownloadErrorKind::HtmlParse,
             _ => ImageDownloadErrorKind::Unknown,
         };
 

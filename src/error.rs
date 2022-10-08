@@ -8,20 +8,6 @@ pub struct ScraperError {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
 pub enum ScraperErrorKind {
-    #[fail(display = "libXml Error")]
-    Xml,
-    #[fail(display = "No content found")]
-    Scrape,
-    #[fail(display = "Url Error")]
-    Url,
-    #[fail(display = "Http request failed")]
-    Http,
-    #[fail(display = "Config Error")]
-    Config,
-    #[fail(display = "IO Error")]
-    IO,
-    #[fail(display = "Content-type suggest no html")]
-    ContentType,
     #[fail(display = "Unknown Error")]
     Unknown,
 }
