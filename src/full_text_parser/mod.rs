@@ -263,18 +263,17 @@ impl FullTextParser {
                 .text()
                 .await
                 .map_err(|_| FullTextParserError::Http)?;
-            {
-                if let Some(decoded_html) =
-                    Self::decode_html(&text, Self::get_encoding_from_html(&text))
-                {
-                    return Ok(decoded_html);
-                }
 
-                if let Some(decoded_html) =
-                    Self::decode_html(&text, Self::get_encoding_from_http_header(&headers))
-                {
-                    return Ok(decoded_html);
-                }
+            if let Some(decoded_html) =
+                Self::decode_html(&text, Self::get_encoding_from_html(&text))
+            {
+                return Ok(decoded_html);
+            }
+
+            if let Some(decoded_html) =
+                Self::decode_html(&text, Self::get_encoding_from_http_header(&headers))
+            {
+                return Ok(decoded_html);
             }
 
             warn!("No encoding of HTML detected - assuming utf-8");
@@ -285,18 +284,16 @@ impl FullTextParser {
     }
 
     fn get_encoding_from_http_header(headers: &reqwest::header::HeaderMap) -> Option<&str> {
-        if let Some(content_type) = headers.get(reqwest::header::CONTENT_TYPE) {
-            if let Ok(content_type) = content_type.to_str() {
-                let regex =
-                    regex::Regex::new(r#"charset=([^"']+)"#).expect("Failed to parse regex");
-                if let Some(captures) = regex.captures(content_type) {
-                    if let Some(regex_match) = captures.get(1) {
-                        return Some(regex_match.as_str());
-                    }
-                }
-            }
-        }
-        None
+        headers
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|header| header.to_str().ok())
+            .and_then(|content_type| {
+                regex::Regex::new(r#"charset=([^"']+)"#)
+                    .expect("Failed to parse regex")
+                    .captures(content_type)
+            })
+            .and_then(|captures| captures.get(1))
+            .map(|regex_match| regex_match.as_str())
     }
 
     fn get_encoding_from_html(html: &str) -> Option<&str> {
@@ -361,10 +358,12 @@ impl FullTextParser {
         let xpath = &format!("//img[contains(@class, '{}')]", class);
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            if let Some(correct_url) = node.get_property(property_url) {
-                if node.set_property("src", &correct_url).is_err() {
-                    return Err(FullTextParserError::Xml);
-                }
+            if node
+                .get_property(property_url)
+                .and_then(|correct_url| node.set_property("src", &correct_url).ok())
+                .is_none()
+            {
+                warn!("Failed to fix lazy loading image");
             }
         }
         Ok(())
@@ -374,27 +373,26 @@ impl FullTextParser {
         let xpath = &format!("//iframe[contains(@src, '{}')]", site_name);
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            if let Some(mut parent) = node.get_parent() {
-                if let Ok(mut video_wrapper) = parent.new_child(None, "div") {
-                    if let Ok(()) = video_wrapper.set_property("class", "videoWrapper") {
-                        if let Ok(()) = node.set_property("width", "100%") {
-                            if let Ok(()) = node.set_property("height", "100%") {
-                                node.unlink();
-                                video_wrapper.add_child(&mut node).map_err(|_| {
-                                    error!("Failed to add iframe as child of video wrapper <div>");
-                                    FullTextParserError::Xml
-                                })?;
-                            }
-                        }
-                    }
+            let video_wrapper = node
+                .get_parent()
+                .and_then(|mut parent| parent.new_child(None, "div").ok());
+            if let Some(mut video_wrapper) = video_wrapper {
+                let success = video_wrapper
+                    .set_property("class", "videoWrapper")
+                    .ok()
+                    .and_then(|()| node.set_property("width", "100%").ok())
+                    .and_then(|()| node.set_property("height", "100%").ok())
+                    .ok_or_else(|| {
+                        node.unlink();
+                        video_wrapper.add_child(&mut node)
+                    })
+                    .is_err();
+                if !success {
+                    warn!("Failed to add iframe as child of video wrapper <div>");
                 }
-
-                error!("Failed to add video wrapper <div> as parent of iframe");
-                return Err(FullTextParserError::Xml);
+            } else {
+                warn!("Failed to get parent of iframe");
             }
-
-            error!("Failed to get parent of iframe");
-            // return Err(ScraperErrorKind::Xml.into());
         }
         Ok(())
     }
@@ -409,8 +407,12 @@ impl FullTextParser {
         let xpath = &format!("//{}[@{}]", xpath_tag, attribute);
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            if node.remove_property(attribute).is_err() {
-                return Err(FullTextParserError::Xml);
+            if let Err(err) = node.remove_property(attribute) {
+                log::warn!(
+                    "Failed to remove attribute '{}' from node: {}",
+                    attribute,
+                    err
+                );
             }
         }
         Ok(())
@@ -427,8 +429,8 @@ impl FullTextParser {
         let xpath = &format!("//{}", xpath_tag);
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            if node.set_attribute(attribute, value).is_err() {
-                return Err(FullTextParserError::Xml);
+            if let Err(err) = node.set_attribute(attribute, value) {
+                log::warn!("Failed to set attribute '{}' on node: {}", attribute, err);
             }
         }
         Ok(())
@@ -439,14 +441,10 @@ impl FullTextParser {
         xpath: &str,
         attribute: &str,
     ) -> Result<String, FullTextParserError> {
-        let node_vec = Util::evaluate_xpath(context, xpath, false)?;
-        for node in node_vec {
-            if let Some(value) = node.get_attribute(attribute) {
-                return Ok(value);
-            }
-        }
-
-        Err(FullTextParserError::Xml)
+        Util::evaluate_xpath(context, xpath, false)?
+            .iter()
+            .find_map(|node| node.get_attribute(attribute))
+            .ok_or(FullTextParserError::Xml)
     }
 
     fn repair_urls(
@@ -457,13 +455,17 @@ impl FullTextParser {
     ) -> Result<(), FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            if let Some(val) = node.get_attribute(attribute) {
-                if let Err(url::ParseError::RelativeUrlWithoutBase) = url::Url::parse(&val) {
-                    if let Ok(fixed_url) = Self::complete_url(article_url, &val) {
-                        if node.set_attribute(attribute, fixed_url.as_str()).is_err() {
-                            return Err(FullTextParserError::Scrape);
-                        }
-                    }
+            if let Some(url) = node.get_attribute(attribute) {
+                let is_relative_url = url::Url::parse(&url)
+                    .err()
+                    .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
+                    .unwrap_or(false);
+
+                if is_relative_url {
+                    let completed_url = Self::complete_url(article_url, &url)?;
+                    let _ = node
+                        .set_attribute(attribute, completed_url.as_str())
+                        .map_err(|_| FullTextParserError::Scrape)?;
                 }
             }
         }
