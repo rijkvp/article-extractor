@@ -6,3 +6,4 @@ mod error;
 
 pub use config_collection::ConfigCollection;
 pub use config_entry::ConfigEntry;
+pub use error::ConfigError;

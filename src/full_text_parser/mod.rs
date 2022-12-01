@@ -6,12 +6,11 @@ mod fingerprints;
 mod tests;
 
 use self::config::{ConfigCollection, ConfigEntry};
-use self::error::{FullTextParserError, FullTextParserErrorKind};
+use self::error::FullTextParserError;
 use crate::article::Article;
 use crate::util::Util;
 use chrono::DateTime;
 use encoding_rs::Encoding;
-use failure::ResultExt;
 use fingerprints::Fingerprints;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
@@ -44,7 +43,7 @@ impl FullTextParser {
         let global_config = self
             .config_files
             .get("global.txt")
-            .ok_or(FullTextParserErrorKind::Config)?;
+            .ok_or(FullTextParserError::Config)?;
 
         let headers = Util::generate_headers(config, global_config)?;
 
@@ -55,9 +54,8 @@ impl FullTextParser {
             .await
             .map_err(|err| {
                 error!("Failed head request to: '{}' - '{}'", url.as_str(), err);
-                err
-            })
-            .context(FullTextParserErrorKind::Http)?;
+                FullTextParserError::Http
+            })?;
 
         // check if url redirects and we need to pick up the new url
         let url = if let Some(new_url) = Util::check_redirect(&response, url) {
@@ -69,7 +67,7 @@ impl FullTextParser {
 
         // check if we are dealing with text/html
         if !Util::check_content_type(&response)? {
-            return Err(FullTextParserErrorKind::ContentType.into());
+            return Err(FullTextParserError::ContentType);
         }
 
         let mut article = Article {
@@ -80,9 +78,9 @@ impl FullTextParser {
             html: None,
         };
 
-        let mut document = Document::new().map_err(|()| FullTextParserErrorKind::Xml)?;
+        let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
         let mut root =
-            Node::new("article", None, &document).map_err(|()| FullTextParserErrorKind::Xml)?;
+            Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
         document.set_root_element(&root);
 
         Self::generate_head(&mut root, &document)?;
@@ -92,7 +90,7 @@ impl FullTextParser {
 
         let context = Context::new(&document).map_err(|()| {
             error!("Failed to create xpath context for extracted article");
-            FullTextParserErrorKind::Xml
+            FullTextParserError::Xml
         })?;
 
         if let Err(error) = Self::prevent_self_closing_tags(&context) {
@@ -209,14 +207,14 @@ impl FullTextParser {
         let parser = Parser::default_html();
         Ok(parser.parse_string(html.as_str()).map_err(|err| {
             error!("Parsing HTML failed for downloaded HTML {:?}", err);
-            FullTextParserErrorKind::Xml
+            FullTextParserError::Xml
         })?)
     }
 
     fn get_xpath_ctx(doc: &Document) -> Result<Context, FullTextParserError> {
         Ok(Context::new(doc).map_err(|()| {
             error!("Creating xpath context failed for downloaded HTML");
-            FullTextParserErrorKind::Xml
+            FullTextParserError::Xml
         })?)
     }
 
@@ -256,16 +254,15 @@ impl FullTextParser {
                     url.as_str(),
                     err
                 );
-                err
-            })
-            .context(FullTextParserErrorKind::Http)?;
+                FullTextParserError::Http
+            })?;
 
         if response.status().is_success() {
             let headers = response.headers().clone();
             let text = response
                 .text()
                 .await
-                .context(FullTextParserErrorKind::Http)?;
+                .map_err(|_| FullTextParserError::Http)?;
             {
                 if let Some(decoded_html) =
                     Self::decode_html(&text, Self::get_encoding_from_html(&text))
@@ -284,7 +281,7 @@ impl FullTextParser {
             return Ok(text);
         }
 
-        Err(FullTextParserErrorKind::Http.into())
+        Err(FullTextParserError::Http)
     }
 
     fn get_encoding_from_http_header(headers: &reqwest::header::HeaderMap) -> Option<&str> {
@@ -338,7 +335,7 @@ impl FullTextParser {
             }
             None => {
                 error!("Getting config failed due to bad Url");
-                Err(FullTextParserErrorKind::Config.into())
+                Err(FullTextParserError::Config)
             }
         }
     }
@@ -366,7 +363,7 @@ impl FullTextParser {
         for mut node in node_vec {
             if let Some(correct_url) = node.get_property(property_url) {
                 if node.set_property("src", &correct_url).is_err() {
-                    return Err(FullTextParserErrorKind::Xml.into());
+                    return Err(FullTextParserError::Xml);
                 }
             }
         }
@@ -385,7 +382,7 @@ impl FullTextParser {
                                 node.unlink();
                                 video_wrapper.add_child(&mut node).map_err(|_| {
                                     error!("Failed to add iframe as child of video wrapper <div>");
-                                    FullTextParserErrorKind::Xml
+                                    FullTextParserError::Xml
                                 })?;
                             }
                         }
@@ -393,7 +390,7 @@ impl FullTextParser {
                 }
 
                 error!("Failed to add video wrapper <div> as parent of iframe");
-                return Err(FullTextParserErrorKind::Xml.into());
+                return Err(FullTextParserError::Xml);
             }
 
             error!("Failed to get parent of iframe");
@@ -413,7 +410,7 @@ impl FullTextParser {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if node.remove_property(attribute).is_err() {
-                return Err(FullTextParserErrorKind::Xml.into());
+                return Err(FullTextParserError::Xml);
             }
         }
         Ok(())
@@ -431,7 +428,7 @@ impl FullTextParser {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if node.set_attribute(attribute, value).is_err() {
-                return Err(FullTextParserErrorKind::Xml.into());
+                return Err(FullTextParserError::Xml);
             }
         }
         Ok(())
@@ -449,7 +446,7 @@ impl FullTextParser {
             }
         }
 
-        Err(FullTextParserErrorKind::Xml.into())
+        Err(FullTextParserError::Xml)
     }
 
     fn repair_urls(
@@ -464,7 +461,7 @@ impl FullTextParser {
                 if let Err(url::ParseError::RelativeUrlWithoutBase) = url::Url::parse(&val) {
                     if let Ok(fixed_url) = Self::complete_url(article_url, &val) {
                         if node.set_attribute(attribute, fixed_url.as_str()).is_err() {
-                            return Err(FullTextParserErrorKind::Scrape.into());
+                            return Err(FullTextParserError::Scrape);
                         }
                     }
                 }
@@ -486,7 +483,7 @@ impl FullTextParser {
                     completed_url.push_str("//");
                     completed_url.push_str(host);
                 }
-                _ => return Err(FullTextParserErrorKind::Scrape.into()),
+                _ => return Err(FullTextParserError::Scrape),
             };
         }
 
@@ -494,7 +491,7 @@ impl FullTextParser {
             completed_url.push('/');
         }
         completed_url.push_str(incomplete_url);
-        let url = url::Url::parse(&completed_url).context(FullTextParserErrorKind::Url)?;
+        let url = url::Url::parse(&completed_url)?;
         Ok(url)
     }
 
@@ -678,7 +675,7 @@ impl FullTextParser {
 
         if !found_something {
             log::error!("no body found");
-            return Err(FullTextParserErrorKind::Scrape.into());
+            return Err(FullTextParserError::Scrape);
         }
 
         Ok(())
@@ -694,7 +691,7 @@ impl FullTextParser {
             let node_vec = Util::evaluate_xpath(context, xpath, false)?;
             for mut node in node_vec {
                 if node.get_property("style").is_some() && node.remove_property("style").is_err() {
-                    return Err(FullTextParserErrorKind::Xml.into());
+                    return Err(FullTextParserError::Xml);
                 }
 
                 node.unlink();
@@ -702,7 +699,7 @@ impl FullTextParser {
                     found_something = true;
                 } else {
                     error!("Failed to add body to prepared document");
-                    return Err(FullTextParserErrorKind::Xml.into());
+                    return Err(FullTextParserError::Xml);
                 }
             }
         }
@@ -748,7 +745,7 @@ impl FullTextParser {
             }
         }
 
-        Err(FullTextParserErrorKind::Xml.into())
+        Err(FullTextParserError::Xml)
     }
 
     fn prevent_self_closing_tags(context: &Context) -> Result<(), FullTextParserError> {

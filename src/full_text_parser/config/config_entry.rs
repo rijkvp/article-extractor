@@ -1,7 +1,6 @@
 use crate::util::Util;
 
-use super::error::{ConfigError, ConfigErrorKind};
-use failure::ResultExt;
+use super::error::ConfigError;
 use std::borrow::Cow;
 use std::io::Cursor;
 use std::path::Path;
@@ -37,9 +36,7 @@ pub struct ConfigEntry {
 
 impl ConfigEntry {
     pub async fn parse_path(config_path: &Path) -> Result<ConfigEntry, ConfigError> {
-        let mut file = fs::File::open(&config_path)
-            .await
-            .context(ConfigErrorKind::IO)?;
+        let mut file = fs::File::open(&config_path).await?;
         let buffer = BufReader::new(&mut file);
 
         Self::parse(buffer).await

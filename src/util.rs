@@ -1,4 +1,3 @@
-use failure::ResultExt;
 use libxml::{tree::Node, xpath::Context};
 use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
@@ -6,10 +5,7 @@ use reqwest::{
 };
 use tokio::fs::DirEntry;
 
-use crate::full_text_parser::{
-    config::ConfigEntry,
-    error::{FullTextParserError, FullTextParserErrorKind},
-};
+use crate::full_text_parser::{config::ConfigEntry, error::FullTextParserError};
 
 pub struct Util;
 
@@ -55,22 +51,22 @@ impl Util {
         if let Some(config) = site_specific_rule {
             for header in &config.header {
                 let name = HeaderName::from_bytes(header.name.as_bytes())
-                    .context(FullTextParserErrorKind::Config)?;
+                    .map_err(|_| FullTextParserError::Config)?;
                 let value = header
                     .value
                     .parse::<HeaderValue>()
-                    .context(FullTextParserErrorKind::Config)?;
+                    .map_err(|_| FullTextParserError::Config)?;
                 headers.insert(name, value);
             }
         }
 
         for header in &global_rule.header {
             let name = HeaderName::from_bytes(header.name.as_bytes())
-                .context(FullTextParserErrorKind::Config)?;
+                .map_err(|_| FullTextParserError::Config)?;
             let value = header
                 .value
                 .parse::<HeaderValue>()
-                .context(FullTextParserErrorKind::Config)?;
+                .map_err(|_| FullTextParserError::Config)?;
             headers.insert(name, value);
         }
 
@@ -105,7 +101,7 @@ impl Util {
     ) -> Result<Vec<Node>, FullTextParserError> {
         let res = xpath_ctx.evaluate(xpath).map_err(|()| {
             log::debug!("Evaluation of xpath '{}' yielded no results", xpath);
-            FullTextParserErrorKind::Xml
+            FullTextParserError::Xml
         })?;
 
         let node_vec = res.get_nodes_as_vec();
@@ -113,7 +109,7 @@ impl Util {
         if node_vec.is_empty() {
             log::debug!("Evaluation of xpath '{}' yielded no results", xpath);
             if thorw_if_empty {
-                return Err(FullTextParserErrorKind::Xml.into());
+                return Err(FullTextParserError::Xml);
             }
         }
 
@@ -135,7 +131,7 @@ impl Util {
         }
 
         log::error!("Failed to determine content type");
-        Err(FullTextParserErrorKind::Http.into())
+        Err(FullTextParserError::Http)
     }
 
     pub fn check_redirect(response: &Response, original_url: &url::Url) -> Option<url::Url> {
@@ -155,7 +151,7 @@ impl Util {
             return Ok(val.get_content());
         }
 
-        Err(FullTextParserErrorKind::Xml.into())
+        Err(FullTextParserError::Xml)
     }
 
     pub fn extract_value_merge(

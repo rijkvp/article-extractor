@@ -6,7 +6,7 @@ mod readability;
 mod util;
 
 use article::Article;
-use error::{ScraperError, ScraperErrorKind};
+use error::ScraperError;
 use full_text_parser::FullTextParser;
 use images::ImageDownloader;
 use readability::Readability;

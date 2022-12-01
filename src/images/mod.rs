@@ -1,6 +1,5 @@
-use self::error::{ImageDownloadError, ImageDownloadErrorKind};
+pub use self::error::ImageDownloadError;
 use crate::util::Util;
-use failure::ResultExt;
 use libxml::parser::Parser;
 use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
@@ -25,14 +24,13 @@ impl ImageDownloader {
         client: &Client,
     ) -> Result<String, ImageDownloadError> {
         let parser = Parser::default_html();
-        let doc = parser.parse_string(html).map_err(|_| {
-            error!("Failed to parse HTML string");
-            ImageDownloadErrorKind::HtmlParse
-        })?;
+        let doc = parser
+            .parse_string(html)
+            .map_err(|_| ImageDownloadError::HtmlParse)?;
 
         let xpath_ctx = Context::new(&doc).map_err(|()| {
             error!("Failed to create xpath context for document");
-            ImageDownloadErrorKind::HtmlParse
+            ImageDownloadError::HtmlParse
         })?;
 
         self.download_images_from_context(&xpath_ctx, client)
@@ -58,7 +56,7 @@ impl ImageDownloader {
     ) -> Result<(), ImageDownloadError> {
         let xpath = "//img";
         let node_vec = Util::evaluate_xpath(context, xpath, false)
-            .context(ImageDownloadErrorKind::HtmlParse)?;
+            .map_err(|_| ImageDownloadError::HtmlParse)?;
         for mut node in node_vec {
             if let Some(url) = node.get_property("src") {
                 if !url.starts_with("data:") {
@@ -72,11 +70,11 @@ impl ImageDownloader {
                             self.save_image(&url, &parent_url, client).await
                         {
                             if node.set_property("src", &small_image).is_err() {
-                                return Err(ImageDownloadErrorKind::HtmlParse.into());
+                                return Err(ImageDownloadError::HtmlParse);
                             }
                             if let Some(big_image) = big_image {
                                 if node.set_property("big-src", &big_image).is_err() {
-                                    return Err(ImageDownloadErrorKind::HtmlParse.into());
+                                    return Err(ImageDownloadError::HtmlParse);
                                 }
                             }
                         }
@@ -94,26 +92,21 @@ impl ImageDownloader {
         parent_url: &Option<url::Url>,
         client: &Client,
     ) -> Result<(String, Option<String>), ImageDownloadError> {
-        let response = client
-            .get(image_url.clone())
-            .send()
-            .await
-            .map_err(|err| {
-                error!("GET {} failed - {}", image_url.as_str(), err);
-                err
-            })
-            .context(ImageDownloadErrorKind::Http)?;
+        let response = client.get(image_url.clone()).send().await.map_err(|err| {
+            error!("GET {} failed - {}", image_url.as_str(), err);
+            ImageDownloadError::Http
+        })?;
 
         let content_type_small = ImageDownloader::check_image_content_type(&response)?;
         let content_type_small = content_type_small
             .to_str()
-            .context(ImageDownloadErrorKind::ContentType)?;
+            .map_err(|_| ImageDownloadError::ContentType)?;
         let mut content_type_big: Option<String> = None;
 
         let mut small_image = response
             .bytes()
             .await
-            .context(ImageDownloadErrorKind::IO)?
+            .map_err(|_| ImageDownloadError::Http)?
             .as_ref()
             .to_vec();
 
@@ -124,18 +117,18 @@ impl ImageDownloader {
                 .get(parent_url.clone())
                 .send()
                 .await
-                .context(ImageDownloadErrorKind::Http)?;
+                .map_err(|_| ImageDownloadError::Http)?;
             content_type_big = Some(
                 ImageDownloader::check_image_content_type(&response_big)?
                     .to_str()
-                    .context(ImageDownloadErrorKind::ContentType)?
+                    .map_err(|_| ImageDownloadError::ContentType)?
                     .to_owned(),
             );
             big_image = Some(
                 response_big
                     .bytes()
                     .await
-                    .context(ImageDownloadErrorKind::IO)?
+                    .map_err(|_| ImageDownloadError::Http)?
                     .to_vec(),
             );
         }
@@ -159,12 +152,10 @@ impl ImageDownloader {
             format!("data:{};base64,{}", content_type_small, small_image_base64);
         let big_image_string = match big_image_base64 {
             Some(big_image_base64) => {
-                let content_type_big = content_type_big
-                    .ok_or(ImageDownloadErrorKind::ParentDownload)
-                    .map_err(|err| {
-                        debug!("content_type_big should not be None when a big image exists");
-                        err
-                    })?;
+                let content_type_big = content_type_big.ok_or_else(|| {
+                    debug!("content_type_big should not be None when a big image exists");
+                    ImageDownloadError::ParentDownload
+                })?;
                 Some(format!(
                     "data:{};base64,{}",
                     content_type_big, big_image_base64
@@ -182,7 +173,7 @@ impl ImageDownloader {
             if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
                 if content_type
                     .to_str()
-                    .context(ImageDownloadErrorKind::ContentType)?
+                    .map_err(|_| ImageDownloadError::ContentType)?
                     .contains("image")
                 {
                     return Ok(content_type.clone());
@@ -190,10 +181,10 @@ impl ImageDownloader {
             }
 
             error!("{} is not an image", response.url());
-            return Err(ImageDownloadErrorKind::ContentType.into());
+            Err(ImageDownloadError::ContentType)
+        } else {
+            Err(ImageDownloadError::Http)
         }
-
-        Err(ImageDownloadErrorKind::Http.into())
     }
 
     fn scale_image(
@@ -203,12 +194,10 @@ impl ImageDownloader {
         let mut original_image: Vec<u8> = Vec::new();
         let mut resized_image: Option<Vec<u8>> = None;
 
-        let mut image = image::load_from_memory(image_buffer)
-            .map_err(|err| {
-                error!("Failed to open image to resize");
-                err
-            })
-            .context(ImageDownloadErrorKind::ImageScale)?;
+        let mut image = image::load_from_memory(image_buffer).map_err(|err| {
+            error!("Failed to open image to resize: {}", err);
+            ImageDownloadError::ImageScale
+        })?;
 
         image
             .write_to(
@@ -216,10 +205,9 @@ impl ImageDownloader {
                 image::ImageOutputFormat::Png,
             )
             .map_err(|err| {
-                error!("Failed to save resized image to resize");
-                err
-            })
-            .context(ImageDownloadErrorKind::ImageScale)?;
+                error!("Failed to save resized image to resize: {}", err);
+                ImageDownloadError::ImageScale
+            })?;
 
         let dimensions = (image.width(), image.height());
         if dimensions.0 > max_dimensions.0 || dimensions.1 > max_dimensions.1 {
@@ -235,10 +223,9 @@ impl ImageDownloader {
                     image::ImageOutputFormat::Png,
                 )
                 .map_err(|err| {
-                    error!("Failed to save resized image to resize");
-                    err
-                })
-                .context(ImageDownloadErrorKind::ImageScale)?;
+                    error!("Failed to save resized image to resize: {}", err);
+                    ImageDownloadError::ImageScale
+                })?;
             resized_image = Some(resized_buf);
         }
 
@@ -254,24 +241,23 @@ impl ImageDownloader {
         if let Some(parent) = node.get_parent() {
             if parent.get_name() == "a" {
                 if let Some(url) = parent.get_property("href") {
-                    let parent_url =
-                        url::Url::parse(&url).context(ImageDownloadErrorKind::ParentDownload)?;
+                    let parent_url = url::Url::parse(&url).map_err(|err| {
+                        error!("Failed to parse parent image url: {}", err);
+                        ImageDownloadError::InvalidUrl(err)
+                    })?;
                     let parent_response = client
                         .head(parent_url.clone())
                         .send()
                         .await
-                        .context(ImageDownloadErrorKind::ParentDownload)?;
-                    let _ = ImageDownloader::check_image_content_type(&parent_response)
-                        .context(ImageDownloadErrorKind::ParentDownload)?;
+                        .map_err(|_| ImageDownloadError::Http)?;
+                    let _ = ImageDownloader::check_image_content_type(&parent_response)?;
                     let child_response = client
                         .get(child_url.clone())
                         .send()
                         .await
-                        .context(ImageDownloadErrorKind::ParentDownload)?;
-                    let parent_length = Self::get_content_lenght(&parent_response)
-                        .context(ImageDownloadErrorKind::ParentDownload)?;
-                    let child_length = Self::get_content_lenght(&child_response)
-                        .context(ImageDownloadErrorKind::ParentDownload)?;
+                        .map_err(|_| ImageDownloadError::Http)?;
+                    let parent_length = Self::get_content_lenght(&parent_response)?;
+                    let child_length = Self::get_content_lenght(&child_response)?;
 
                     if parent_length > child_length {
                         return Ok(parent_url);
@@ -283,7 +269,7 @@ impl ImageDownloader {
         }
 
         debug!("Image parent element not relevant");
-        Err(ImageDownloadErrorKind::ParentDownload.into())
+        Err(ImageDownloadError::ParentDownload)
     }
 
     fn get_content_lenght(response: &Response) -> Result<u64, ImageDownloadError> {
@@ -296,7 +282,7 @@ impl ImageDownloader {
                 }
             }
         }
-        Err(ImageDownloadErrorKind::ContentLenght.into())
+        Err(ImageDownloadError::ContentLenght)
     }
 }
 
