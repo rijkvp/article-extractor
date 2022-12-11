@@ -16,7 +16,7 @@ pub struct Article {
 impl Article {
     pub fn save_html(&self, path: &PathBuf) -> Result<(), Error> {
         if let Some(ref html) = self.html {
-            if let Ok(()) = std::fs::create_dir_all(&path) {
+            if let Ok(()) = std::fs::create_dir_all(path) {
                 let mut file_name = match self.title.clone() {
                     Some(file_name) => file_name.replace('/', "_"),
                     None => "Unknown Title".to_owned(),

@@ -209,17 +209,17 @@ impl FullTextParser {
 
         // parse html
         let parser = Parser::default_html();
-        Ok(parser.parse_string(html.as_str()).map_err(|err| {
+        parser.parse_string(html.as_str()).map_err(|err| {
             error!("Parsing HTML failed for downloaded HTML {:?}", err);
             FullTextParserError::Xml
-        })?)
+        })
     }
 
     fn get_xpath_ctx(doc: &Document) -> Result<Context, FullTextParserError> {
-        Ok(Context::new(doc).map_err(|()| {
+        Context::new(doc).map_err(|()| {
             error!("Creating xpath context failed for downloaded HTML");
             FullTextParserError::Xml
-        })?)
+        })
     }
 
     async fn parse_single_page(
@@ -356,29 +356,26 @@ impl FullTextParser {
     }
 
     fn check_for_thumbnail(context: &Context, article: &mut Article) {
-        if let Some(thumb) = Self::get_attribute(
+        if let Ok(thumb) = Self::get_attribute(
             context,
             "//meta[contains(@name, 'twitter:image')]",
             "content",
-        )
-        .ok()
+        ) {
+            article.thumbnail_url = Some(thumb);
+            return;
+        }
+
+        if let Ok(thumb) =
+            Self::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content")
         {
             article.thumbnail_url = Some(thumb);
             return;
         }
 
-        if let Some(thumb) =
-            Self::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content").ok()
+        if let Ok(thumb) =
+            Self::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href")
         {
             article.thumbnail_url = Some(thumb);
-            return;
-        }
-
-        if let Some(thumb) =
-            Self::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href").ok()
-        {
-            article.thumbnail_url = Some(thumb);
-            return;
         }
     }
 
@@ -495,8 +492,7 @@ impl FullTextParser {
 
                 if is_relative_url {
                     let completed_url = Self::complete_url(article_url, &url)?;
-                    let _ = node
-                        .set_attribute(attribute, completed_url.as_str())
+                    node.set_attribute(attribute, completed_url.as_str())
                         .map_err(|_| FullTextParserError::Scrape)?;
                 }
             }

@@ -28,10 +28,7 @@ impl ConfigCollection {
 
         if let Some(directory) = directory {
             // create data dir if it doesn't already exist
-            if let Err(error) = std::fs::DirBuilder::new()
-                .recursive(true)
-                .create(&directory)
-            {
+            if let Err(error) = std::fs::DirBuilder::new().recursive(true).create(directory) {
                 log::warn!(
                     "Failed to create user config directory {:?}: {}",
                     directory,
