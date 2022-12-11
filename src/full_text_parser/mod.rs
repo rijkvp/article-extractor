@@ -76,6 +76,7 @@ impl FullTextParser {
             url: url.clone(),
             date: None,
             html: None,
+            thumbnail_url: None,
         };
 
         let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
@@ -170,6 +171,9 @@ impl FullTextParser {
         }
 
         Self::extract_metadata(&xpath_ctx, config, global_config, article);
+        if article.thumbnail_url.is_none() {
+            Self::check_for_thumbnail(&xpath_ctx, article);
+        }
         Self::strip_junk(&xpath_ctx, config, global_config, url);
         Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
@@ -232,6 +236,7 @@ impl FullTextParser {
         let document = Self::parse_html(html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         Self::extract_metadata(&xpath_ctx, config, global_config, article);
+        Self::check_for_thumbnail(&xpath_ctx, article);
         Self::strip_junk(&xpath_ctx, config, global_config, url);
         Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
@@ -348,6 +353,23 @@ impl FullTextParser {
         }
 
         conf
+    }
+
+    fn check_for_thumbnail(context: &Context, article: &mut Article) {
+        if let Some(thumb) = Self::get_attribute(context, "//meta[contains(@name, 'twitter:image')]", "content").ok() {
+            article.thumbnail_url = Some(thumb);
+            return
+        }
+
+        if let Some(thumb) = Self::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content").ok() {
+            article.thumbnail_url = Some(thumb);
+            return
+        }
+
+        if let Some(thumb) = Self::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href").ok() {
+            article.thumbnail_url = Some(thumb);
+            return
+        }
     }
 
     fn fix_lazy_images(

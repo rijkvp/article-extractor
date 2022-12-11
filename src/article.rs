@@ -10,6 +10,7 @@ pub struct Article {
     pub url: Url,
     pub date: Option<DateTime<Utc>>,
     pub html: Option<String>,
+    pub thumbnail_url: Option<String>,
 }
 
 impl Article {

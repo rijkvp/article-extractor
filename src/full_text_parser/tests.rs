@@ -17,6 +17,12 @@ async fn golem() {
             "HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben"
         ))
     );
+    assert_eq!(
+        article.thumbnail_url,
+        Some(String::from(
+            "https://www.golem.de/1708/129460-144318-i_rc.jpg"
+        ))
+    );
     assert_eq!(article.author, Some(String::from("Hauke Gierow")));
 }
 
