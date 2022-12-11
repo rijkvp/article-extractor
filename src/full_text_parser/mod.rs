@@ -356,19 +356,29 @@ impl FullTextParser {
     }
 
     fn check_for_thumbnail(context: &Context, article: &mut Article) {
-        if let Some(thumb) = Self::get_attribute(context, "//meta[contains(@name, 'twitter:image')]", "content").ok() {
+        if let Some(thumb) = Self::get_attribute(
+            context,
+            "//meta[contains(@name, 'twitter:image')]",
+            "content",
+        )
+        .ok()
+        {
             article.thumbnail_url = Some(thumb);
-            return
+            return;
         }
 
-        if let Some(thumb) = Self::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content").ok() {
+        if let Some(thumb) =
+            Self::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content").ok()
+        {
             article.thumbnail_url = Some(thumb);
-            return
+            return;
         }
 
-        if let Some(thumb) = Self::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href").ok() {
+        if let Some(thumb) =
+            Self::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href").ok()
+        {
             article.thumbnail_url = Some(thumb);
-            return
+            return;
         }
     }
 
