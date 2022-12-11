@@ -63,3 +63,12 @@ async fn youtube() {
         .map(|html| html.contains("https://www.youtube.com/embed/8KjaIumu-jI?feature=oembed"))
         .unwrap_or(false));
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn encoding_windows_1252() {
+    let url = url::Url::parse("https://www.aerzteblatt.de/nachrichten/139511/Scholz-zuversichtlich-mit-Blick-auf-Coronasituation-im-Winter").unwrap();
+    let html = FullTextParser::download(&url, &Client::new(), reqwest::header::HeaderMap::new())
+        .await
+        .unwrap();
+    assert!(html.contains("Bund-Länder-Konferenz"));
+}

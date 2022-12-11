@@ -16,6 +16,8 @@ pub enum FullTextParserError {
     IO,
     #[error("Content-type suggest no html")]
     ContentType,
+    #[error("Invalid UTF8 Text")]
+    Utf8(#[from] std::str::Utf8Error),
     #[error("Unknown Error")]
     Unknown,
 }

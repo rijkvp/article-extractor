@@ -19,7 +19,7 @@ use log::{debug, error, info, warn};
 use reqwest::header::HeaderMap;
 use reqwest::Client;
 use std::path::Path;
-use std::str::FromStr;
+use std::str::{from_utf8, FromStr};
 
 pub struct FullTextParser {
     config_files: ConfigCollection,
@@ -264,25 +264,37 @@ impl FullTextParser {
 
         if response.status().is_success() {
             let headers = response.headers().clone();
-            let text = response
-                .text()
+            let bytes = response
+                .bytes()
                 .await
                 .map_err(|_| FullTextParserError::Http)?;
 
-            if let Some(decoded_html) =
-                Self::decode_html(&text, Self::get_encoding_from_html(&text))
-            {
-                return Ok(decoded_html);
-            }
+            match from_utf8(&bytes) {
+                Ok(utf8_str) => {
+                    debug!("Valid utf-8 string");
+                    return Ok(utf8_str.into());
+                }
+                Err(error) => {
+                    debug!("Invalid utf-8 string");
+                    let lossy_string = std::string::String::from_utf8_lossy(&bytes);
 
-            if let Some(decoded_html) =
-                Self::decode_html(&text, Self::get_encoding_from_http_header(&headers))
-            {
-                return Ok(decoded_html);
-            }
+                    if let Some(encoding) = Self::get_encoding_from_html(&lossy_string) {
+                        debug!("Encoding extracted from HTML: '{}'", encoding);
+                        if let Some(decoded_html) = Self::decode_html(&bytes, encoding) {
+                            return Ok(decoded_html);
+                        }
+                    }
 
-            warn!("No encoding of HTML detected - assuming utf-8");
-            return Ok(text);
+                    if let Some(encoding) = Self::get_encoding_from_http_header(&headers) {
+                        debug!("Encoding extracted from headers: '{}'", encoding);
+                        if let Some(decoded_html) = Self::decode_html(&bytes, encoding) {
+                            return Ok(decoded_html);
+                        }
+                    }
+
+                    return Err(FullTextParserError::Utf8(error));
+                }
+            }
         }
 
         Err(FullTextParserError::Http)
@@ -303,7 +315,7 @@ impl FullTextParser {
 
     fn get_encoding_from_html(html: &str) -> Option<&str> {
         let regex =
-            regex::Regex::new(r#"<meta.*?charset=([^"']+)"#).expect("Failed to parse regex");
+            regex::Regex::new(r#"<meta.*?charset="*(.*?)""#).expect("Failed to parse regex");
         if let Some(captures) = regex.captures(html) {
             if let Some(regex_match) = captures.get(1) {
                 return Some(regex_match.as_str());
@@ -312,17 +324,15 @@ impl FullTextParser {
         None
     }
 
-    fn decode_html(html: &str, encoding: Option<&str>) -> Option<String> {
-        if let Some(encoding) = encoding {
-            if let Some(encoding) = Encoding::for_label(encoding.as_bytes()) {
-                let (decoded_html, _, invalid_chars) = encoding.decode(html.as_bytes());
+    fn decode_html(bytes: &[u8], encoding: &str) -> Option<String> {
+        if let Some(encoding) = Encoding::for_label(encoding.as_bytes()) {
+            let (decoded_html, _, invalid_chars) = encoding.decode(bytes);
 
-                if !invalid_chars {
-                    return Some(decoded_html.into_owned());
-                }
+            if !invalid_chars {
+                return Some(decoded_html.into_owned());
             }
-            warn!("Could not decode HTML. Encoding: '{}'", encoding);
         }
+        warn!("Could not decode HTML. Encoding: '{}'", encoding);
         None
     }
 
