@@ -1,7 +1,7 @@
 pub use self::error::ImageDownloadError;
 use crate::util::Util;
 use libxml::parser::Parser;
-use libxml::tree::{Node, SaveOptions};
+use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
 use log::{debug, error};
 use reqwest::{Client, Response};
@@ -28,34 +28,21 @@ impl ImageDownloader {
             .parse_string(html)
             .map_err(|_| ImageDownloadError::HtmlParse)?;
 
+        self.download_images_from_document(&doc, client).await
+    }
+
+    pub async fn download_images_from_document(
+        &self,
+        doc: &Document,
+        client: &Client,
+    ) -> Result<String, ImageDownloadError> {
         let xpath_ctx = Context::new(&doc).map_err(|()| {
             error!("Failed to create xpath context for document");
             ImageDownloadError::HtmlParse
         })?;
 
-        self.download_images_from_context(&xpath_ctx, client)
-            .await?;
-
-        let options = SaveOptions {
-            format: false,
-            no_declaration: false,
-            no_empty_tags: true,
-            no_xhtml: false,
-            xhtml: false,
-            as_xml: false,
-            as_html: true,
-            non_significant_whitespace: false,
-        };
-        Ok(doc.to_string_with_options(options))
-    }
-
-    pub async fn download_images_from_context(
-        &self,
-        context: &Context,
-        client: &Client,
-    ) -> Result<(), ImageDownloadError> {
         let xpath = "//img";
-        let node_vec = Util::evaluate_xpath(context, xpath, false)
+        let node_vec = Util::evaluate_xpath(&xpath_ctx, xpath, false)
             .map_err(|_| ImageDownloadError::HtmlParse)?;
         for mut node in node_vec {
             if let Some(url) = node.get_property("src") {
@@ -83,7 +70,17 @@ impl ImageDownloader {
             }
         }
 
-        Ok(())
+        let options = SaveOptions {
+            format: false,
+            no_declaration: false,
+            no_empty_tags: true,
+            no_xhtml: false,
+            xhtml: false,
+            as_xml: false,
+            as_html: true,
+            non_significant_whitespace: false,
+        };
+        Ok(doc.to_string_with_options(options))
     }
 
     async fn save_image(

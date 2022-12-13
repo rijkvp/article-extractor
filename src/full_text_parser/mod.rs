@@ -13,7 +13,7 @@ use chrono::DateTime;
 use encoding_rs::Encoding;
 use fingerprints::Fingerprints;
 use libxml::parser::Parser;
-use libxml::tree::{Document, Node, SaveOptions};
+use libxml::tree::{Document, Node};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
 use reqwest::header::HeaderMap;
@@ -75,8 +75,8 @@ impl FullTextParser {
             author: None,
             url: url.clone(),
             date: None,
-            html: None,
             thumbnail_url: None,
+            document: None,
         };
 
         let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
@@ -86,8 +86,30 @@ impl FullTextParser {
 
         Self::generate_head(&mut root, &document)?;
 
-        self.parse_pages(&mut article, &url, &mut root, config, global_config, client)
-            .await?;
+        let headers = Util::generate_headers(config, global_config)?;
+        let html = Self::download(&url, client, headers).await?;
+
+        // check for fingerprints
+        let config = if config.is_none() {
+            if let Some(url) = Fingerprints::detect(&html) {
+                self.get_grabber_config(&url)
+            } else {
+                config
+            }
+        } else {
+            config
+        };
+
+        self.parse_pages(
+            &mut article,
+            &url,
+            &html,
+            &mut root,
+            config,
+            global_config,
+            client,
+        )
+        .await?;
 
         let context = Context::new(&document).map_err(|()| {
             error!("Failed to create xpath context for extracted article");
@@ -99,19 +121,7 @@ impl FullTextParser {
             return Err(error);
         }
 
-        // serialize content
-        let options = SaveOptions {
-            format: false,
-            no_declaration: false,
-            no_empty_tags: true,
-            no_xhtml: false,
-            xhtml: false,
-            as_xml: false,
-            as_html: true,
-            non_significant_whitespace: false,
-        };
-        let html = document.to_string_with_options(options);
-        article.html = Some(html);
+        article.document = Some(document);
 
         Ok(article)
     }
@@ -120,25 +130,12 @@ impl FullTextParser {
         &self,
         article: &mut Article,
         url: &url::Url,
+        html: &str,
         root: &mut Node,
         config: Option<&ConfigEntry>,
         global_config: &ConfigEntry,
         client: &Client,
     ) -> Result<(), FullTextParserError> {
-        let headers = Util::generate_headers(config, global_config)?;
-        let html = Self::download(url, client, headers).await?;
-
-        // see if
-        let config = if config.is_none() {
-            if let Some(url) = Fingerprints::detect(&html) {
-                self.get_grabber_config(&url)
-            } else {
-                config
-            }
-        } else {
-            config
-        };
-
         let mut document = Self::parse_html(html, config, global_config)?;
         let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
 
@@ -180,7 +177,7 @@ impl FullTextParser {
         while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
             let headers = Util::generate_headers(config, global_config)?;
             let html = Self::download(&url, client, headers).await?;
-            document = Self::parse_html(html, config, global_config)?;
+            document = Self::parse_html(&html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
             Self::strip_junk(&xpath_ctx, config, global_config, &url);
             Self::extract_body(&xpath_ctx, root, config, global_config)?;
@@ -190,13 +187,13 @@ impl FullTextParser {
     }
 
     fn parse_html(
-        html: String,
+        html: &str,
         config: Option<&ConfigEntry>,
         global_config: &ConfigEntry,
     ) -> Result<Document, FullTextParserError> {
         // replace matches in raw html
 
-        let mut html = html;
+        let mut html = html.to_owned();
         if let Some(config) = config {
             for replace in &config.replace {
                 html = html.replace(&replace.to_replace, &replace.replace_with);
@@ -233,7 +230,7 @@ impl FullTextParser {
     ) -> Result<(), FullTextParserError> {
         let headers = Util::generate_headers(config, global_config)?;
         let html = Self::download(url, client, headers).await?;
-        let document = Self::parse_html(html, config, global_config)?;
+        let document = Self::parse_html(&html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         Self::extract_metadata(&xpath_ctx, config, global_config, article);
         Self::check_for_thumbnail(&xpath_ctx, article);

@@ -59,7 +59,7 @@ async fn youtube() {
         Some("RIGGED! Arena Shuffler is BROKEN | 13 Land Mono Red Burn")
     );
     assert!(article
-        .html
+        .get_content()
         .map(|html| html.contains("https://www.youtube.com/embed/8KjaIumu-jI?feature=oembed"))
         .unwrap_or(false));
 }
