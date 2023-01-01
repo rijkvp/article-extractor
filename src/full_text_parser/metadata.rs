@@ -1,9 +1,9 @@
+use super::config::ConfigEntry;
+use crate::{article::Article, util::Util};
 use chrono::{DateTime, Utc};
 use libxml::xpath::Context;
 use log::{debug, warn};
 use std::str::FromStr;
-use crate::{article::Article, util::Util};
-use super::config::ConfigEntry;
 
 pub fn extract(
     context: &Context,
@@ -11,19 +11,23 @@ pub fn extract(
     global_config: &ConfigEntry,
     article: &mut Article,
 ) {
-    
     if article.title.is_none() {
-        article.title = extract_title(context, config, global_config).and_then(|title| Some(match escaper::decode_html(&title) {
-            Ok(escaped_title) => escaped_title,
-            Err(_error) => title,
-        }));
+        article.title = extract_title(context, config, global_config).map(|title| {
+            match escaper::decode_html(&title) {
+                Ok(escaped_title) => escaped_title,
+                Err(_error) => title,
+            }
+        });
     }
 
     if article.author.is_none() {
-        article.author = extract_author(context, config, global_config).and_then(|author| Some(match escaper::decode_html(&author) {
-            Ok(escaped_author) => escaped_author,
-            Err(_error) => author,
-        }));
+        article.author =
+            extract_author(context, config, global_config).map(
+                |author| match escaper::decode_html(&author) {
+                    Ok(escaped_author) => escaped_author,
+                    Err(_error) => author,
+                },
+            );
     }
 
     if article.date.is_none() {
@@ -34,7 +38,7 @@ pub fn extract(
 fn extract_title(
     context: &Context,
     config: Option<&ConfigEntry>,
-    global_config: &ConfigEntry
+    global_config: &ConfigEntry,
 ) -> Option<String> {
     // check site specific config
     if let Some(config) = config {
@@ -67,7 +71,7 @@ fn extract_title(
 fn extract_author(
     context: &Context,
     config: Option<&ConfigEntry>,
-    global_config: &ConfigEntry
+    global_config: &ConfigEntry,
 ) -> Option<String> {
     // check site specific config
     if let Some(config) = config {
@@ -96,7 +100,7 @@ fn extract_author(
 fn extract_date(
     context: &Context,
     config: Option<&ConfigEntry>,
-    global_config: &ConfigEntry
+    global_config: &ConfigEntry,
 ) -> Option<DateTime<Utc>> {
     // check site specific config
     if let Some(config) = config {
@@ -128,5 +132,10 @@ fn extract_date(
 }
 
 fn get_meta(context: &Context, name: &str) -> Option<String> {
-    Util::get_attribute(context, &format!("//meta[contains(@name, '{}')]", name), "content").ok()
+    Util::get_attribute(
+        context,
+        &format!("//meta[contains(@name, '{}')]", name),
+        "content",
+    )
+    .ok()
 }

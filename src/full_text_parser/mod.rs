@@ -1,8 +1,8 @@
 pub mod config;
 pub mod error;
 mod fingerprints;
-mod readability;
 mod metadata;
+mod readability;
 
 #[cfg(test)]
 mod tests;
@@ -387,14 +387,14 @@ impl FullTextParser {
         }
 
         if let Ok(thumb) =
-        Util::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content")
+            Util::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content")
         {
             article.thumbnail_url = Some(thumb);
             return;
         }
 
         if let Ok(thumb) =
-        Util::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href")
+            Util::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href")
         {
             article.thumbnail_url = Some(thumb);
         }
