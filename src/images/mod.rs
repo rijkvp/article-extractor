@@ -36,7 +36,7 @@ impl ImageDownloader {
         doc: &Document,
         client: &Client,
     ) -> Result<String, ImageDownloadError> {
-        let xpath_ctx = Context::new(&doc).map_err(|()| {
+        let xpath_ctx = Context::new(doc).map_err(|()| {
             error!("Failed to create xpath context for document");
             ImageDownloadError::HtmlParse
         })?;

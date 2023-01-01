@@ -145,6 +145,17 @@ impl Util {
         None
     }
 
+    pub fn get_attribute(
+        context: &Context,
+        xpath: &str,
+        attribute: &str,
+    ) -> Result<String, FullTextParserError> {
+        Util::evaluate_xpath(context, xpath, false)?
+            .iter()
+            .find_map(|node| node.get_attribute(attribute))
+            .ok_or(FullTextParserError::Xml)
+    }
+
     pub fn extract_value(context: &Context, xpath: &str) -> Result<String, FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         if let Some(val) = node_vec.get(0) {

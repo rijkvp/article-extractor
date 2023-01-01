@@ -1,15 +1,18 @@
 pub mod config;
 pub mod error;
 mod fingerprints;
+mod readability;
+mod metadata;
 
 #[cfg(test)]
 mod tests;
 
 use self::config::{ConfigCollection, ConfigEntry};
 use self::error::FullTextParserError;
+use self::readability::Readability;
 use crate::article::Article;
 use crate::util::Util;
-use chrono::DateTime;
+
 use encoding_rs::Encoding;
 use fingerprints::Fingerprints;
 use libxml::parser::Parser;
@@ -19,7 +22,7 @@ use log::{debug, error, info, warn};
 use reqwest::header::HeaderMap;
 use reqwest::Client;
 use std::path::Path;
-use std::str::{from_utf8, FromStr};
+use std::str::from_utf8;
 
 pub struct FullTextParser {
     config_files: ConfigCollection,
@@ -154,7 +157,7 @@ impl FullTextParser {
                 // parse again with single page url
                 debug!("Single page link found '{}'", single_page_url);
 
-                return self
+                if let Err(error) = self
                     .parse_single_page(
                         article,
                         &single_page_url,
@@ -163,16 +166,27 @@ impl FullTextParser {
                         global_config,
                         client,
                     )
-                    .await;
+                    .await
+                {
+                    log::warn!("Single Page parsing: {}", error);
+                    log::debug!("Continuing with regular parser.");
+                }
             }
         }
 
-        Self::extract_metadata(&xpath_ctx, config, global_config, article);
+        metadata::extract(&xpath_ctx, config, global_config, article);
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
         }
         Self::strip_junk(&xpath_ctx, config, global_config, url);
-        Self::extract_body(&xpath_ctx, root, config, global_config)?;
+        let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
+
+        if found_body {
+            if let Err(error) = Readability::extract_body_readability(&document, root) {
+                log::error!("Both ftr and readability failed to find content: {}", error);
+                return Err(error);
+            }
+        }
 
         while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
             let headers = Util::generate_headers(config, global_config)?;
@@ -232,7 +246,7 @@ impl FullTextParser {
         let html = Self::download(url, client, headers).await?;
         let document = Self::parse_html(&html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
-        Self::extract_metadata(&xpath_ctx, config, global_config, article);
+        metadata::extract(&xpath_ctx, config, global_config, article);
         Self::check_for_thumbnail(&xpath_ctx, article);
         Self::strip_junk(&xpath_ctx, config, global_config, url);
         Self::extract_body(&xpath_ctx, root, config, global_config)?;
@@ -363,7 +377,7 @@ impl FullTextParser {
     }
 
     fn check_for_thumbnail(context: &Context, article: &mut Article) {
-        if let Ok(thumb) = Self::get_attribute(
+        if let Ok(thumb) = Util::get_attribute(
             context,
             "//meta[contains(@name, 'twitter:image')]",
             "content",
@@ -373,14 +387,14 @@ impl FullTextParser {
         }
 
         if let Ok(thumb) =
-            Self::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content")
+        Util::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content")
         {
             article.thumbnail_url = Some(thumb);
             return;
         }
 
         if let Ok(thumb) =
-            Self::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href")
+        Util::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href")
         {
             article.thumbnail_url = Some(thumb);
         }
@@ -470,17 +484,6 @@ impl FullTextParser {
             }
         }
         Ok(())
-    }
-
-    fn get_attribute(
-        context: &Context,
-        xpath: &str,
-        attribute: &str,
-    ) -> Result<String, FullTextParserError> {
-        Util::evaluate_xpath(context, xpath, false)?
-            .iter()
-            .find_map(|node| node.get_attribute(attribute))
-            .ok_or(FullTextParserError::Xml)
     }
 
     fn repair_urls(
@@ -612,90 +615,12 @@ impl FullTextParser {
         let _ = Util::strip_node(context, "//*[@type='text/css']");
     }
 
-    fn extract_metadata(
-        context: &Context,
-        config: Option<&ConfigEntry>,
-        global_config: &ConfigEntry,
-        article: &mut Article,
-    ) {
-        // try to get title
-        if let Some(config) = config {
-            for xpath_title in &config.xpath_title {
-                if let Ok(title) = Util::extract_value_merge(context, xpath_title) {
-                    debug!("Article title: '{}'", title);
-                    article.title = Some(title);
-                    break;
-                }
-            }
-        }
-
-        if article.title.is_none() {
-            for xpath_title in &global_config.xpath_title {
-                if let Ok(title) = Util::extract_value_merge(context, xpath_title) {
-                    debug!("Article title: '{}'", title);
-                    article.title = Some(title);
-                    break;
-                }
-            }
-        }
-
-        // try to get the author
-        if let Some(config) = config {
-            for xpath_author in &config.xpath_author {
-                if let Ok(author) = Util::extract_value(context, xpath_author) {
-                    debug!("Article author: '{}'", author);
-                    article.author = Some(author);
-                    break;
-                }
-            }
-        }
-
-        if article.author.is_none() {
-            for xpath_author in &global_config.xpath_author {
-                if let Ok(author) = Util::extract_value(context, xpath_author) {
-                    debug!("Article author: '{}'", author);
-                    article.author = Some(author);
-                    break;
-                }
-            }
-        }
-
-        // try to get the date
-        if let Some(config) = config {
-            for xpath_date in &config.xpath_date {
-                if let Ok(date_string) = Util::extract_value(context, xpath_date) {
-                    debug!("Article date: '{}'", date_string);
-                    if let Ok(date) = DateTime::from_str(&date_string) {
-                        article.date = Some(date);
-                        break;
-                    } else {
-                        warn!("Parsing the date string '{}' failed", date_string);
-                    }
-                }
-            }
-        }
-
-        if article.date.is_none() {
-            for xpath_date in &global_config.xpath_date {
-                if let Ok(date_string) = Util::extract_value(context, xpath_date) {
-                    debug!("Article date: '{}'", date_string);
-                    if let Ok(date) = DateTime::from_str(&date_string) {
-                        article.date = Some(date);
-                        break;
-                    } else {
-                        warn!("Parsing the date string '{}' failed", date_string);
-                    }
-                }
-            }
-        }
-    }
-
     fn extract_body(
         context: &Context,
         root: &mut Node,
         config: Option<&ConfigEntry>,
         global_config: &ConfigEntry,
-    ) -> Result<(), FullTextParserError> {
+    ) -> Result<bool, FullTextParserError> {
         let mut found_something = false;
 
         if let Some(config) = config {
@@ -712,10 +637,9 @@ impl FullTextParser {
 
         if !found_something {
             log::error!("no body found");
-            return Err(FullTextParserError::Scrape);
         }
 
-        Ok(())
+        Ok(found_something)
     }
 
     fn extract_body_single(
@@ -752,7 +676,7 @@ impl FullTextParser {
     ) -> Option<url::Url> {
         if let Some(config) = config {
             if let Some(next_page_xpath) = config.next_page_link.as_deref() {
-                if let Ok(next_page_string) = Self::get_attribute(context, next_page_xpath, "href")
+                if let Ok(next_page_string) = Util::get_attribute(context, next_page_xpath, "href")
                 {
                     if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
                         return Some(next_page_url);
@@ -760,7 +684,7 @@ impl FullTextParser {
                 }
             }
         } else if let Some(next_page_xpath) = global_config.next_page_link.as_deref() {
-            if let Ok(next_page_string) = Self::get_attribute(context, next_page_xpath, "href") {
+            if let Ok(next_page_string) = Util::get_attribute(context, next_page_xpath, "href") {
                 if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
                     return Some(next_page_url);
                 }

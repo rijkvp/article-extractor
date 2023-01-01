@@ -7,28 +7,26 @@ static FINGERPRINT_REGEXES: Lazy<HashMap<&'static str, Regex>> = Lazy::new(|| {
     let mut m = HashMap::with_capacity(4);
     m.insert(
         "fingerprint.blogspot.com",
-        regex::Regex::new(
+        Regex::new(
             r#"/\\<meta\s*content=([\\'"])blogger([\\'"])\s*name=([\\'"])generator([\\'"])/i"#,
         )
         .expect("failed to build static regex"),
     );
     m.insert(
         "fingerprint.blogspot.com",
-        regex::Regex::new(
+        Regex::new(
             r#"/\\<meta\s*name=([\\'"])generator([\\'"])\s*content=([\\'"])Blogger([\\'"])/i"#,
         )
         .expect("failed to build static regex"),
     );
     m.insert(
         "fingerprint.wordpress.com",
-        regex::Regex::new(
-            r#"/\\<meta\\s*name=([\\'"])generator([\\'"])\s*content=([\\'"])WordPress/i"#,
-        )
-        .expect("failed to build static regex"),
+        Regex::new(r#"/\\<meta\\s*name=([\\'"])generator([\\'"])\s*content=([\\'"])WordPress/i"#)
+            .expect("failed to build static regex"),
     );
     m.insert(
         "fingerprint.ippen.media",
-        regex::Regex::new(r#"/\\<div\\s*class=([\\'"])id-SiteBEEPWrap([\\'"])\\>/i"#)
+        Regex::new(r#"/\\<div\\s*class=([\\'"])id-SiteBEEPWrap([\\'"])\\>/i"#)
             .expect("failed to build static regex"),
     );
     m

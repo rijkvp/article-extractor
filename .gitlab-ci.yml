@@ -1,19 +1,9 @@
-image: rust:latest
-
 stages:
-  - lint
   - build
   
 
 run-build:
   stage: build
-  image: rust:latest
-  script:
-  - rustc --version && cargo --version
-  - cargo build --release --jobs 1
-
-run-lint:
-  stage: lint
   image: rust:latest
   before_script:
   - rustup component add rustfmt
@@ -22,3 +12,4 @@ run-lint:
   - rustc --version && cargo --version
   - cargo fmt -- --check
   - cargo clippy --all-targets --all-features -- -D warnings
+  - cargo build --release --jobs 1
