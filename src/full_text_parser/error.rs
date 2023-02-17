@@ -18,6 +18,8 @@ pub enum FullTextParserError {
     ContentType,
     #[error("Invalid UTF8 Text")]
     Utf8(#[from] std::str::Utf8Error),
+    #[error("Readability Error")]
+    Readability,
     #[error("Unknown Error")]
     Unknown,
 }

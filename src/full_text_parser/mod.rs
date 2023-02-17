@@ -182,7 +182,7 @@ impl FullTextParser {
         let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         if found_body {
-            if let Err(error) = Readability::extract_body_readability(&document, root) {
+            if let Err(error) = Readability::extract_body_readability(document, root) {
                 log::error!("Both ftr and readability failed to find content: {}", error);
                 return Err(error);
             }

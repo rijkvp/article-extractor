@@ -1,6 +1,11 @@
+use std::collections::HashSet;
+
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+pub const DEFAULT_CHAR_THRESHOLD: usize = 500;
+pub static SIBLING_CONTENT: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"/\.( |$)/"#).expect("SIBLING_CONTENT regex"));
 pub static BYLINE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"/byline|author|dateline|writtenby|p-author/i"#).expect("BYLINE regex")
 });
@@ -17,7 +22,17 @@ pub static OKAY_MAYBE_ITS_A_CANDIDATE: Lazy<Regex> = Lazy::new(|| {
 pub static HAS_CONTENT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/\S$/"#).expect("HAS_CONTENT regex"));
 pub static HASH_URL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"/^#.+/"#).expect("HASH_URL regex"));
+pub static POSITIVE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"/article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i"#,
+    )
+    .expect("POSITIVE regex")
+});
+pub static NEGATIVE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"/-ad-|hidden|^hid$| hid$| hid |^hid"#).expect("NEGATIVE regex"));
 
+pub const SCORE_ATTR: &str = "content_score";
+pub const MINIMUM_TOPCANDIDATES: usize = 3;
 pub const UNLIKELY_ROLES: &[&str] = &[
     "menu",
     "menubar",
@@ -30,6 +45,22 @@ pub const UNLIKELY_ROLES: &[&str] = &[
 
 pub const DEFAULT_TAGS_TO_SCORE: &[&str] =
     &["SECTION", "H2", "H3", "H4", "H5", "H6", "P", "TD", "PRE"];
+pub static DIV_TO_P_ELEMS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+    HashSet::from([
+        "BLOCKQUOTE",
+        "DL",
+        "DIV",
+        "IMG",
+        "OL",
+        "P",
+        "PRE",
+        "TABLE",
+        "UL",
+    ])
+});
+
+pub static ALTER_TO_DIV_EXCEPTIONS: Lazy<HashSet<&'static str>> =
+    Lazy::new(|| HashSet::from(["DIV", "ARTICLE", "SECTION", "P"]));
 
 pub const PHRASING_ELEMS: &[&str] = &[
     // "CANVAS", "IFRAME", "SVG", "VIDEO",

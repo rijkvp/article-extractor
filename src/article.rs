@@ -42,7 +42,7 @@ impl Article {
                 };
                 file_name.push_str(".html");
                 let path = path.join(file_name);
-                let mut html_file = File::create(&path)?;
+                let mut html_file = File::create(path)?;
                 html_file.write_all(html.as_bytes())?;
                 return Ok(());
             }
