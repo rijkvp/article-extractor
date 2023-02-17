@@ -145,7 +145,9 @@ impl Readability {
                                 continue;
                             }
                         }
-                    } else if !Self::has_child_block_element(node_ref) && node_ref.set_name("P").is_ok() {
+                    } else if !Self::has_child_block_element(node_ref)
+                        && node_ref.set_name("P").is_ok()
+                    {
                         elements_to_score.push(node_ref.clone());
                     }
                 }
