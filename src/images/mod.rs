@@ -1,5 +1,6 @@
 pub use self::error::ImageDownloadError;
 use crate::util::Util;
+use base64::Engine;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
@@ -143,8 +144,8 @@ impl ImageDownloader {
             }
         }
 
-        let small_image_base64 = base64::encode(&small_image);
-        let big_image_base64 = big_image.map(base64::encode);
+        let small_image_base64 = base64::engine::general_purpose::STANDARD.encode(&small_image);
+        let big_image_base64 = big_image.map(|img| base64::engine::general_purpose::STANDARD.encode(img));
         let small_image_string =
             format!("data:{};base64,{}", content_type_small, small_image_base64);
         let big_image_string = match big_image_base64 {
@@ -290,13 +291,13 @@ mod tests {
     use std::fs;
     use std::io::Write;
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn close_tags() {
         let image_dowloader = ImageDownloader::new((2048, 2048));
-        let hdyleaflet = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
+        let html = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
             .expect("Failed to read HTML");
         let result = image_dowloader
-            .download_images_from_string(&hdyleaflet, &Client::new())
+            .download_images_from_string(&html, &Client::new())
             .await
             .expect("Failed to downalod images");
         let mut file = fs::File::create(r"./test_output/fedora31_images_downloaded.html")

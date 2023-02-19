@@ -1,9 +1,12 @@
 mod constants;
 mod state;
 
+#[cfg(test)]
+mod tests;
+
 use std::cmp::Ordering;
 
-use libxml::tree::{Document, Node, NodeType};
+use libxml::tree::{node, Document, Node, NodeType};
 
 use self::state::State;
 use super::error::FullTextParserError;
@@ -11,13 +14,12 @@ use super::error::FullTextParserError;
 pub struct Readability;
 
 impl Readability {
-    pub fn extract_body_readability(
-        document: Document,
-        root: &mut Node,
-    ) -> Result<bool, FullTextParserError> {
+    pub fn extract_body(document: Document, root: &mut Node) -> Result<bool, FullTextParserError> {
+        node::set_node_rc_guard(6);
+
         let mut state = State::default();
         let mut document = document;
-        let mut attempts: Vec<(Node, usize)> = Vec::new();
+        let mut attempts: Vec<(Node, usize, Document)> = Vec::new();
         let document_cache = document
             .dup()
             .map_err(|()| FullTextParserError::Readability)?;
@@ -75,7 +77,7 @@ impl Readability {
                 }
 
                 // Remove DIV, SECTION, and HEADER nodes without any content(e.g. text, image, video, or iframe).
-                if tag_name == "DIV"
+                if (tag_name == "DIV"
                     || tag_name == "SECTION"
                     || tag_name == "HEADER"
                     || tag_name == "H1"
@@ -83,7 +85,8 @@ impl Readability {
                     || tag_name == "H3"
                     || tag_name == "H4"
                     || tag_name == "H5"
-                    || tag_name == "H6" && Self::is_element_without_content(node_ref)
+                    || tag_name == "H6")
+                    && Self::is_element_without_content(node_ref)
                 {
                     node = Self::remove_and_next(node_ref);
                     continue;
@@ -159,7 +162,7 @@ impl Readability {
             // Loop through all paragraphs, and assign a score to them based on how content-y they look.
             // Then add their score to their parent node.
             // A score is determined by things like number of commas, class names, etc. Maybe eventually link density.
-            for element_to_score in elements_to_score {
+            for element_to_score in elements_to_score.drain(..) {
                 if element_to_score.get_parent().is_none() {
                     continue;
                 }
@@ -195,7 +198,7 @@ impl Readability {
                     }
 
                     if Self::get_content_score(&ancestor).is_none() {
-                        Self::initialize_node(&mut ancestor, &state);
+                        Self::initialize_node(&mut ancestor, &state)?;
                         candidates.push(ancestor.clone());
                     }
 
@@ -213,7 +216,7 @@ impl Readability {
 
                     if let Some(mut score) = Self::get_content_score(&ancestor) {
                         score += content_score / score_divider;
-                        Self::set_content_score(&mut ancestor, score);
+                        Self::set_content_score(&mut ancestor, score)?;
                     }
                 }
             }
@@ -226,7 +229,7 @@ impl Readability {
                 // unaffected by this operation.
                 if let Some(content_score) = Self::get_content_score(candidate) {
                     let candidate_score = content_score * (1.0 - Self::get_link_density(candidate));
-                    Self::set_content_score(candidate, candidate_score);
+                    Self::set_content_score(candidate, candidate_score)?;
                 }
             }
 
@@ -244,11 +247,11 @@ impl Readability {
             let mut top_candidate = top_candidates.first().cloned().unwrap_or_else(|| {
                 // If we still have no top candidate, just use the body as a last resort.
                 // We also have to copy the body node so it is something we can modify.
-                Self::initialize_node(root, &state);
+                let mut rt = document.get_root_element().unwrap();
+                Self::initialize_node(&mut rt, &state).unwrap();
                 needed_to_create_top_candidate = true;
-                root.clone()
+                rt
             });
-            #[allow(unused_assignments)]
             let mut parent_of_top_candidate = None;
 
             let mut alternative_candidate_ancestors = Vec::new();
@@ -257,8 +260,9 @@ impl Readability {
             for top_candidate in &top_candidates {
                 if let Some(score) = Self::get_content_score(top_candidate) {
                     if score >= 0.75 {
-                        alternative_candidate_ancestors
-                            .push(Self::get_node_ancestors(top_candidate, 0));
+                        if let Some(ancestor) = top_candidate.get_parent() {
+                            alternative_candidate_ancestors.push(ancestor);
+                        }
                     }
                 }
             }
@@ -273,15 +277,16 @@ impl Readability {
                             alternative_candidate_ancestors.len(),
                             constants::MINIMUM_TOPCANDIDATES,
                         );
-                        for item in alternative_candidate_ancestors.iter().take(tmp) {
-                            let tmp = item.iter().any(|n| n == parent);
-                            lists_containing_this_ancestor += if tmp { 1 } else { 0 };
+                        for ancestor in alternative_candidate_ancestors.iter().take(tmp) {
+                            lists_containing_this_ancestor += if ancestor == parent { 1 } else { 0 };
                         }
 
                         if lists_containing_this_ancestor >= constants::MINIMUM_TOPCANDIDATES {
                             top_candidate = parent.clone();
                             break;
                         }
+                    } else {
+                        break;
                     }
 
                     parent_of_top_candidate = parent_of_top_candidate.and_then(|n| n.get_parent());
@@ -289,7 +294,7 @@ impl Readability {
             }
 
             if Self::get_content_score(&top_candidate).is_none() {
-                Self::initialize_node(&mut top_candidate, &state);
+                Self::initialize_node(&mut top_candidate, &state)?;
             }
 
             // Because of our bonus system, parents of candidates might have scores
@@ -353,7 +358,7 @@ impl Readability {
             }
 
             if Self::get_content_score(&top_candidate).is_none() {
-                Self::initialize_node(&mut top_candidate, &state);
+                Self::initialize_node(&mut top_candidate, &state)?;
             }
 
             // Now that we have the top candidate, look through its siblings for content
@@ -432,6 +437,7 @@ impl Readability {
                             })?;
                         }
 
+                        sibling.unlink();
                         article_content.add_child(&mut sibling).map_err(|error| {
                             log::error!("{error}");
                             FullTextParserError::Readability
@@ -471,6 +477,7 @@ impl Readability {
                 })?;
 
                 for mut child in article_content.get_child_nodes() {
+                    child.unlink();
                     div.add_child(&mut child).map_err(|error| {
                         log::error!("{error}");
                         FullTextParserError::Readability
@@ -489,33 +496,31 @@ impl Readability {
             // grabArticle with different flags set. This gives us a higher likelihood of
             // finding the content, and the sieve approach gives us a higher likelihood of
             // finding the -right- content.
-            let text_length = Self::get_inner_text(&article_content, true).len();
+            let text = Self::get_inner_text(&article_content, true);
+            let text_length = text.len();
 
             if text_length < constants::DEFAULT_CHAR_THRESHOLD {
                 parse_successful = false;
-                document = document_cache
-                    .dup()
-                    .map_err(|()| FullTextParserError::Readability)?;
 
                 if state.strip_unlikely {
                     state.strip_unlikely = false;
-                    attempts.push((article_content, text_length));
+                    attempts.push((article_content, text_length, document));
                 } else if state.weigh_classes {
                     state.weigh_classes = false;
-                    attempts.push((article_content, text_length));
+                    attempts.push((article_content, text_length, document));
                 } else if state.clean_conditionally {
                     state.clean_conditionally = false;
-                    attempts.push((article_content, text_length));
+                    attempts.push((article_content, text_length, document));
                 } else {
-                    attempts.push((article_content, text_length));
+                    attempts.push((article_content, text_length, document));
                     // No luck after removing flags, just return the longest text we found during the different loops
 
-                    attempts.sort_by(|(_, size_a), (_, size_b)| size_a.cmp(size_b));
+                    attempts.sort_by(|(_, size_a, _), (_, size_b, _)| size_a.cmp(size_b));
 
                     // But first check if we actually have something
-                    if let Some((best_attempt, _len)) = attempts.first() {
-                        article_content = best_attempt.clone();
-                        root.add_child(&mut article_content).map_err(|error| {
+                    if let Some((mut best_attempt, _len, _document)) = attempts.pop() {
+                        best_attempt.unlink();
+                        root.add_child(&mut best_attempt).map_err(|error| {
                             log::error!("{error}");
                             FullTextParserError::Readability
                         })?;
@@ -524,6 +529,10 @@ impl Readability {
 
                     return Ok(parse_successful);
                 }
+
+                document = document_cache
+                    .dup()
+                    .map_err(|()| FullTextParserError::Readability)?;
             } else {
                 root.add_child(&mut article_content).map_err(|error| {
                     log::error!("{error}");
@@ -539,9 +548,12 @@ impl Readability {
             .and_then(|a| a.parse::<f64>().ok())
     }
 
-    fn set_content_score(node: &mut Node, score: f64) {
+    fn set_content_score(node: &mut Node, score: f64) -> Result<(), FullTextParserError> {
         node.set_attribute(constants::SCORE_ATTR, &score.to_string())
-            .expect("Failed to set content score");
+            .map_err(|err| {
+                log::error!("failed to set content score: {err}");
+                FullTextParserError::Readability
+            })
     }
 
     fn is_probably_visible(node: &Node) -> bool {
@@ -580,6 +592,8 @@ impl Readability {
     }
 
     fn next_node(node: &Node, ignore_self_and_kids: bool) -> Option<Node> {
+        let mut node = node.clone();
+
         // First check for kids if those aren't being ignored
         let first_child = node.get_first_child();
         if !ignore_self_and_kids && first_child.is_some() {
@@ -602,9 +616,16 @@ impl Readability {
             }
 
             if let Some(parent) = parent {
+                let parent_name = parent.get_name().to_uppercase();
+                if parent_name == "HTML" {
+                    break;
+                }
+
                 let next_sibling = parent.get_next_sibling();
                 if next_sibling.is_some() {
                     return next_sibling;
+                } else {
+                    node = parent;
                 }
             }
         }
@@ -649,11 +670,11 @@ impl Readability {
     // the same as the article title.
     fn header_duplicates_title(node: &Node) -> bool {
         let name = node.get_name().to_lowercase();
-        if name != "h1" || name != "h2" {
+        if name != "h1" && name != "h2" {
             return false;
         }
         let heading = Self::get_inner_text(node, false);
-        Self::text_similarity(&heading, "FIXME") > 0.75
+        Self::text_similarity(&heading, "Get your Frontend JavaScript Code Covered") > 0.75
     }
 
     fn get_inner_text(node: &Node, normalize_spaces: bool) -> String {
@@ -759,10 +780,10 @@ impl Readability {
 
         fn get_elems(node: &Node, tag: &str, vec: &mut Vec<Node>, all_tags: bool) {
             for child in node.get_child_elements() {
-                if all_tags || child.get_name() == tag {
-                    vec.push(child);
+                if all_tags || child.get_name().to_uppercase() == tag {
+                    vec.push(child.clone());
                 }
-                get_elems(node, tag, vec, all_tags);
+                get_elems(&child, tag, vec, all_tags);
             }
         }
 
@@ -823,7 +844,7 @@ impl Readability {
         let mut ancestors = Vec::new();
         let mut node = node.clone();
 
-        for _ in 0..max_depth {
+        for _ in 0..=max_depth {
             let parent = node.get_parent();
             match parent {
                 Some(parent) => {
@@ -839,7 +860,7 @@ impl Readability {
 
     // Initialize a node with the readability object. Also checks the
     // className/id for special names to add to its score.
-    fn initialize_node(node: &mut Node, state: &State) {
+    fn initialize_node(node: &mut Node, state: &State) -> Result<(), FullTextParserError> {
         let score = match node.get_name().to_uppercase().as_str() {
             "DIV" => 5,
             "PRE" | "TD" | "BLOCKQUITE" => 3,
@@ -848,7 +869,8 @@ impl Readability {
             _ => 0,
         };
         let score = score + Self::get_class_weight(node, state);
-        Self::set_content_score(node, score as f64);
+        Self::set_content_score(node, score as f64)?;
+        Ok(())
     }
 
     fn get_class_weight(node: &Node, state: &State) -> i64 {

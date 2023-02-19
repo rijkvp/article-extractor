@@ -2,7 +2,7 @@ use super::FullTextParser;
 use reqwest::Client;
 use std::path::PathBuf;
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test]
 async fn golem() {
     let out_path = PathBuf::from(r"./test_output");
     let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
@@ -26,7 +26,7 @@ async fn golem() {
     assert_eq!(article.author, Some(String::from("Hauke Gierow")));
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test]
 async fn phoronix() {
     let out_path = PathBuf::from(r"./test_output");
     let url =
@@ -45,7 +45,7 @@ async fn phoronix() {
     );
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test]
 async fn youtube() {
     let out_path = PathBuf::from(r"./test_output");
     let url = url::Url::parse("https://www.youtube.com/watch?v=8KjaIumu-jI").unwrap();
@@ -64,7 +64,7 @@ async fn youtube() {
         .unwrap_or(false));
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test]
 async fn encoding_windows_1252() {
     let url = url::Url::parse("https://www.aerzteblatt.de/nachrichten/139511/Scholz-zuversichtlich-mit-Blick-auf-Coronasituation-im-Winter").unwrap();
     let html = FullTextParser::download(&url, &Client::new(), reqwest::header::HeaderMap::new())

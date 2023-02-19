@@ -34,6 +34,24 @@ pub struct ConfigEntry {
     pub next_page_link: Option<String>,
 }
 
+impl Default for ConfigEntry {
+    fn default() -> Self {
+        Self {
+            xpath_title: Vec::new(),
+            xpath_author: Vec::new(),
+            xpath_date: Vec::new(),
+            xpath_body: Vec::new(),
+            xpath_strip: Vec::new(),
+            strip_id_or_class: Vec::new(),
+            strip_image_src: Vec::new(),
+            replace: Vec::new(),
+            header: Vec::new(),
+            single_page_link: None,
+            next_page_link: None,
+        }
+    }
+}
+
 impl ConfigEntry {
     pub async fn parse_path(config_path: &Path) -> Result<ConfigEntry, ConfigError> {
         let mut file = fs::File::open(&config_path).await?;
