@@ -1,4 +1,5 @@
 mod article;
+mod constants;
 mod error;
 mod full_text_parser;
 pub mod images;

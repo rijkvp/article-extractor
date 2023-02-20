@@ -174,7 +174,7 @@ impl FullTextParser {
             }
         }
 
-        metadata::extract(&xpath_ctx, config, global_config, article);
+        metadata::extract(&xpath_ctx, config, Some(global_config), article);
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
         }
@@ -182,7 +182,8 @@ impl FullTextParser {
         let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         if !found_body {
-            if let Err(error) = Readability::extract_body(document, root) {
+            if let Err(error) = Readability::extract_body(document, root, article.title.as_deref())
+            {
                 log::error!("Both ftr and readability failed to find content: {}", error);
                 return Err(error);
             }
@@ -246,7 +247,7 @@ impl FullTextParser {
         let html = Self::download(url, client, headers).await?;
         let document = Self::parse_html(&html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
-        metadata::extract(&xpath_ctx, config, global_config, article);
+        metadata::extract(&xpath_ctx, config, Some(global_config), article);
         Self::check_for_thumbnail(&xpath_ctx, article);
         Self::strip_junk(&xpath_ctx, config, global_config, url);
         Self::extract_body(&xpath_ctx, root, config, global_config)?;

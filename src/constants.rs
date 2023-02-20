@@ -11,7 +11,7 @@ pub static BYLINE: Lazy<Regex> = Lazy::new(|| {
 });
 pub static NORMALIZE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/\s{2,}/g"#).expect("NORMALIZE regex"));
-pub static TOKENIZE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"/\W+/g"#).expect("TOKENIZE regex"));
+pub static TOKENIZE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\W+"#).expect("TOKENIZE regex"));
 pub static UNLIELY_CANDIDATES: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"/-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|footer|gdpr|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote/i"#).expect("UNLIELY_CANDIDATES regex")
 });
@@ -30,6 +30,14 @@ pub static POSITIVE: Lazy<Regex> = Lazy::new(|| {
 });
 pub static NEGATIVE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/-ad-|hidden|^hid$| hid$| hid |^hid"#).expect("NEGATIVE regex"));
+
+pub static TITLE_SEPARATOR: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"[-|\\/>»]"#).expect("TITLE_SEPARATOR regex"));
+pub static TITLE_CUT_END: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(.*)[-|\\/>»] .*"#).expect("TITLE_CUT_END regex"));
+pub static WORD_COUNT: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\s+"#).expect("WORD_COUNT regex"));
+pub static TITLE_CUT_FRONT: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"/[^-|\\/>»]*[-|\\/>»](.*)/gi"#).expect("TITLE_CUT_FRONT regex"));
 
 pub const SCORE_ATTR: &str = "content_score";
 pub const MINIMUM_TOPCANDIDATES: usize = 3;

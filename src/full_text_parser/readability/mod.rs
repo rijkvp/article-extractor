@@ -1,4 +1,3 @@
-mod constants;
 mod state;
 
 #[cfg(test)]
@@ -10,11 +9,16 @@ use libxml::tree::{node, Document, Node, NodeType};
 
 use self::state::State;
 use super::error::FullTextParserError;
+use crate::constants;
 
 pub struct Readability;
 
 impl Readability {
-    pub fn extract_body(document: Document, root: &mut Node) -> Result<bool, FullTextParserError> {
+    pub fn extract_body(
+        document: Document,
+        root: &mut Node,
+        title: Option<&str>,
+    ) -> Result<bool, FullTextParserError> {
         node::set_node_rc_guard(6);
 
         let mut state = State::default();
@@ -49,7 +53,9 @@ impl Readability {
                     continue;
                 }
 
-                if state.should_remove_title_header && Self::header_duplicates_title(node_ref) {
+                if state.should_remove_title_header
+                    && Self::header_duplicates_title(node_ref, title)
+                {
                     state.should_remove_title_header = false;
                     node = Self::remove_and_next(node_ref);
                     continue;
@@ -278,7 +284,8 @@ impl Readability {
                             constants::MINIMUM_TOPCANDIDATES,
                         );
                         for ancestor in alternative_candidate_ancestors.iter().take(tmp) {
-                            lists_containing_this_ancestor += if ancestor == parent { 1 } else { 0 };
+                            lists_containing_this_ancestor +=
+                                if ancestor == parent { 1 } else { 0 };
                         }
 
                         if lists_containing_this_ancestor >= constants::MINIMUM_TOPCANDIDATES {
@@ -668,13 +675,18 @@ impl Readability {
 
     // Check if this node is an H1 or H2 element whose content is mostly
     // the same as the article title.
-    fn header_duplicates_title(node: &Node) -> bool {
+    fn header_duplicates_title(node: &Node, title: Option<&str>) -> bool {
         let name = node.get_name().to_lowercase();
         if name != "h1" && name != "h2" {
             return false;
         }
         let heading = Self::get_inner_text(node, false);
-        Self::text_similarity(&heading, "Get your Frontend JavaScript Code Covered") > 0.75
+
+        if let Some(title) = title {
+            Self::text_similarity(&heading, title) > 0.75
+        } else {
+            false
+        }
     }
 
     fn get_inner_text(node: &Node, normalize_spaces: bool) -> String {
@@ -695,18 +707,12 @@ impl Readability {
             return 0.0;
         }
 
-        let tokens_b_total: f64 = tokens_b
-            .iter()
-            .map(|t| t.len())
-            .fold(0.0, |a, b| a + b as f64);
+        let tokens_b_total = tokens_b.join(" ").len() as f64;
         let uniq_tokens_b = tokens_b
             .into_iter()
             .filter(|token| !tokens_a.iter().any(|t| t == token))
             .collect::<Vec<_>>();
-        let uniq_tokens_b_total: f64 = uniq_tokens_b
-            .iter()
-            .map(|t| t.len())
-            .fold(0.0, |a, b| a + b as f64);
+        let uniq_tokens_b_total = uniq_tokens_b.join(" ").len() as f64;
 
         let distance_b = uniq_tokens_b_total / tokens_b_total;
         1.0 - distance_b
