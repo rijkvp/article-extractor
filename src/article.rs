@@ -18,7 +18,7 @@ impl Article {
     pub fn get_content(&self) -> Option<String> {
         // serialize content
         let options = SaveOptions {
-            format: false,
+            format: true,
             no_declaration: false,
             no_empty_tags: true,
             no_xhtml: false,

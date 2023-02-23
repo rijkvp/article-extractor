@@ -9,7 +9,7 @@ use libxml::tree::{node, Document, Node, NodeType};
 
 use self::state::State;
 use super::error::FullTextParserError;
-use crate::constants;
+use crate::{constants, util::Util};
 
 pub struct Readability;
 
@@ -43,13 +43,13 @@ impl Readability {
                     None => match_string,
                 };
 
-                if !Self::is_probably_visible(node_ref) {
-                    node = Self::remove_and_next(node_ref);
+                if !Util::is_probably_visible(node_ref) {
+                    node = Util::remove_and_next(node_ref);
                     continue;
                 }
 
                 if Self::check_byline(node_ref, &match_string, &mut state) {
-                    node = Self::remove_and_next(node_ref);
+                    node = Util::remove_and_next(node_ref);
                     continue;
                 }
 
@@ -57,7 +57,7 @@ impl Readability {
                     && Self::header_duplicates_title(node_ref, title)
                 {
                     state.should_remove_title_header = false;
-                    node = Self::remove_and_next(node_ref);
+                    node = Util::remove_and_next(node_ref);
                     continue;
                 }
 
@@ -65,18 +65,18 @@ impl Readability {
                 if state.strip_unlikely {
                     if constants::UNLIELY_CANDIDATES.is_match(&match_string)
                         && !constants::OKAY_MAYBE_ITS_A_CANDIDATE.is_match(&match_string)
-                        && !Self::has_ancestor_tag(node_ref, "table", None)
-                        && !Self::has_ancestor_tag(node_ref, "code", None)
+                        && !Util::has_ancestor_tag(node_ref, "table", None)
+                        && !Util::has_ancestor_tag(node_ref, "code", None)
                         && tag_name != "BODY"
                         && tag_name != "A"
                     {
-                        node = Self::remove_and_next(node_ref);
+                        node = Util::remove_and_next(node_ref);
                         continue;
                     }
 
                     if let Some(role) = node_ref.get_attribute("role") {
                         if constants::UNLIKELY_ROLES.contains(&role.as_str()) {
-                            node = Self::remove_and_next(node_ref);
+                            node = Util::remove_and_next(node_ref);
                             continue;
                         }
                     }
@@ -92,9 +92,9 @@ impl Readability {
                     || tag_name == "H4"
                     || tag_name == "H5"
                     || tag_name == "H6")
-                    && Self::is_element_without_content(node_ref)
+                    && Util::is_element_without_content(node_ref)
                 {
-                    node = Self::remove_and_next(node_ref);
+                    node = Util::remove_and_next(node_ref);
                     continue;
                 }
 
@@ -110,7 +110,7 @@ impl Readability {
                         if Self::is_phrasing_content(&child_node) {
                             if let Some(p) = p.as_mut() {
                                 let _ = p.add_child(&mut child_node);
-                            } else if !Self::is_whitespace(&child_node) {
+                            } else if !Util::is_whitespace(&child_node) {
                                 let mut new_node = Node::new("p", None, &document)
                                     .map_err(|()| FullTextParserError::Readability)?;
                                 node_ref
@@ -127,7 +127,7 @@ impl Readability {
                             }
                         } else if let Some(p) = p.as_mut() {
                             for mut r_node in p.get_child_nodes().into_iter().rev() {
-                                if Self::is_whitespace(&r_node) {
+                                if Util::is_whitespace(&r_node) {
                                     r_node.unlink();
                                 }
                             }
@@ -138,8 +138,8 @@ impl Readability {
                     // element. DIVs with only a P element inside and no text content can be
                     // safely converted into plain P elements to avoid confusing the scoring
                     // algorithm with DIVs with are, in practice, paragraphs.
-                    if Self::has_single_tag_inside_element(node_ref, "P")
-                        && Self::get_link_density(node_ref) < 0.25
+                    if Util::has_single_tag_inside_element(node_ref, "P")
+                        && Util::get_link_density(node_ref) < 0.25
                     {
                         if let Some(new_node) = node_ref.get_child_nodes().first() {
                             if let Some(mut parent) = node_ref.get_parent() {
@@ -154,14 +154,14 @@ impl Readability {
                                 continue;
                             }
                         }
-                    } else if !Self::has_child_block_element(node_ref)
+                    } else if !Util::has_child_block_element(node_ref)
                         && node_ref.set_name("P").is_ok()
                     {
                         elements_to_score.push(node_ref.clone());
                     }
                 }
 
-                node = Self::next_node(node_ref, false);
+                node = Util::next_node(node_ref, false);
             }
 
             let mut candidates = Vec::new();
@@ -173,7 +173,7 @@ impl Readability {
                     continue;
                 }
 
-                let inner_text = Self::get_inner_text(&element_to_score, true);
+                let inner_text = Util::get_inner_text(&element_to_score, true);
 
                 // If this paragraph is less than 25 characters, don't even count it.
                 if inner_text.len() < 25 {
@@ -181,7 +181,7 @@ impl Readability {
                 }
 
                 // Exclude nodes with no ancestor.
-                let ancestors = Self::get_node_ancestors(&element_to_score, 5);
+                let ancestors = Util::get_node_ancestors(&element_to_score, 5);
                 if ancestors.is_empty() {
                     continue;
                 }
@@ -234,7 +234,7 @@ impl Readability {
                 // should have a relatively small link density (5% or less) and be mostly
                 // unaffected by this operation.
                 if let Some(content_score) = Self::get_content_score(candidate) {
-                    let candidate_score = content_score * (1.0 - Self::get_link_density(candidate));
+                    let candidate_score = content_score * (1.0 - Util::get_link_density(candidate));
                     Self::set_content_score(candidate, candidate_score)?;
                 }
             }
@@ -242,7 +242,7 @@ impl Readability {
             candidates.sort_by(|a, b| {
                 if let (Some(a), Some(b)) = (Self::get_content_score(a), Self::get_content_score(b))
                 {
-                    a.partial_cmp(&b).unwrap_or(Ordering::Equal)
+                    b.partial_cmp(&a).unwrap_or(Ordering::Equal)
                 } else {
                     Ordering::Equal
                 }
@@ -317,7 +317,7 @@ impl Readability {
             // The scores shouldn't get too low.
             let score_threshold = last_score / 3.0;
 
-            while Self::has_tag_name(parent_of_top_candidate.as_ref(), "BODY") {
+            while Util::has_tag_name(parent_of_top_candidate.as_ref(), "BODY") {
                 if parent_of_top_candidate
                     .as_ref()
                     .map(|n| Self::get_content_score(n).is_none())
@@ -354,7 +354,7 @@ impl Readability {
             // joining logic when adjacent content is actually located in parent's sibling node.
             parent_of_top_candidate = top_candidate.get_parent();
 
-            while Self::has_tag_name(parent_of_top_candidate.as_ref(), "BODY")
+            while Util::has_tag_name(parent_of_top_candidate.as_ref(), "BODY")
                 && parent_of_top_candidate
                     .as_ref()
                     .map(|n| n.get_child_elements().len() == 1)
@@ -414,8 +414,8 @@ impl Readability {
                         {
                             append = true;
                         } else if sibling.get_name().to_uppercase() == "P" {
-                            let link_density = Self::get_link_density(&sibling);
-                            let node_content = Self::get_inner_text(&sibling, false);
+                            let link_density = Util::get_link_density(&sibling);
+                            let node_content = Util::get_inner_text(&sibling, false);
                             let node_length = node_content.len();
 
                             if node_length > 80
@@ -432,7 +432,8 @@ impl Readability {
                     if append {
                         log::debug!("Appending node: {sibling:?}");
 
-                        if !constants::ALTER_TO_DIV_EXCEPTIONS.contains(sibling.get_name().as_str())
+                        if !constants::ALTER_TO_DIV_EXCEPTIONS
+                            .contains(sibling.get_name().to_uppercase().as_str())
                         {
                             // We have a node that isn't a common block level element, like a form or td tag.
                             // Turn it into a div so it doesn't get filtered out later by accident.
@@ -503,7 +504,7 @@ impl Readability {
             // grabArticle with different flags set. This gives us a higher likelihood of
             // finding the content, and the sieve approach gives us a higher likelihood of
             // finding the -right- content.
-            let text = Self::get_inner_text(&article_content, true);
+            let text = Util::get_inner_text(&article_content, true);
             let text_length = text.len();
 
             if text_length < constants::DEFAULT_CHAR_THRESHOLD {
@@ -525,12 +526,14 @@ impl Readability {
                     attempts.sort_by(|(_, size_a, _), (_, size_b, _)| size_a.cmp(size_b));
 
                     // But first check if we actually have something
-                    if let Some((mut best_attempt, _len, _document)) = attempts.pop() {
-                        best_attempt.unlink();
-                        root.add_child(&mut best_attempt).map_err(|error| {
-                            log::error!("{error}");
-                            FullTextParserError::Readability
-                        })?;
+                    if let Some((best_attempt, _len, _document)) = attempts.pop() {
+                        for mut child in best_attempt.get_child_nodes() {
+                            child.unlink();
+                            root.add_child(&mut child).map_err(|error| {
+                                log::error!("{error}");
+                                FullTextParserError::Readability
+                            })?;
+                        }
                         parse_successful = true;
                     }
 
@@ -541,10 +544,13 @@ impl Readability {
                     .dup()
                     .map_err(|()| FullTextParserError::Readability)?;
             } else {
-                root.add_child(&mut article_content).map_err(|error| {
-                    log::error!("{error}");
-                    FullTextParserError::Readability
-                })?;
+                for mut child in article_content.get_child_nodes() {
+                    child.unlink();
+                    root.add_child(&mut child).map_err(|error| {
+                        log::error!("{error}");
+                        FullTextParserError::Readability
+                    })?;
+                }
                 return Ok(parse_successful);
             }
         }
@@ -561,83 +567,6 @@ impl Readability {
                 log::error!("failed to set content score: {err}");
                 FullTextParserError::Readability
             })
-    }
-
-    fn is_probably_visible(node: &Node) -> bool {
-        let display_none = node
-            .get_attribute("display")
-            .map(|display| display == "none")
-            .unwrap_or(false);
-        let is_hidden = node.has_attribute("hidden");
-        let aria_hidden = node
-            .get_attribute("aria-hidden")
-            .map(|attr| attr == "true")
-            .unwrap_or(false);
-        let has_fallback_image = node.get_class_names().contains("fallback-image");
-
-        !display_none && !is_hidden && !aria_hidden || has_fallback_image
-    }
-
-    fn is_whitespace(node: &Node) -> bool {
-        let is_text_node = node
-            .get_type()
-            .map(|t| t == NodeType::TextNode)
-            .unwrap_or(false);
-        let is_element_node = node
-            .get_type()
-            .map(|t| t == NodeType::ElementNode)
-            .unwrap_or(false);
-
-        (is_text_node && node.get_content().trim().is_empty())
-            || (is_element_node && node.get_name().to_uppercase() == "BR")
-    }
-
-    fn remove_and_next(node: &mut Node) -> Option<Node> {
-        let next_node = Self::next_node(node, true);
-        node.unlink();
-        next_node
-    }
-
-    fn next_node(node: &Node, ignore_self_and_kids: bool) -> Option<Node> {
-        let mut node = node.clone();
-
-        // First check for kids if those aren't being ignored
-        let first_child = node.get_first_child();
-        if !ignore_self_and_kids && first_child.is_some() {
-            return first_child;
-        }
-
-        // Then for siblings...
-        let next_sibling = node.get_next_sibling();
-        if next_sibling.is_some() {
-            return next_sibling;
-        }
-
-        // And finally, move up the parent chain *and* find a sibling
-        // (because this is depth-first traversal, we will have already
-        // seen the parent nodes themselves).
-        loop {
-            let parent = node.get_parent();
-            if parent.is_none() {
-                break;
-            }
-
-            if let Some(parent) = parent {
-                let parent_name = parent.get_name().to_uppercase();
-                if parent_name == "HTML" {
-                    break;
-                }
-
-                let next_sibling = parent.get_next_sibling();
-                if next_sibling.is_some() {
-                    return next_sibling;
-                } else {
-                    node = parent;
-                }
-            }
-        }
-
-        None
     }
 
     fn check_byline(node: &Node, matchstring: &str, state: &mut State) -> bool {
@@ -680,121 +609,13 @@ impl Readability {
         if name != "h1" && name != "h2" {
             return false;
         }
-        let heading = Self::get_inner_text(node, false);
+        let heading = Util::get_inner_text(node, false);
 
         if let Some(title) = title {
-            Self::text_similarity(&heading, title) > 0.75
+            Util::text_similarity(&heading, title) > 0.75
         } else {
             false
         }
-    }
-
-    fn get_inner_text(node: &Node, normalize_spaces: bool) -> String {
-        let content = node.get_content().trim().to_owned();
-        if normalize_spaces {
-            constants::NORMALIZE.replace(&content, " ").into()
-        } else {
-            content
-        }
-    }
-
-    fn text_similarity(a: &str, b: &str) -> f64 {
-        let a = a.to_lowercase();
-        let b = b.to_lowercase();
-        let tokens_a = constants::TOKENIZE.split(&a).collect::<Vec<_>>();
-        let tokens_b = constants::TOKENIZE.split(&b).collect::<Vec<_>>();
-        if tokens_a.is_empty() || tokens_b.is_empty() {
-            return 0.0;
-        }
-
-        let tokens_b_total = tokens_b.join(" ").len() as f64;
-        let uniq_tokens_b = tokens_b
-            .into_iter()
-            .filter(|token| !tokens_a.iter().any(|t| t == token))
-            .collect::<Vec<_>>();
-        let uniq_tokens_b_total = uniq_tokens_b.join(" ").len() as f64;
-
-        let distance_b = uniq_tokens_b_total / tokens_b_total;
-        1.0 - distance_b
-    }
-
-    fn has_ancestor_tag(node: &Node, tag_name: &str, max_depth: Option<u64>) -> bool {
-        let max_depth = max_depth.unwrap_or(3);
-        let tag_name = tag_name.to_uppercase();
-        let mut depth = 0;
-        let mut node = node.get_parent();
-
-        loop {
-            if depth > max_depth {
-                return false;
-            }
-
-            let tmp_node = match node {
-                Some(node) => node,
-                None => return false,
-            };
-
-            if tmp_node.get_name() == tag_name {
-                return true;
-            }
-
-            node = tmp_node.get_parent();
-            depth += 1;
-        }
-    }
-
-    fn has_single_tag_inside_element(node: &Node, tag: &str) -> bool {
-        // There should be exactly 1 element child with given tag
-        if node.get_child_nodes().len() == 1
-            || node
-                .get_child_nodes()
-                .first()
-                .map(|n| n.get_name().to_uppercase() == tag)
-                .unwrap_or(false)
-        {
-            return false;
-        }
-
-        // And there should be no text nodes with real content
-        node.get_child_nodes().iter().any(|n| {
-            n.get_type()
-                .map(|t| t == NodeType::TextNode)
-                .unwrap_or(false)
-                && constants::HAS_CONTENT.is_match(&n.get_content())
-        })
-    }
-
-    fn is_element_without_content(node: &Node) -> bool {
-        if let Some(node_type) = node.get_type() {
-            let len = node.get_child_nodes().len();
-
-            return node_type == NodeType::ElementNode
-                && node.get_content().trim().is_empty()
-                && (len == 0
-                    || len
-                        == Self::get_elements_by_tag_name(node, "br").len()
-                            + Self::get_elements_by_tag_name(node, "hr").len());
-        }
-
-        false
-    }
-
-    fn get_elements_by_tag_name(node: &Node, tag: &str) -> Vec<Node> {
-        let tag = tag.to_uppercase();
-        let all_tags = tag == "*";
-        let mut vec = Vec::new();
-
-        fn get_elems(node: &Node, tag: &str, vec: &mut Vec<Node>, all_tags: bool) {
-            for child in node.get_child_elements() {
-                if all_tags || child.get_name().to_uppercase() == tag {
-                    vec.push(child.clone());
-                }
-                get_elems(&child, tag, vec, all_tags);
-            }
-        }
-
-        get_elems(node, &tag, &mut vec, all_tags);
-        vec
     }
 
     fn is_phrasing_content(node: &Node) -> bool {
@@ -812,56 +633,6 @@ impl Readability {
                     .iter()
                     .map(Self::is_phrasing_content)
                     .all(|val| val)
-    }
-
-    fn get_link_density(node: &Node) -> f64 {
-        let text_length = Self::get_inner_text(node, false).len();
-        if text_length == 0 {
-            return 0.0;
-        }
-
-        let mut link_length = 0.0;
-
-        // XXX implement _reduceNodeList?
-        let link_nodes = Self::get_elements_by_tag_name(node, "A");
-        for link_node in link_nodes {
-            if let Some(href) = link_node.get_attribute("href") {
-                let coefficient = if constants::HASH_URL.is_match(&href) {
-                    0.3
-                } else {
-                    1.0
-                };
-                link_length += Self::get_inner_text(&link_node, false).len() as f64 * coefficient;
-            }
-        }
-
-        link_length / text_length as f64
-    }
-
-    // Determine whether element has any children block level elements.
-    fn has_child_block_element(node: &Node) -> bool {
-        node.get_child_elements().iter().any(|node| {
-            constants::DIV_TO_P_ELEMS.contains(node.get_name().as_str())
-                || Self::has_child_block_element(node)
-        })
-    }
-
-    fn get_node_ancestors(node: &Node, max_depth: u64) -> Vec<Node> {
-        let mut ancestors = Vec::new();
-        let mut node = node.clone();
-
-        for _ in 0..=max_depth {
-            let parent = node.get_parent();
-            match parent {
-                Some(parent) => {
-                    ancestors.push(parent.clone());
-                    node = parent;
-                }
-                None => return ancestors,
-            }
-        }
-
-        ancestors
     }
 
     // Initialize a node with the readability object. Also checks the
@@ -909,10 +680,5 @@ impl Readability {
         }
 
         weight
-    }
-
-    fn has_tag_name(node: Option<&Node>, tag_name: &str) -> bool {
-        node.map(|n| n.get_name().to_uppercase() == tag_name.to_uppercase())
-            .unwrap_or(false)
     }
 }

@@ -19,6 +19,7 @@ use libxml::parser::Parser;
 use libxml::tree::{Document, Node};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
+use regex::Regex;
 use reqwest::header::HeaderMap;
 use reqwest::Client;
 use std::path::Path;
@@ -124,6 +125,10 @@ impl FullTextParser {
             return Err(error);
         }
 
+        if let Some(mut root) = document.get_root_element() {
+            Self::post_process_content(&mut root)?;
+        }
+
         article.document = Some(document);
 
         Ok(article)
@@ -179,6 +184,7 @@ impl FullTextParser {
             Self::check_for_thumbnail(&xpath_ctx, article);
         }
         Self::strip_junk(&xpath_ctx, config, global_config, url);
+        Self::unwrap_noscript_images(&xpath_ctx)?;
         let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         if !found_body {
@@ -195,6 +201,7 @@ impl FullTextParser {
             document = Self::parse_html(&html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
             Self::strip_junk(&xpath_ctx, config, global_config, &url);
+            Self::unwrap_noscript_images(&xpath_ctx)?;
             Self::extract_body(&xpath_ctx, root, config, global_config)?;
         }
 
@@ -609,11 +616,102 @@ impl FullTextParser {
         // strip all comments
         let _ = Util::strip_node(context, "//comment()");
 
+        // strip all scripts
+        let _ = Util::strip_node(context, "//script");
+
+        // strip all styles
+        let _ = Util::strip_node(context, "//style");
+
         // strip all empty url-tags <a/>
         let _ = Util::strip_node(context, "//a[not(node())]");
 
         // strip all external css and fonts
         let _ = Util::strip_node(context, "//*[@type='text/css']");
+    }
+
+    /**
+     * Find all <noscript> that are located after <img> nodes, and which contain only one
+     * <img> element. Replace the first image with the image from inside the <noscript> tag,
+     * and remove the <noscript> tag. This improves the quality of the images we use on
+     * some sites (e.g. Medium).
+     **/
+    fn unwrap_noscript_images(ctx: &Context) -> Result<(), FullTextParserError> {
+        // Find img without source or attributes that might contains image, and remove it.
+        // This is done to prevent a placeholder img is replaced by img from noscript in next step.
+        let img_regex = Regex::new(r#"/\.(jpg|jpeg|png|webp)/i"#).unwrap();
+        let img_nodes = Util::evaluate_xpath(ctx, "//img", false)?;
+        for mut img_node in img_nodes {
+            let attrs = img_node.get_attributes();
+
+            let keep = attrs.iter().any(|(name, value)| {
+                name == "src"
+                    || name == "srcset"
+                    || name == "data-src"
+                    || name == "data-srcset"
+                    || img_regex.is_match(&value)
+            });
+            if !keep {
+                img_node.unlink();
+            }
+        }
+
+        // Next find noscript and try to extract its image
+        let noscript_nodes = Util::evaluate_xpath(ctx, "//noscript", false)?;
+        for mut noscript_node in noscript_nodes {
+            // Parse content of noscript and make sure it only contains image
+            if !Util::is_single_image(&noscript_node) {
+                continue;
+            }
+
+            // If noscript has previous sibling and it only contains image,
+            // replace it with noscript content. However we also keep old
+            // attributes that might contains image.
+            if let Some(prev) = noscript_node.get_prev_element_sibling() {
+                if Util::is_single_image(&prev) {
+
+                    {
+                        let mut prev_img = prev.clone();
+
+                        if prev_img.get_name().to_uppercase() != "IMG" {
+                            if let Some(img_node) = Util::get_elements_by_tag_name(&prev_img, "img").into_iter().next() {
+                                prev_img = img_node;
+                            }
+                        }
+
+                        let new_img = Util::get_elements_by_tag_name(&noscript_node, "img").into_iter().next();
+                        if let Some(mut new_img) = new_img {
+                            for (key, value) in prev_img.get_attributes() {
+                                if value.is_empty() {
+                                    continue;
+                                }
+
+                                if key == "src" || key == "srcset" || img_regex.is_match(&value) {
+                                    if new_img.get_attribute(&key).as_deref() == Some(&value) {
+                                        continue;
+                                    }
+                                    
+                                    let mut attr_name = key;
+                                    if new_img.has_attribute(&attr_name) {
+                                        attr_name = format!("data-old-{attr_name}");
+                                    }
+                        
+                                    new_img.set_attribute(&attr_name, &value).unwrap();
+                                }
+                            }
+                        }
+                    }
+
+                    if let Some(mut parent) = noscript_node.get_parent() {
+                        if let Some(first_child) = noscript_node.get_first_child() {
+                            parent.replace_child_node(first_child, prev).unwrap();
+                            noscript_node.unlink();
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn extract_body(
@@ -724,6 +822,78 @@ impl FullTextParser {
             let _ = node.add_text_child(None, "empty", "");
         }
 
+        Ok(())
+    }
+
+    pub(crate) fn post_process_content(root: &mut Node) -> Result<(), FullTextParserError> {
+        Self::clean_classes(root)?;
+        Self::simplify_nested_elements(root)?;
+        Ok(())
+    }
+
+    fn clean_classes(root: &mut Node) -> Result<(), FullTextParserError> {
+        let mut node_iter = Some(root.clone());
+
+        while let Some(mut node) = node_iter {
+            let classes = node.get_class_names();
+            if classes.contains("page") {
+                node.set_attribute("class", "page").map_err(|e| {
+                    log::error!("{e}");
+                    FullTextParserError::Xml
+                })?;
+            } else {
+                node.remove_attribute("class").map_err(|e| {
+                    log::error!("{e}");
+                    FullTextParserError::Xml
+                })?;
+            }
+
+            node.remove_attribute("content_score").map_err(|e| {
+                log::error!("{e}");
+                FullTextParserError::Xml
+            })?;
+
+            node_iter = Util::next_node(&node, false);
+        }
+        Ok(())
+    }
+
+    fn simplify_nested_elements(root: &mut Node) -> Result<(), FullTextParserError> {
+        let mut node_iter = Some(root.clone());
+
+        while let Some(mut node) = node_iter {
+            let tag_name = node.get_name().to_uppercase();
+            if tag_name != "ARTICLE"
+                && node.get_parent().is_some()
+                && (tag_name == "DIV" || tag_name == "SECTION")
+            {
+                if Util::is_element_without_content(&node) {
+                    node_iter = Util::remove_and_next(&mut node);
+                    continue;
+                } else if Util::has_single_tag_inside_element(&node, "DIV")
+                    || Util::has_single_tag_inside_element(&node, "SECTION")
+                {
+                    if let Some(mut parent) = node.get_parent() {
+                        if let Some(mut child) = node.get_child_nodes().into_iter().next() {
+                            for (k, v) in node.get_attributes().into_iter() {
+                                child.set_attribute(&k, &v).map_err(|e| {
+                                    log::error!("{e}");
+                                    FullTextParserError::Xml
+                                })?;
+                            }
+                            parent
+                                .replace_child_node(child, node.clone())
+                                .map_err(|e| {
+                                    log::error!("{e}");
+                                    FullTextParserError::Xml
+                                })?;
+                        }
+                    }
+                }
+            }
+
+            node_iter = Util::next_node(&node, false);
+        }
         Ok(())
     }
 }

@@ -1,4 +1,5 @@
-use super::FullTextParser;
+use super::{FullTextParser, config::ConfigEntry};
+use libxml::tree::SaveOptions;
 use reqwest::Client;
 use std::path::PathBuf;
 
@@ -71,4 +72,50 @@ async fn encoding_windows_1252() {
         .await
         .unwrap();
     assert!(html.contains("Bund-Länder-Konferenz"));
+}
+
+#[tokio::test]
+async fn unwrap_noscript_images() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    let html = r#"
+<p>Lorem ipsum dolor sit amet,
+    <span class="lazyload">
+            <img src="foto-m0101.jpg" alt="image description">
+            <noscript><img src="foto-m0102.jpg" alt="image description"></noscript>
+    </span>
+    consectetur adipiscing elit.
+</p>
+    "#;
+
+    let expected = r#"<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html><body>
+<p>Lorem ipsum dolor sit amet,
+    <span class="lazyload">
+            <img src="foto-m0102.jpg" alt="image description" data-old-src="foto-m0101.jpg">
+            
+    </span>
+    consectetur adipiscing elit.
+</p>
+    </body></html>
+"#;
+
+    let empty_config = ConfigEntry::default();
+    let document = crate::FullTextParser::parse_html(html, None, &empty_config).unwrap();
+    let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document).unwrap();
+
+    crate::FullTextParser::unwrap_noscript_images(&xpath_ctx).unwrap();
+
+    let options = SaveOptions {
+        format: true,
+        no_declaration: false,
+        no_empty_tags: true,
+        no_xhtml: false,
+        xhtml: false,
+        as_xml: false,
+        as_html: true,
+        non_significant_whitespace: false,
+    };
+    let res = document.to_string_with_options(options);
+    assert_eq!(res, expected);
 }
