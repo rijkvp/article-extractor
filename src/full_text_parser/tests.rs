@@ -1,10 +1,11 @@
-use super::{FullTextParser, config::ConfigEntry};
+use super::{config::ConfigEntry, FullTextParser};
 use libxml::tree::SaveOptions;
 use reqwest::Client;
 use std::path::PathBuf;
 
 #[tokio::test]
 async fn golem() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let out_path = PathBuf::from(r"./test_output");
     let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
 
@@ -29,6 +30,7 @@ async fn golem() {
 
 #[tokio::test]
 async fn phoronix() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let out_path = PathBuf::from(r"./test_output");
     let url =
         url::Url::parse("http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1")
@@ -48,6 +50,7 @@ async fn phoronix() {
 
 #[tokio::test]
 async fn youtube() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let out_path = PathBuf::from(r"./test_output");
     let url = url::Url::parse("https://www.youtube.com/watch?v=8KjaIumu-jI").unwrap();
 
@@ -57,7 +60,7 @@ async fn youtube() {
 
     assert_eq!(
         article.title.as_deref(),
-        Some("RIGGED! Arena Shuffler is BROKEN | 13 Land Mono Red Burn")
+        Some("RIGGED! Arena Shuffler is BROKEN")
     );
     assert!(article
         .get_content()
@@ -67,6 +70,7 @@ async fn youtube() {
 
 #[tokio::test]
 async fn encoding_windows_1252() {
+    let _ = env_logger::builder().is_test(true).try_init();
     let url = url::Url::parse("https://www.aerzteblatt.de/nachrichten/139511/Scholz-zuversichtlich-mit-Blick-auf-Coronasituation-im-Winter").unwrap();
     let html = FullTextParser::download(&url, &Client::new(), reqwest::header::HeaderMap::new())
         .await

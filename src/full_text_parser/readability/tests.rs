@@ -1,7 +1,4 @@
-use libxml::{
-    tree::{Document, Node},
-    xpath::Context,
-};
+use libxml::tree::{Document, Node};
 use reqwest::Url;
 
 use crate::{
@@ -9,13 +6,21 @@ use crate::{
     full_text_parser::{config::ConfigEntry, metadata},
 };
 
-async fn prepare(html: &str, url: &Url) -> (Document, Context, Article) {
+async fn run_test(name: &str) {
+    libxml::tree::node::set_node_rc_guard(3);
+    let _ = env_logger::builder().is_test(true).try_init();
+
     let empty_config = ConfigEntry::default();
-    let document = crate::FullTextParser::parse_html(html, None, &empty_config).unwrap();
+
+    let url = Url::parse("http://google.com").unwrap();
+    let html = std::fs::read_to_string(format!("./resources/tests/readability/{name}/source.html"))
+        .expect("Failed to read source HTML");
+    let document = crate::FullTextParser::parse_html(&html, None, &empty_config).unwrap();
     let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document).unwrap();
-    crate::FullTextParser::strip_junk(&xpath_ctx, None, &empty_config, url);
+
+    crate::FullTextParser::strip_junk(&xpath_ctx, None, &empty_config);
     crate::FullTextParser::unwrap_noscript_images(&xpath_ctx).unwrap();
-    let article = Article {
+    let mut article = Article {
         title: None,
         author: None,
         url: url.clone(),
@@ -23,17 +28,6 @@ async fn prepare(html: &str, url: &Url) -> (Document, Context, Article) {
         thumbnail_url: None,
         document: None,
     };
-    (document, xpath_ctx, article)
-}
-
-#[tokio::test]
-async fn test_1() {
-    let _ = env_logger::builder().is_test(true).try_init();
-
-    let html = std::fs::read_to_string(r"./resources/tests/readability-test-1.html")
-        .expect("Failed to read HTML");
-    let url = Url::parse("http://google.com").unwrap();
-    let (document, xpath_ctx, mut article) = prepare(&html, &url).await;
 
     let mut article_document = Document::new().unwrap();
     let mut root = Node::new("article", None, &document).unwrap();
@@ -48,5 +42,21 @@ async fn test_1() {
 
     article.document = Some(article_document);
     let html = article.get_content().unwrap();
-    std::fs::write("test.html", html).unwrap();
+
+    let expected = std::fs::read_to_string(format!("./resources/tests/readability/{name}/expected.html"))
+        .expect("Failed to read expected HTML");
+
+    //std::fs::write("expected.html", &html).unwrap();
+    
+    assert_eq!(expected, html);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_001() {
+    run_test("001").await
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn test_002() {
+    run_test("002").await
 }

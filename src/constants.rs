@@ -4,6 +4,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 pub const DEFAULT_CHAR_THRESHOLD: usize = 500;
+pub static IS_IMAGE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"/\.(jpg|jpeg|png|webp)/i"#).expect("IS_IMAGE regex"));
 pub static SIBLING_CONTENT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/\.( |$)/"#).expect("SIBLING_CONTENT regex"));
 pub static BYLINE: Lazy<Regex> = Lazy::new(|| {

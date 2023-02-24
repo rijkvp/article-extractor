@@ -21,7 +21,13 @@ impl ConfigCollection {
         for (file_name, entry) in EmbededConfigFiles::iter()
             .filter_map(|file_name| EmbededConfigFiles::get(&file_name).map(|e| (file_name, e)))
         {
-            let entry = ConfigEntry::parse_data(entry.data).await.unwrap();
+            let entry = match ConfigEntry::parse_data(entry.data).await {
+                Ok(entry) => entry,
+                Err(error) => {
+                    log::error!("{error}");
+                    continue;
+                }
+            };
             let file_name: &str = file_name.borrow();
             embedded_entries.insert(file_name.to_owned(), entry);
         }

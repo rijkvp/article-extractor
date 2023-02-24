@@ -5,7 +5,7 @@ mod tests;
 
 use std::cmp::Ordering;
 
-use libxml::tree::{node, Document, Node, NodeType};
+use libxml::tree::{Document, Node, NodeType};
 
 use self::state::State;
 use super::error::FullTextParserError;
@@ -19,8 +19,6 @@ impl Readability {
         root: &mut Node,
         title: Option<&str>,
     ) -> Result<bool, FullTextParserError> {
-        node::set_node_rc_guard(6);
-
         let mut state = State::default();
         let mut document = document;
         let mut attempts: Vec<(Node, usize, Document)> = Vec::new();
@@ -253,12 +251,11 @@ impl Readability {
             let mut top_candidate = top_candidates.first().cloned().unwrap_or_else(|| {
                 // If we still have no top candidate, just use the body as a last resort.
                 // We also have to copy the body node so it is something we can modify.
-                let mut rt = document.get_root_element().unwrap();
-                Self::initialize_node(&mut rt, &state).unwrap();
+                let mut rt = document.get_root_element().expect("doc should have root");
+                Self::initialize_node(&mut rt, &state).expect("init should not fail");
                 needed_to_create_top_candidate = true;
                 rt
             });
-            let mut parent_of_top_candidate = None;
 
             let mut alternative_candidate_ancestors = Vec::new();
             // Find a better top candidate node if it contains (at least three) nodes which belong to `topCandidates` array
@@ -274,25 +271,21 @@ impl Readability {
             }
 
             if alternative_candidate_ancestors.len() >= constants::MINIMUM_TOPCANDIDATES {
-                parent_of_top_candidate = top_candidate.get_parent();
+                let mut parent_of_top_candidate = top_candidate.get_parent();
 
-                loop {
-                    if let Some(parent) = &parent_of_top_candidate {
-                        let mut lists_containing_this_ancestor = 0;
-                        let tmp = usize::min(
-                            alternative_candidate_ancestors.len(),
-                            constants::MINIMUM_TOPCANDIDATES,
-                        );
-                        for ancestor in alternative_candidate_ancestors.iter().take(tmp) {
-                            lists_containing_this_ancestor +=
-                                if ancestor == parent { 1 } else { 0 };
-                        }
+                while let Some(parent) = &parent_of_top_candidate {
+                    let mut lists_containing_this_ancestor = 0;
+                    let tmp = usize::min(
+                        alternative_candidate_ancestors.len(),
+                        constants::MINIMUM_TOPCANDIDATES,
+                    );
+                    for ancestor in alternative_candidate_ancestors.iter().take(tmp) {
+                        lists_containing_this_ancestor +=
+                            if ancestor == parent { 1 } else { 0 };
+                    }
 
-                        if lists_containing_this_ancestor >= constants::MINIMUM_TOPCANDIDATES {
-                            top_candidate = parent.clone();
-                            break;
-                        }
-                    } else {
+                    if lists_containing_this_ancestor >= constants::MINIMUM_TOPCANDIDATES {
+                        top_candidate = parent.clone();
                         break;
                     }
 
@@ -311,7 +304,7 @@ impl Readability {
             // lurking in other places that we want to unify in. The sibling stuff
             // below does some of that - but only if we've looked high enough up the DOM
             // tree.
-            parent_of_top_candidate = top_candidate.get_parent();
+            let mut parent_of_top_candidate = top_candidate.get_parent();
             let mut last_score = Self::get_content_score(&top_candidate).unwrap_or(0.0);
 
             // The scores shouldn't get too low.

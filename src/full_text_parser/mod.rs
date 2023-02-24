@@ -11,6 +11,7 @@ use self::config::{ConfigCollection, ConfigEntry};
 use self::error::FullTextParserError;
 use self::readability::Readability;
 use crate::article::Article;
+use crate::constants;
 use crate::util::Util;
 
 use encoding_rs::Encoding;
@@ -19,9 +20,8 @@ use libxml::parser::Parser;
 use libxml::tree::{Document, Node};
 use libxml::xpath::Context;
 use log::{debug, error, info, warn};
-use regex::Regex;
 use reqwest::header::HeaderMap;
-use reqwest::Client;
+use reqwest::{Client, Url};
 use std::path::Path;
 use std::str::from_utf8;
 
@@ -40,6 +40,8 @@ impl FullTextParser {
         url: &url::Url,
         client: &Client,
     ) -> Result<Article, FullTextParserError> {
+        libxml::tree::node::set_node_rc_guard(3);
+
         info!("Scraping article: '{}'", url.as_str());
 
         // check if we have a config for the url
@@ -106,7 +108,6 @@ impl FullTextParser {
 
         self.parse_pages(
             &mut article,
-            &url,
             &html,
             &mut root,
             config,
@@ -137,7 +138,6 @@ impl FullTextParser {
     async fn parse_pages(
         &self,
         article: &mut Article,
-        url: &url::Url,
         html: &str,
         root: &mut Node,
         config: Option<&ConfigEntry>,
@@ -183,7 +183,8 @@ impl FullTextParser {
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
         }
-        Self::strip_junk(&xpath_ctx, config, global_config, url);
+        Self::strip_junk(&xpath_ctx, config, global_config);
+        Self::fix_urls(&xpath_ctx, &article.url);
         Self::unwrap_noscript_images(&xpath_ctx)?;
         let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
@@ -200,7 +201,8 @@ impl FullTextParser {
             let html = Self::download(&url, client, headers).await?;
             document = Self::parse_html(&html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
-            Self::strip_junk(&xpath_ctx, config, global_config, &url);
+            Self::strip_junk(&xpath_ctx, config, global_config);
+            Self::fix_urls(&xpath_ctx, &url);
             Self::unwrap_noscript_images(&xpath_ctx)?;
             Self::extract_body(&xpath_ctx, root, config, global_config)?;
         }
@@ -256,7 +258,8 @@ impl FullTextParser {
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         metadata::extract(&xpath_ctx, config, Some(global_config), article);
         Self::check_for_thumbnail(&xpath_ctx, article);
-        Self::strip_junk(&xpath_ctx, config, global_config, url);
+        Self::strip_junk(&xpath_ctx, config, global_config);
+        Self::fix_urls(&xpath_ctx, url);
         Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         Ok(())
@@ -543,12 +546,15 @@ impl FullTextParser {
         Ok(url)
     }
 
-    fn strip_junk(
-        context: &Context,
-        config: Option<&ConfigEntry>,
-        global_config: &ConfigEntry,
-        url: &url::Url,
-    ) {
+    fn fix_urls(context: &Context, url: &Url) {
+        let _ = Self::repair_urls(context, "//img", "src", url);
+        let _ = Self::repair_urls(context, "//a", "src", url);
+        let _ = Self::repair_urls(context, "//a", "href", url);
+        let _ = Self::repair_urls(context, "//object", "data", url);
+        let _ = Self::repair_urls(context, "//iframe", "src", url);
+    }
+
+    fn strip_junk(context: &Context, config: Option<&ConfigEntry>, global_config: &ConfigEntry) {
         // strip specified xpath
         if let Some(config) = config {
             for xpath_strip in &config.xpath_strip {
@@ -596,12 +602,6 @@ impl FullTextParser {
         let _ = Self::remove_attribute(context, Some("img"), "sizes");
         let _ = Self::add_attribute(context, Some("a"), "target", "_blank");
 
-        let _ = Self::repair_urls(context, "//img", "src", url);
-        let _ = Self::repair_urls(context, "//a", "src", url);
-        let _ = Self::repair_urls(context, "//a", "href", url);
-        let _ = Self::repair_urls(context, "//object", "data", url);
-        let _ = Self::repair_urls(context, "//iframe", "src", url);
-
         // strip elements using Readability.com and Instapaper.com ignore class names
         // .entry-unrelated and .instapaper_ignore
         // See http://blog.instapaper.com/post/730281947
@@ -638,7 +638,6 @@ impl FullTextParser {
     fn unwrap_noscript_images(ctx: &Context) -> Result<(), FullTextParserError> {
         // Find img without source or attributes that might contains image, and remove it.
         // This is done to prevent a placeholder img is replaced by img from noscript in next step.
-        let img_regex = Regex::new(r#"/\.(jpg|jpeg|png|webp)/i"#).unwrap();
         let img_nodes = Util::evaluate_xpath(ctx, "//img", false)?;
         for mut img_node in img_nodes {
             let attrs = img_node.get_attributes();
@@ -648,7 +647,7 @@ impl FullTextParser {
                     || name == "srcset"
                     || name == "data-src"
                     || name == "data-srcset"
-                    || img_regex.is_match(&value)
+                    || constants::IS_IMAGE.is_match(value)
             });
             if !keep {
                 img_node.unlink();
@@ -668,34 +667,44 @@ impl FullTextParser {
             // attributes that might contains image.
             if let Some(prev) = noscript_node.get_prev_element_sibling() {
                 if Util::is_single_image(&prev) {
-
                     {
                         let mut prev_img = prev.clone();
 
                         if prev_img.get_name().to_uppercase() != "IMG" {
-                            if let Some(img_node) = Util::get_elements_by_tag_name(&prev_img, "img").into_iter().next() {
+                            if let Some(img_node) = Util::get_elements_by_tag_name(&prev_img, "img")
+                                .into_iter()
+                                .next()
+                            {
                                 prev_img = img_node;
                             }
                         }
 
-                        let new_img = Util::get_elements_by_tag_name(&noscript_node, "img").into_iter().next();
+                        let new_img = Util::get_elements_by_tag_name(&noscript_node, "img")
+                            .into_iter()
+                            .next();
                         if let Some(mut new_img) = new_img {
                             for (key, value) in prev_img.get_attributes() {
                                 if value.is_empty() {
                                     continue;
                                 }
 
-                                if key == "src" || key == "srcset" || img_regex.is_match(&value) {
+                                if key == "src"
+                                    || key == "srcset"
+                                    || constants::IS_IMAGE.is_match(&value)
+                                {
                                     if new_img.get_attribute(&key).as_deref() == Some(&value) {
                                         continue;
                                     }
-                                    
+
                                     let mut attr_name = key;
                                     if new_img.has_attribute(&attr_name) {
                                         attr_name = format!("data-old-{attr_name}");
                                     }
-                        
-                                    new_img.set_attribute(&attr_name, &value).unwrap();
+
+                                    new_img.set_attribute(&attr_name, &value).map_err(|e| {
+                                        log::error!("{e}");
+                                        FullTextParserError::Xml
+                                    })?;
                                 }
                             }
                         }
@@ -703,7 +712,10 @@ impl FullTextParser {
 
                     if let Some(mut parent) = noscript_node.get_parent() {
                         if let Some(first_child) = noscript_node.get_first_child() {
-                            parent.replace_child_node(first_child, prev).unwrap();
+                            parent.replace_child_node(first_child, prev).map_err(|e| {
+                                log::error!("{e}");
+                                FullTextParserError::Xml
+                            })?;
                             noscript_node.unlink();
                         }
                     }
@@ -825,7 +837,9 @@ impl FullTextParser {
         Ok(())
     }
 
-    pub(crate) fn post_process_content(root: &mut Node) -> Result<(), FullTextParserError> {
+    pub(crate) fn post_process_content(
+        root: &mut Node
+    ) -> Result<(), FullTextParserError> {
         Self::clean_classes(root)?;
         Self::simplify_nested_elements(root)?;
         Ok(())

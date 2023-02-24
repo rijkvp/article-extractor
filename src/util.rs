@@ -86,7 +86,8 @@ impl Util {
         for node in res {
             let content = node.get_content();
             let url_str = if content.trim().is_empty() && node.has_attribute("href") {
-                node.get_attribute("href").unwrap()
+                node.get_attribute("href")
+                    .expect("already checked for href")
             } else {
                 content
             };

@@ -32,8 +32,7 @@ impl Article {
             .map(|doc| doc.to_string_with_options(options))
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn save_html(&self, path: &PathBuf) -> Result<(), Error> {
+    pub fn save_html(&self, path: &PathBuf) -> Result<(), Error> {
         if let Some(ref html) = self.get_content() {
             if let Ok(()) = std::fs::create_dir_all(path) {
                 let mut file_name = match self.title.clone() {

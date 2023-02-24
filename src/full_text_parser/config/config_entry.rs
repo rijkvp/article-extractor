@@ -19,7 +19,7 @@ pub struct Header {
     pub value: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ConfigEntry {
     pub xpath_title: Vec<String>,
     pub xpath_author: Vec<String>,
@@ -32,24 +32,6 @@ pub struct ConfigEntry {
     pub header: Vec<Header>,
     pub single_page_link: Option<String>,
     pub next_page_link: Option<String>,
-}
-
-impl Default for ConfigEntry {
-    fn default() -> Self {
-        Self {
-            xpath_title: Vec::new(),
-            xpath_author: Vec::new(),
-            xpath_date: Vec::new(),
-            xpath_body: Vec::new(),
-            xpath_strip: Vec::new(),
-            strip_id_or_class: Vec::new(),
-            strip_image_src: Vec::new(),
-            replace: Vec::new(),
-            header: Vec::new(),
-            single_page_link: None,
-            next_page_link: None,
-        }
-    }
 }
 
 impl ConfigEntry {
