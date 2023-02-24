@@ -43,11 +43,13 @@ async fn run_test(name: &str) {
     article.document = Some(article_document);
     let html = article.get_content().unwrap();
 
-    let expected = std::fs::read_to_string(format!("./resources/tests/readability/{name}/expected.html"))
-        .expect("Failed to read expected HTML");
+    let expected = std::fs::read_to_string(format!(
+        "./resources/tests/readability/{name}/expected.html"
+    ))
+    .expect("Failed to read expected HTML");
 
     //std::fs::write("expected.html", &html).unwrap();
-    
+
     assert_eq!(expected, html);
 }
 

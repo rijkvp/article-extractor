@@ -23,7 +23,10 @@ pub fn extract(
                     let new_title = constants::TITLE_CUT_END.replace(&title, "$1");
                     let word_count = constants::WORD_COUNT.split(&title).count();
                     if word_count < 3 {
-                        constants::TITLE_CUT_FRONT.replace(&title, "$1").trim().to_string()
+                        constants::TITLE_CUT_FRONT
+                            .replace(&title, "$1")
+                            .trim()
+                            .to_string()
                     } else {
                         new_title.trim().to_string()
                     }

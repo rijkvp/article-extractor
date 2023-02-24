@@ -280,8 +280,7 @@ impl Readability {
                         constants::MINIMUM_TOPCANDIDATES,
                     );
                     for ancestor in alternative_candidate_ancestors.iter().take(tmp) {
-                        lists_containing_this_ancestor +=
-                            if ancestor == parent { 1 } else { 0 };
+                        lists_containing_this_ancestor += if ancestor == parent { 1 } else { 0 };
                     }
 
                     if lists_containing_this_ancestor >= constants::MINIMUM_TOPCANDIDATES {

@@ -837,9 +837,7 @@ impl FullTextParser {
         Ok(())
     }
 
-    pub(crate) fn post_process_content(
-        root: &mut Node
-    ) -> Result<(), FullTextParserError> {
+    pub(crate) fn post_process_content(root: &mut Node) -> Result<(), FullTextParserError> {
         Self::clean_classes(root)?;
         Self::simplify_nested_elements(root)?;
         Ok(())
