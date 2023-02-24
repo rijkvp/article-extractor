@@ -23,7 +23,7 @@ async fn run_test(name: &str) {
     let mut article = Article {
         title: None,
         author: None,
-        url: url.clone(),
+        url,
         date: None,
         thumbnail_url: None,
         document: None,
