@@ -40,7 +40,7 @@ impl FullTextParser {
         url: &url::Url,
         client: &Client,
     ) -> Result<Article, FullTextParserError> {
-        libxml::tree::node::set_node_rc_guard(3);
+        libxml::tree::node::set_node_rc_guard(4);
 
         info!("Scraping article: '{}'", url.as_str());
 

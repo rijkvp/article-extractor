@@ -7,7 +7,7 @@ use crate::{
 };
 
 async fn run_test(name: &str) {
-    libxml::tree::node::set_node_rc_guard(3);
+    libxml::tree::node::set_node_rc_guard(4);
     let _ = env_logger::builder().is_test(true).try_init();
 
     let empty_config = ConfigEntry::default();
@@ -43,22 +43,27 @@ async fn run_test(name: &str) {
     article.document = Some(article_document);
     let html = article.get_content().unwrap();
 
+    //std::fs::write("expected.html", &html).unwrap();
+
     let expected = std::fs::read_to_string(format!(
         "./resources/tests/readability/{name}/expected.html"
     ))
     .expect("Failed to read expected HTML");
 
-    //std::fs::write("expected.html", &html).unwrap();
-
     assert_eq!(expected, html);
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test]
 async fn test_001() {
     run_test("001").await
 }
 
-#[tokio::test(flavor = "current_thread")]
+#[tokio::test]
 async fn test_002() {
     run_test("002").await
+}
+
+#[tokio::test]
+async fn webmd_1() {
+    run_test("webmd-1").await
 }

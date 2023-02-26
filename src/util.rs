@@ -360,11 +360,11 @@ impl Util {
 
     pub fn has_single_tag_inside_element(node: &Node, tag: &str) -> bool {
         // There should be exactly 1 element child with given tag
-        if node.get_child_nodes().len() == 1
+        if node.get_child_nodes().len() != 1
             || node
                 .get_child_nodes()
                 .first()
-                .map(|n| n.get_name().to_uppercase() == tag)
+                .map(|n| n.get_name().to_uppercase() != tag)
                 .unwrap_or(false)
         {
             return false;
@@ -438,8 +438,8 @@ impl Util {
 
     // Determine whether element has any children block level elements.
     pub fn has_child_block_element(node: &Node) -> bool {
-        node.get_child_elements().iter().any(|node| {
-            constants::DIV_TO_P_ELEMS.contains(node.get_name().as_str())
+        node.get_child_nodes().iter().any(|node| {
+            constants::DIV_TO_P_ELEMS.contains(node.get_name().to_uppercase().as_str())
                 || Self::has_child_block_element(node)
         })
     }

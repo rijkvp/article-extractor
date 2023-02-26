@@ -32,6 +32,12 @@ impl Readability {
 
             while let Some(node_ref) = node.as_mut() {
                 let tag_name = node_ref.get_name().to_uppercase();
+
+                if tag_name == "TEXT" && node_ref.get_content().trim().is_empty() {
+                    node = Util::remove_and_next(node_ref);
+                    continue;
+                }
+
                 let match_string = node_ref
                     .get_class_names()
                     .iter()
@@ -107,16 +113,12 @@ impl Readability {
                     for mut child_node in node_ref.get_child_nodes().into_iter() {
                         if Self::is_phrasing_content(&child_node) {
                             if let Some(p) = p.as_mut() {
+                                child_node.unlink();
                                 let _ = p.add_child(&mut child_node);
                             } else if !Util::is_whitespace(&child_node) {
+                                child_node.unlink();
                                 let mut new_node = Node::new("p", None, &document)
                                     .map_err(|()| FullTextParserError::Readability)?;
-                                node_ref
-                                    .replace_child_node(new_node.clone(), child_node.clone())
-                                    .map_err(|error| {
-                                        log::error!("{error}");
-                                        FullTextParserError::Readability
-                                    })?;
                                 new_node.add_child(&mut child_node).map_err(|error| {
                                     log::error!("{error}");
                                     FullTextParserError::Readability
@@ -247,6 +249,9 @@ impl Readability {
             });
 
             let top_candidates = candidates.into_iter().take(5).collect::<Vec<_>>();
+            // for candidate in top_candidates.iter() {
+            //     println!("candidate: {} {:?}", candidate.get_name(), candidate.get_attributes());
+            // }
             let mut needed_to_create_top_candidate = false;
             let mut top_candidate = top_candidates.first().cloned().unwrap_or_else(|| {
                 // If we still have no top candidate, just use the body as a last resort.
@@ -619,12 +624,8 @@ impl Readability {
 
         is_text_node
             || constants::PHRASING_ELEMS.contains(&tag_name.as_str())
-            || (tag_name == "A" || tag_name == "DEL" || tag_name == "INS")
-                && node
-                    .get_child_nodes()
-                    .iter()
-                    .map(Self::is_phrasing_content)
-                    .all(|val| val)
+            || ((tag_name == "A" || tag_name == "DEL" || tag_name == "INS")
+                && node.get_child_nodes().iter().all(Self::is_phrasing_content))
     }
 
     // Initialize a node with the readability object. Also checks the
