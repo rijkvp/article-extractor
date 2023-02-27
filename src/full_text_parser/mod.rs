@@ -40,7 +40,7 @@ impl FullTextParser {
         url: &url::Url,
         client: &Client,
     ) -> Result<Article, FullTextParserError> {
-        libxml::tree::node::set_node_rc_guard(4);
+        libxml::tree::node::set_node_rc_guard(10);
 
         info!("Scraping article: '{}'", url.as_str());
 
@@ -126,9 +126,7 @@ impl FullTextParser {
             return Err(error);
         }
 
-        if let Some(mut root) = document.get_root_element() {
-            Self::post_process_content(&mut root)?;
-        }
+        Self::post_process_content(&document)?;
 
         article.document = Some(document);
 
@@ -614,6 +612,12 @@ impl FullTextParser {
         let _ = Util::strip_node(context, "//*[contains(@style,'display:none')]");
 
         // strip all comments
+        let _ = Util::strip_node(context, "//input");
+        let _ = Util::strip_node(context, "//textarea");
+        let _ = Util::strip_node(context, "//select");
+        let _ = Util::strip_node(context, "//button");
+
+        // strip all input elements
         let _ = Util::strip_node(context, "//comment()");
 
         // strip all scripts
@@ -627,6 +631,13 @@ impl FullTextParser {
 
         // strip all external css and fonts
         let _ = Util::strip_node(context, "//*[@type='text/css']");
+
+        // other junk
+        let _ = Util::strip_node(context, "//object");
+        let _ = Util::strip_node(context, "//embed");
+        let _ = Util::strip_node(context, "//footer");
+        let _ = Util::strip_node(context, "//link");
+        let _ = Util::strip_node(context, "//aside");
     }
 
     /**
@@ -837,9 +848,42 @@ impl FullTextParser {
         Ok(())
     }
 
-    pub(crate) fn post_process_content(root: &mut Node) -> Result<(), FullTextParserError> {
-        Self::clean_classes(root)?;
-        Self::simplify_nested_elements(root)?;
+    pub(crate) fn post_process_content(document: &Document) -> Result<(), FullTextParserError> {
+        if let Some(mut root) = document.get_root_element() {
+            Self::clean_classes(&mut root)?;
+            Self::simplify_nested_elements(&mut root)?;
+        }
+
+        let context = Context::new(document).map_err(|()| {
+            error!("Creating xpath context failed for article HTML");
+            FullTextParserError::Xml
+        })?;
+
+        // replace H1 with H2 as H1 should be only title that is displayed separately
+        let h1_nodes = Util::evaluate_xpath(&context, "//h1", false)?;
+        for mut h1_node in h1_nodes {
+            h1_node.set_name("h2").map_err(|e| {
+                log::error!("{e}");
+                FullTextParserError::Xml
+            })?;
+        }
+
+        // Remove extra paragraphs & divs
+        let mut nodes = Util::evaluate_xpath(&context, "//p", false)?;
+        nodes.append(&mut Util::evaluate_xpath(&context, "//P", false)?);
+        nodes.append(&mut Util::evaluate_xpath(&context, "//div", false)?);
+        for mut node in nodes {
+            let img_count = Util::get_elements_by_tag_name(&node, "img").len();
+            let embed_count = Util::get_elements_by_tag_name(&node, "embed").len();
+            let object_count = Util::get_elements_by_tag_name(&node, "object").len();
+            let iframe_count = Util::get_elements_by_tag_name(&node, "iframe").len();
+            let total_count = img_count + embed_count + object_count + iframe_count;
+
+            if total_count == 0 && Util::get_inner_text(&node, false).trim().is_empty() {
+                node.unlink();
+            }
+        }
+  
         Ok(())
     }
 

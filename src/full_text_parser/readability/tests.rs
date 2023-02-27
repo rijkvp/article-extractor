@@ -7,7 +7,7 @@ use crate::{
 };
 
 async fn run_test(name: &str) {
-    libxml::tree::node::set_node_rc_guard(4);
+    libxml::tree::node::set_node_rc_guard(10);
     let _ = env_logger::builder().is_test(true).try_init();
 
     let empty_config = ConfigEntry::default();
@@ -35,15 +35,12 @@ async fn run_test(name: &str) {
 
     metadata::extract(&xpath_ctx, None, None, &mut article);
     super::Readability::extract_body(document, &mut root, article.title.as_deref()).unwrap();
-
-    if let Some(mut root) = article_document.get_root_element() {
-        crate::FullTextParser::post_process_content(&mut root).unwrap();
-    }
+    crate::FullTextParser::post_process_content(&article_document).unwrap();
 
     article.document = Some(article_document);
     let html = article.get_content().unwrap();
 
-    //std::fs::write("expected.html", &html).unwrap();
+    std::fs::write("expected.html", &html).unwrap();
 
     let expected = std::fs::read_to_string(format!(
         "./resources/tests/readability/{name}/expected.html"
@@ -61,6 +58,16 @@ async fn test_001() {
 #[tokio::test]
 async fn test_002() {
     run_test("002").await
+}
+
+#[tokio::test]
+async fn test_003() {
+    run_test("003").await
+}
+
+#[tokio::test]
+async fn aclu() {
+    run_test("aclu").await
 }
 
 #[tokio::test]
