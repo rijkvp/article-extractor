@@ -883,7 +883,7 @@ impl FullTextParser {
                 node.unlink();
             }
         }
-  
+
         Ok(())
     }
 
