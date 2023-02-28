@@ -510,38 +510,13 @@ impl FullTextParser {
                     .unwrap_or(false);
 
                 if is_relative_url {
-                    let completed_url = Self::complete_url(article_url, &url)?;
+                    let completed_url = article_url.join(&url)?;
                     node.set_attribute(attribute, completed_url.as_str())
                         .map_err(|_| FullTextParserError::Scrape)?;
                 }
             }
         }
         Ok(())
-    }
-
-    fn complete_url(
-        article_url: &url::Url,
-        incomplete_url: &str,
-    ) -> Result<url::Url, FullTextParserError> {
-        let mut completed_url = article_url.scheme().to_owned();
-        completed_url.push(':');
-
-        if !incomplete_url.starts_with("//") {
-            match article_url.host() {
-                Some(url::Host::Domain(host)) => {
-                    completed_url.push_str("//");
-                    completed_url.push_str(host);
-                }
-                _ => return Err(FullTextParserError::Scrape),
-            };
-        }
-
-        if !completed_url.ends_with('/') && !incomplete_url.starts_with('/') {
-            completed_url.push('/');
-        }
-        completed_url.push_str(incomplete_url);
-        let url = url::Url::parse(&completed_url)?;
-        Ok(url)
     }
 
     fn fix_urls(context: &Context, url: &Url) {
