@@ -6,13 +6,13 @@ use crate::{
     full_text_parser::{config::ConfigEntry, metadata},
 };
 
-async fn run_test(name: &str, url: Option<Url>) {
+async fn run_test(name: &str) {
     libxml::tree::node::set_node_rc_guard(10);
     let _ = env_logger::builder().is_test(true).try_init();
 
     let empty_config = ConfigEntry::default();
 
-    let url = url.unwrap_or_else(|| Url::parse("http://google.com").unwrap());
+    let url = Url::parse("http://fakehost/test/base/").unwrap();
     let html = std::fs::read_to_string(format!("./resources/tests/readability/{name}/source.html"))
         .expect("Failed to read source HTML");
     let document = crate::FullTextParser::parse_html(&html, None, &empty_config).unwrap();
@@ -41,7 +41,7 @@ async fn run_test(name: &str, url: Option<Url>) {
     article.document = Some(article_document);
     let html = article.get_content().unwrap();
 
-    //std::fs::write("expected.html", &html).unwrap();
+    std::fs::write("expected.html", &html).unwrap();
 
     let expected = std::fs::read_to_string(format!(
         "./resources/tests/readability/{name}/expected.html"
@@ -53,49 +53,45 @@ async fn run_test(name: &str, url: Option<Url>) {
 
 #[tokio::test]
 async fn test_001() {
-    run_test("001", None).await
+    run_test("001").await
 }
 
 #[tokio::test]
 async fn test_002() {
-    run_test("002", None).await
+    run_test("002").await
 }
 
 #[tokio::test]
 async fn test_003() {
-    run_test("003", None).await
+    run_test("003").await
 }
 
 #[tokio::test]
 async fn aclu() {
-    run_test("aclu", None).await
+    run_test("aclu").await
 }
 
 #[tokio::test]
 async fn aktualne() {
-    run_test("aktualne", None).await
+    run_test("aktualne").await
 }
 
 #[tokio::test]
 async fn archive_of_our_own() {
-    run_test("archive-of-our-own", None).await
+    run_test("archive-of-our-own").await
 }
 
 #[tokio::test]
 async fn ars_1() {
-    run_test("ars-1", None).await
+    run_test("ars-1").await
 }
 
 #[tokio::test]
 async fn base_url_base_element_relative() {
-    run_test(
-        "base-url-base-element-relative",
-        Some(Url::parse("http://fakehost/test/base/").unwrap()),
-    )
-    .await
+    run_test("base-url-base-element-relative").await
 }
 
 #[tokio::test]
 async fn webmd_1() {
-    run_test("webmd-1", None).await
+    run_test("webmd-1").await
 }
