@@ -26,12 +26,12 @@ pub static HAS_CONTENT: Lazy<Regex> =
 pub static HASH_URL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"/^#.+/"#).expect("HASH_URL regex"));
 pub static POSITIVE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
-        r#"/article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i"#,
+        r#"article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i"#,
     )
     .expect("POSITIVE regex")
 });
 pub static NEGATIVE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"/-ad-|hidden|^hid$| hid$| hid |^hid"#).expect("NEGATIVE regex"));
+    Lazy::new(|| Regex::new(r#"-ad-|hidden|^hid$| hid$| hid |^hid"#).expect("NEGATIVE regex"));
 
 pub static TITLE_SEPARATOR: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"[-|\\/>»]"#).expect("TITLE_SEPARATOR regex"));
