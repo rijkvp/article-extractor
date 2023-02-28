@@ -75,7 +75,6 @@ async fn aktualne() {
     run_test("aktualne").await
 }
 
-
 #[tokio::test]
 async fn archive_of_our_own() {
     run_test("archive-of-our-own").await

@@ -289,7 +289,6 @@ impl Readability {
                     }
                 }
             }
-            
 
             if alternative_candidate_ancestors.len() >= constants::MINIMUM_TOPCANDIDATES {
                 let mut parent_of_top_candidate = top_candidate.get_parent();
