@@ -40,7 +40,7 @@ async fn run_test(name: &str) {
     article.document = Some(article_document);
     let html = article.get_content().unwrap();
 
-    std::fs::write("expected.html", &html).unwrap();
+    //std::fs::write("expected.html", &html).unwrap();
 
     let expected = std::fs::read_to_string(format!(
         "./resources/tests/readability/{name}/expected.html"

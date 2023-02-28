@@ -380,7 +380,7 @@ impl Util {
         }
 
         // And there should be no text nodes with real content
-        node.get_child_nodes().iter().any(|n| {
+        !node.get_child_nodes().iter().any(|n| {
             n.get_type()
                 .map(|t| t == NodeType::TextNode)
                 .unwrap_or(false)

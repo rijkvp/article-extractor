@@ -399,8 +399,8 @@ impl Readability {
                 for mut sibling in siblings {
                     let mut append = false;
 
-                    let score = Self::get_content_score(&sibling);
-                    log::debug!("Looking at sibling node: {sibling:?} with score {score:?}");
+                    let score = Self::get_content_score(&sibling).unwrap_or(0.0);
+                    log::debug!("Looking at sibling node: {sibling:?} with score {score}");
 
                     if top_candidate == sibling {
                         append = true;
@@ -420,9 +420,7 @@ impl Readability {
                                 Self::get_content_score(&top_candidate).unwrap_or(0.0) * 0.2;
                         }
 
-                        if Self::get_content_score(&sibling).unwrap_or(0.0) + content_bonus
-                            >= sibling_score_threshold
-                        {
+                        if score + content_bonus >= sibling_score_threshold {
                             append = true;
                         } else if sibling.get_name().to_uppercase() == "P" {
                             let link_density = Util::get_link_density(&sibling);
@@ -476,12 +474,6 @@ impl Readability {
                         log::error!("{error}");
                         FullTextParserError::Readability
                     })?;
-                top_candidate
-                    .set_property("class", "page")
-                    .map_err(|error| {
-                        log::error!("{error}");
-                        FullTextParserError::Readability
-                    })?;
             } else {
                 let mut div = Node::new("DIV", None, &document)
                     .map_err(|()| FullTextParserError::Readability)?;
@@ -490,10 +482,6 @@ impl Readability {
                         log::error!("{error}");
                         FullTextParserError::Readability
                     })?;
-                div.set_property("class", "page").map_err(|error| {
-                    log::error!("{error}");
-                    FullTextParserError::Readability
-                })?;
 
                 for mut child in article_content.get_child_nodes() {
                     child.unlink();

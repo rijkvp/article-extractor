@@ -900,18 +900,10 @@ impl FullTextParser {
         let mut node_iter = Some(root.clone());
 
         while let Some(mut node) = node_iter {
-            let classes = node.get_class_names();
-            if classes.contains("page") {
-                node.set_attribute("class", "page").map_err(|e| {
-                    log::error!("{e}");
-                    FullTextParserError::Xml
-                })?;
-            } else {
-                node.remove_attribute("class").map_err(|e| {
-                    log::error!("{e}");
-                    FullTextParserError::Xml
-                })?;
-            }
+            node.remove_attribute("class").map_err(|e| {
+                log::error!("{e}");
+                FullTextParserError::Xml
+            })?;
 
             node.remove_attribute(constants::SCORE_ATTR).map_err(|e| {
                 log::error!("{e}");
