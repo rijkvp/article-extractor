@@ -279,15 +279,17 @@ impl Readability {
             let mut alternative_candidate_ancestors = Vec::new();
             // Find a better top candidate node if it contains (at least three) nodes which belong to `topCandidates` array
             // and whose scores are quite closed with current `topCandidate` node.
-            for top_candidate in &top_candidates {
-                if let Some(score) = Self::get_content_score(top_candidate) {
-                    if score >= 0.75 {
+            if let Some(top_score) = Self::get_content_score(&top_candidate) {
+                for candidate in top_candidates.iter().skip(1) {
+                    let score = Self::get_content_score(candidate).unwrap_or(0.0);
+                    if score / top_score >= 0.75 {
                         if let Some(ancestor) = top_candidate.get_parent() {
                             alternative_candidate_ancestors.push(ancestor);
                         }
                     }
                 }
             }
+            
 
             if alternative_candidate_ancestors.len() >= constants::MINIMUM_TOPCANDIDATES {
                 let mut parent_of_top_candidate = top_candidate.get_parent();
@@ -325,10 +327,22 @@ impl Readability {
             let mut parent_of_top_candidate = top_candidate.get_parent();
             let mut last_score = Self::get_content_score(&top_candidate).unwrap_or(0.0);
 
+            // let html = document.to_string_with_options(libxml::tree::SaveOptions {
+            //     format: true,
+            //     no_declaration: false,
+            //     no_empty_tags: true,
+            //     no_xhtml: false,
+            //     xhtml: false,
+            //     as_xml: false,
+            //     as_html: true,
+            //     non_significant_whitespace: false,
+            // });
+            // std::fs::write("doc.html", &html).unwrap();
+
             // The scores shouldn't get too low.
             let score_threshold = last_score / 3.0;
 
-            while Util::has_tag_name(parent_of_top_candidate.as_ref(), "BODY") {
+            while !Util::has_tag_name(parent_of_top_candidate.as_ref(), "BODY") {
                 if parent_of_top_candidate
                     .as_ref()
                     .map(|n| Self::get_content_score(n).is_none())
