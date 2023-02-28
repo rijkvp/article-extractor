@@ -457,7 +457,7 @@ impl Util {
         let mut ancestors = Vec::new();
         let mut node = node.clone();
 
-        for _ in 0..=max_depth {
+        for _ in 0..max_depth {
             let parent = node.get_parent();
             match parent {
                 Some(parent) => {
