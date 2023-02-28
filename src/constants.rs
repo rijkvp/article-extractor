@@ -40,8 +40,11 @@ pub static TITLE_CUT_END: Lazy<Regex> =
 pub static WORD_COUNT: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\s+"#).expect("WORD_COUNT regex"));
 pub static TITLE_CUT_FRONT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/[^-|\\/>»]*[-|\\/>»](.*)/gi"#).expect("TITLE_CUT_FRONT regex"));
-
+pub static VIDEOS: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"///(www\.)?((dailymotion|youtube|youtube-nocookie|player\.vimeo|v\.qq)\.com|(archive|upload\.wikimedia)\.org|player\.twitch\.tv)/i"#).expect("VIDEOS regex")
+});
 pub const SCORE_ATTR: &str = "content_score";
+pub const DATA_TABLE_ATTR: &str = "is_data_table";
 pub const MINIMUM_TOPCANDIDATES: usize = 3;
 pub const UNLIKELY_ROLES: &[&str] = &[
     "menu",

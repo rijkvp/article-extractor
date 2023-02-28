@@ -594,7 +594,6 @@ impl FullTextParser {
 
         let _ = Self::fix_lazy_images(context, "lazyload", "data-src");
         let _ = Self::fix_iframe_size(context, "youtube.com");
-        let _ = Self::remove_attribute(context, None, "style");
         let _ = Self::remove_attribute(context, Some("a"), "onclick");
         let _ = Self::remove_attribute(context, Some("img"), "srcset");
         let _ = Self::remove_attribute(context, Some("img"), "sizes");
@@ -610,6 +609,8 @@ impl FullTextParser {
 
         // strip elements that contain style="display: none;"
         let _ = Util::strip_node(context, "//*[contains(@style,'display:none')]");
+        let _ = Util::strip_node(context, "//*[contains(@style,'display: none')]");
+        let _ = Self::remove_attribute(context, None, "style");
 
         // strip all comments
         let _ = Util::strip_node(context, "//input");
@@ -849,11 +850,6 @@ impl FullTextParser {
     }
 
     pub(crate) fn post_process_content(document: &Document) -> Result<(), FullTextParserError> {
-        if let Some(mut root) = document.get_root_element() {
-            Self::clean_classes(&mut root)?;
-            Self::simplify_nested_elements(&mut root)?;
-        }
-
         let context = Context::new(document).map_err(|()| {
             error!("Creating xpath context failed for article HTML");
             FullTextParserError::Xml
@@ -884,6 +880,19 @@ impl FullTextParser {
             }
         }
 
+        Util::mark_data_tables(&context)?;
+
+        if let Some(mut root) = document.get_root_element() {
+            Util::clean_conditionally(&mut root, "form")?;
+            Util::clean_conditionally(&mut root, "fieldset")?;
+            Util::clean_conditionally(&mut root, "table")?;
+            Util::clean_conditionally(&mut root, "ul")?;
+            Util::clean_conditionally(&mut root, "div")?;
+
+            Self::clean_classes(&mut root)?;
+            Self::simplify_nested_elements(&mut root)?;
+        }
+
         Ok(())
     }
 
@@ -904,10 +913,16 @@ impl FullTextParser {
                 })?;
             }
 
-            node.remove_attribute("content_score").map_err(|e| {
+            node.remove_attribute(constants::SCORE_ATTR).map_err(|e| {
                 log::error!("{e}");
                 FullTextParserError::Xml
             })?;
+
+            node.remove_attribute(constants::DATA_TABLE_ATTR)
+                .map_err(|e| {
+                    log::error!("{e}");
+                    FullTextParserError::Xml
+                })?;
 
             node_iter = Util::next_node(&node, false);
         }

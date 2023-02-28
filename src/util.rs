@@ -228,10 +228,6 @@ impl Util {
     }
 
     pub fn is_probably_visible(node: &Node) -> bool {
-        let display_none = node
-            .get_attribute("display")
-            .map(|display| display == "none")
-            .unwrap_or(false);
         let is_hidden = node.has_attribute("hidden");
         let aria_hidden = node
             .get_attribute("aria-hidden")
@@ -239,7 +235,7 @@ impl Util {
             .unwrap_or(false);
         let has_fallback_image = node.get_class_names().contains("fallback-image");
 
-        !display_none && !is_hidden && !aria_hidden || has_fallback_image
+        !is_hidden && !aria_hidden || has_fallback_image
     }
 
     pub fn is_whitespace(node: &Node) -> bool {
@@ -333,7 +329,15 @@ impl Util {
         1.0 - distance_b
     }
 
-    pub fn has_ancestor_tag(node: &Node, tag_name: &str, max_depth: Option<u64>) -> bool {
+    pub fn has_ancestor_tag<F>(
+        node: &Node,
+        tag_name: &str,
+        max_depth: Option<u64>,
+        filter: Option<F>,
+    ) -> bool
+    where
+        F: Fn(&Node) -> bool,
+    {
         let max_depth = max_depth.unwrap_or(3);
         let tag_name = tag_name.to_uppercase();
         let mut depth = 0;
@@ -349,7 +353,12 @@ impl Util {
                 None => return false,
             };
 
-            if tmp_node.get_name() == tag_name {
+            if tmp_node.get_name() == tag_name
+                && filter
+                    .as_ref()
+                    .map(|filter| filter(&tmp_node))
+                    .unwrap_or(true)
+            {
                 return true;
             }
 
@@ -383,15 +392,15 @@ impl Util {
         if let Some(node_type) = node.get_type() {
             let len = node.get_child_nodes().len();
 
-            return node_type == NodeType::ElementNode
-                && node.get_content().trim().is_empty()
+            node_type == NodeType::ElementNode
                 && (len == 0
                     || len
                         == Self::get_elements_by_tag_name(node, "br").len()
-                            + Self::get_elements_by_tag_name(node, "hr").len());
+                            + Self::get_elements_by_tag_name(node, "hr").len())
+                && node.get_content().trim().is_empty()
+        } else {
+            false
         }
-
-        false
     }
 
     pub fn get_elements_by_tag_name(node: &Node, tag: &str) -> Vec<Node> {
@@ -479,5 +488,262 @@ impl Util {
         } else {
             false
         }
+    }
+
+    // Clean an element of all tags of type "tag" if they look fishy.
+    // "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
+    pub fn clean_conditionally(root: &mut Node, tag: &str) -> Result<(), FullTextParserError> {
+        // Gather counts for other typical elements embedded within.
+        // Traverse backwards so we can remove nodes at the same time
+        // without effecting the traversal.
+        //
+        // TODO: Consider taking into account original contentScore here.
+        let nodes = Util::get_elements_by_tag_name(root, tag);
+        let nodes_to_remove = nodes
+            .into_iter()
+            .filter(|node| Self::should_remove(node, tag))
+            .collect::<Vec<_>>();
+
+        for mut node in nodes_to_remove {
+            node.unlink();
+        }
+
+        Ok(())
+    }
+
+    fn should_remove(node: &Node, tag: &str) -> bool {
+        // First check if this node IS data table, in which case don't remove it.
+        let mut is_list = tag == "ul" || tag == "ol";
+        if !is_list {
+            let mut list_length = 0.0;
+            let ul_nodes = Self::get_elements_by_tag_name(node, "ul");
+            let ol_nodes = Self::get_elements_by_tag_name(node, "ol");
+            for list_node in ul_nodes {
+                list_length += Util::get_inner_text(&list_node, false).len() as f64;
+            }
+            for list_node in ol_nodes {
+                list_length += Util::get_inner_text(&list_node, false).len() as f64;
+            }
+            is_list = (list_length / Util::get_inner_text(node, false).len() as f64) > 0.9;
+        }
+
+        if tag == "table" && Self::is_data_table(node) {
+            return false;
+        }
+
+        // Next check if we're inside a data table, in which case don't remove it as well.
+        if Self::has_ancestor_tag(node, "table", Some(u64::MAX), Some(Self::is_data_table)) {
+            return false;
+        }
+
+        if Self::has_ancestor_tag(node, "code", None, None::<fn(&Node) -> bool>) {
+            return false;
+        }
+
+        let weight = Self::get_class_weight(node);
+        if weight < 0 {
+            return false;
+        }
+
+        if Self::get_char_count(node, ',') < 10 {
+            // If there are not very many commas, and the number of
+            // non-paragraph elements is more than paragraphs or other
+            // ominous signs, remove the element.
+            let p = Self::get_elements_by_tag_name(node, "p").len();
+            let img = Self::get_elements_by_tag_name(node, "img").len();
+            let li = Self::get_elements_by_tag_name(node, "li").len() as i64 - 100;
+            let input = Self::get_elements_by_tag_name(node, "input").len();
+            let heading_density =
+                Self::get_text_density(node, &["h1", "h2", "h3", "h4", "h5", "h6"]);
+
+            let mut embed_count = 0;
+            let embed_tags = ["object", "embed", "iframe"];
+
+            for embed_tag in embed_tags {
+                for embed_node in Self::get_elements_by_tag_name(node, embed_tag) {
+                    // If this embed has attribute that matches video regex, don't delete it.
+                    for (_name, value) in embed_node.get_attributes() {
+                        if constants::VIDEOS.is_match(&value) {
+                            return false;
+                        }
+                    }
+
+                    // For embed with <object> tag, check inner HTML as well.
+                    // if embed_node.get_name().to_lowercase() == "object" && constants::VIDEOS.is_match(embed_node.innerHTML) {
+                    //     return false;
+                    // }
+
+                    embed_count += 1;
+                }
+            }
+
+            let link_density = Self::get_link_density(node);
+            let content_length = Self::get_inner_text(node, false).len();
+
+            (img > 1
+                && (p as f64 / img as f64) < 0.5
+                && !Self::has_ancestor_tag(node, "figure", None, None::<fn(&Node) -> bool>))
+                || (!is_list && li > p as i64)
+                || (input as f64 > f64::floor(p as f64 / 3.0))
+                || (!is_list
+                    && heading_density < 0.9
+                    && content_length < 25
+                    && (img == 0 || img > 2)
+                    && !Self::has_ancestor_tag(node, "figure", None, None::<fn(&Node) -> bool>))
+                || (!is_list && weight < 25 && link_density > 0.2)
+                || (weight >= 25 && link_density > 0.5)
+                || ((embed_count == 1 && content_length < 75) || embed_count > 1)
+        } else {
+            false
+        }
+    }
+
+    pub fn get_class_weight(node: &Node) -> i64 {
+        let mut weight = 0;
+
+        // Look for a special classname
+        if let Some(class_names) = node.get_property("class") {
+            if constants::NEGATIVE.is_match(&class_names) {
+                weight -= 25;
+            }
+
+            if constants::POSITIVE.is_match(&class_names) {
+                weight += 25;
+            }
+        }
+
+        // Look for a special ID
+        if let Some(class_names) = node.get_property("id") {
+            if constants::NEGATIVE.is_match(&class_names) {
+                weight -= 25;
+            }
+
+            if constants::POSITIVE.is_match(&class_names) {
+                weight += 25;
+            }
+        }
+
+        weight
+    }
+
+    fn get_char_count(node: &Node, char: char) -> usize {
+        Util::get_inner_text(node, false).split(char).count() - 1
+    }
+
+    fn get_text_density(node: &Node, tags: &[&str]) -> f64 {
+        let text_length = Util::get_inner_text(node, false).len();
+        if text_length == 0 {
+            return 0.0;
+        }
+
+        let mut children_length = 0;
+        for tag in tags {
+            for child in Self::get_elements_by_tag_name(node, tag) {
+                children_length += Util::get_inner_text(&child, false).len()
+            }
+        }
+        children_length as f64 / text_length as f64
+    }
+
+    fn is_data_table(node: &Node) -> bool {
+        node.get_attribute(constants::DATA_TABLE_ATTR)
+            .and_then(|is_data_table| is_data_table.parse::<bool>().ok())
+            .unwrap_or(false)
+    }
+
+    pub fn mark_data_tables(context: &Context) -> Result<(), FullTextParserError> {
+        let nodes = Util::evaluate_xpath(context, "//table", false)?;
+        for mut node in nodes {
+            if node
+                .get_attribute("role")
+                .map(|role| role == "presentation")
+                .unwrap_or(false)
+            {
+                let _ = node.set_attribute(constants::DATA_TABLE_ATTR, "false");
+                continue;
+            }
+
+            if node
+                .get_attribute("datatable")
+                .map(|role| role == "0")
+                .unwrap_or(false)
+            {
+                let _ = node.set_attribute(constants::DATA_TABLE_ATTR, "false");
+                continue;
+            }
+
+            if node.get_attribute("summary").is_some() {
+                let _ = node.set_attribute(constants::DATA_TABLE_ATTR, "true");
+                continue;
+            }
+
+            if let Some(first_caption) = Self::get_elements_by_tag_name(&node, "caption").first() {
+                if !first_caption.get_child_nodes().is_empty() {
+                    let _ = node.set_attribute(constants::DATA_TABLE_ATTR, "true");
+                    continue;
+                }
+            }
+
+            // If the table has a descendant with any of these tags, consider a data table:
+            let data_table_descendants = ["col", "colgroup", "tfoot", "thead", "th"];
+            for descendant in data_table_descendants {
+                if !Self::get_elements_by_tag_name(&node, descendant).is_empty() {
+                    let _ = node.set_attribute(constants::DATA_TABLE_ATTR, "true");
+                    continue;
+                }
+            }
+
+            // Nested tables indicate a layout table:
+            if !Self::get_elements_by_tag_name(&node, "table").is_empty() {
+                let _ = node.set_attribute(constants::DATA_TABLE_ATTR, "false");
+                continue;
+            }
+
+            let (rows, columns) = Self::get_row_and_column_count(&node);
+            if rows >= 10 || columns > 4 {
+                let _ = node.set_attribute(constants::DATA_TABLE_ATTR, "true");
+                continue;
+            }
+
+            // Now just go by size entirely:
+            let _ = node.set_attribute(
+                constants::DATA_TABLE_ATTR,
+                if rows * columns > 10 { "true" } else { "false" },
+            );
+        }
+
+        Ok(())
+    }
+
+    pub fn get_row_and_column_count(node: &Node) -> (usize, usize) {
+        if node.get_name().to_uppercase() != "TABLE" {
+            return (0, 0);
+        }
+
+        let mut rows = 0;
+        let mut columns = 0;
+
+        let trs = Self::get_elements_by_tag_name(node, "tr");
+        for tr in trs {
+            let row_span = tr
+                .get_attribute("rowspan")
+                .and_then(|span| span.parse::<usize>().ok())
+                .unwrap_or(1);
+            rows += row_span;
+
+            // Now look for column-related info
+            let mut columns_in_this_row = 0;
+            let cells = Self::get_elements_by_tag_name(&tr, "td");
+            for cell in cells {
+                let colspan = cell
+                    .get_attribute("colspan")
+                    .and_then(|span| span.parse::<usize>().ok())
+                    .unwrap_or(1);
+                columns_in_this_row += colspan;
+            }
+            columns = usize::max(columns, columns_in_this_row);
+        }
+
+        (rows, columns)
     }
 }

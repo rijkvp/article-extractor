@@ -69,8 +69,18 @@ impl Readability {
                 if state.strip_unlikely {
                     if constants::UNLIELY_CANDIDATES.is_match(&match_string)
                         && !constants::OKAY_MAYBE_ITS_A_CANDIDATE.is_match(&match_string)
-                        && !Util::has_ancestor_tag(node_ref, "table", None)
-                        && !Util::has_ancestor_tag(node_ref, "code", None)
+                        && !Util::has_ancestor_tag(
+                            node_ref,
+                            "table",
+                            None,
+                            None::<fn(&Node) -> bool>,
+                        )
+                        && !Util::has_ancestor_tag(
+                            node_ref,
+                            "code",
+                            None,
+                            None::<fn(&Node) -> bool>,
+                        )
                         && tag_name != "BODY"
                         && tag_name != "A"
                     {
@@ -120,6 +130,10 @@ impl Readability {
                                 let mut new_node = Node::new("p", None, &document)
                                     .map_err(|()| FullTextParserError::Readability)?;
                                 new_node.add_child(&mut child_node).map_err(|error| {
+                                    log::error!("{error}");
+                                    FullTextParserError::Readability
+                                })?;
+                                node_ref.add_child(&mut new_node).map_err(|error| {
                                     log::error!("{error}");
                                     FullTextParserError::Readability
                                 })?;
@@ -638,40 +652,13 @@ impl Readability {
             "H1" | "H2" | "H3" | "H4" | "H5" | "H6" | "TH" => -5,
             _ => 0,
         };
-        let score = score + Self::get_class_weight(node, state);
+        let class_weight = if state.weigh_classes {
+            Util::get_class_weight(node)
+        } else {
+            0
+        };
+        let score = score + class_weight;
         Self::set_content_score(node, score as f64)?;
         Ok(())
-    }
-
-    fn get_class_weight(node: &Node, state: &State) -> i64 {
-        if !state.weigh_classes {
-            return 0;
-        }
-
-        let mut weight = 0;
-
-        // Look for a special classname
-        if let Some(class_names) = node.get_property("class") {
-            if constants::NEGATIVE.is_match(&class_names) {
-                weight -= 25;
-            }
-
-            if constants::POSITIVE.is_match(&class_names) {
-                weight += 25;
-            }
-        }
-
-        // Look for a special ID
-        if let Some(class_names) = node.get_property("id") {
-            if constants::NEGATIVE.is_match(&class_names) {
-                weight -= 25;
-            }
-
-            if constants::POSITIVE.is_match(&class_names) {
-                weight += 25;
-            }
-        }
-
-        weight
     }
 }

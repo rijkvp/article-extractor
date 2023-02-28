@@ -71,6 +71,11 @@ async fn aclu() {
 }
 
 #[tokio::test]
+async fn aktualne() {
+    run_test("aktualne").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
