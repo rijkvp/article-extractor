@@ -6,13 +6,13 @@ use crate::{
     full_text_parser::{config::ConfigEntry, metadata},
 };
 
-async fn run_test(name: &str) {
+async fn run_test(name: &str, url: Option<Url>) {
     libxml::tree::node::set_node_rc_guard(10);
     let _ = env_logger::builder().is_test(true).try_init();
 
     let empty_config = ConfigEntry::default();
 
-    let url = Url::parse("http://google.com").unwrap();
+    let url = url.unwrap_or_else(|| Url::parse("http://google.com").unwrap());
     let html = std::fs::read_to_string(format!("./resources/tests/readability/{name}/source.html"))
         .expect("Failed to read source HTML");
     let document = crate::FullTextParser::parse_html(&html, None, &empty_config).unwrap();
@@ -20,6 +20,7 @@ async fn run_test(name: &str) {
 
     crate::FullTextParser::strip_junk(&xpath_ctx, None, &empty_config);
     crate::FullTextParser::unwrap_noscript_images(&xpath_ctx).unwrap();
+    crate::FullTextParser::fix_urls(&xpath_ctx, &url);
     let mut article = Article {
         title: None,
         author: None,
@@ -52,40 +53,49 @@ async fn run_test(name: &str) {
 
 #[tokio::test]
 async fn test_001() {
-    run_test("001").await
+    run_test("001", None).await
 }
 
 #[tokio::test]
 async fn test_002() {
-    run_test("002").await
+    run_test("002", None).await
 }
 
 #[tokio::test]
 async fn test_003() {
-    run_test("003").await
+    run_test("003", None).await
 }
 
 #[tokio::test]
 async fn aclu() {
-    run_test("aclu").await
+    run_test("aclu", None).await
 }
 
 #[tokio::test]
 async fn aktualne() {
-    run_test("aktualne").await
+    run_test("aktualne", None).await
 }
 
 #[tokio::test]
 async fn archive_of_our_own() {
-    run_test("archive-of-our-own").await
+    run_test("archive-of-our-own", None).await
 }
 
 #[tokio::test]
 async fn ars_1() {
-    run_test("ars-1").await
+    run_test("ars-1", None).await
+}
+
+#[tokio::test]
+async fn base_url_base_element_relative() {
+    run_test(
+        "base-url-base-element-relative",
+        Some(Url::parse("http://fakehost/test/base/").unwrap()),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn webmd_1() {
-    run_test("webmd-1").await
+    run_test("webmd-1", None).await
 }
