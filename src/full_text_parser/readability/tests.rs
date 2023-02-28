@@ -75,6 +75,17 @@ async fn aktualne() {
     run_test("aktualne").await
 }
 
+
+#[tokio::test]
+async fn archive_of_our_own() {
+    run_test("archive-of-our-own").await
+}
+
+#[tokio::test]
+async fn ars_1() {
+    run_test("ars-1").await
+}
+
 #[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
