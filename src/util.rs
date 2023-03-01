@@ -202,14 +202,13 @@ impl Util {
 
         for mut node in node_vec {
             let tag_name = node.get_name();
-            if constants::EMBED_TAG_NAMES.contains(tag_name.to_uppercase().as_str()) {
-                if node
+            if constants::EMBED_TAG_NAMES.contains(tag_name.to_uppercase().as_str())
+                && node
                     .get_attributes()
                     .iter()
                     .any(|(_name, value)| constants::VIDEOS.is_match(value))
-                {
-                    continue;
-                }
+            {
+                continue;
             }
             node.unlink();
         }
