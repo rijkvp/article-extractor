@@ -92,6 +92,11 @@ async fn base_url_base_element_relative() {
 }
 
 #[tokio::test]
+async fn basic_tags_cleaning() {
+    run_test("basic-tags-cleaning").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
