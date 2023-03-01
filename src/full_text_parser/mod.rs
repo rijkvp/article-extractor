@@ -520,40 +520,40 @@ impl FullTextParser {
     }
 
     fn fix_urls(context: &Context, url: &Url) {
-        let _ = Self::repair_urls(context, "//img", "src", url);
-        let _ = Self::repair_urls(context, "//a", "src", url);
-        let _ = Self::repair_urls(context, "//a", "href", url);
-        let _ = Self::repair_urls(context, "//object", "data", url);
-        let _ = Self::repair_urls(context, "//iframe", "src", url);
+        _ = Self::repair_urls(context, "//img", "src", url);
+        _ = Self::repair_urls(context, "//a", "src", url);
+        _ = Self::repair_urls(context, "//a", "href", url);
+        _ = Self::repair_urls(context, "//object", "data", url);
+        _ = Self::repair_urls(context, "//iframe", "src", url);
     }
 
     fn strip_junk(context: &Context, config: Option<&ConfigEntry>, global_config: &ConfigEntry) {
         // strip specified xpath
         if let Some(config) = config {
             for xpath_strip in &config.xpath_strip {
-                let _ = Util::strip_node(context, xpath_strip);
+                _ = Util::strip_node(context, xpath_strip);
             }
         }
 
         for xpath_strip in &global_config.xpath_strip {
-            let _ = Util::strip_node(context, xpath_strip);
+            _ = Util::strip_node(context, xpath_strip);
         }
 
         // strip everything with specified 'id' or 'class'
         if let Some(config) = config {
             for xpaht_strip_class in &config.strip_id_or_class {
-                let _ = Util::strip_id_or_class(context, xpaht_strip_class);
+                _ = Util::strip_id_or_class(context, xpaht_strip_class);
             }
         }
 
         for xpaht_strip_class in &global_config.strip_id_or_class {
-            let _ = Util::strip_id_or_class(context, xpaht_strip_class);
+            _ = Util::strip_id_or_class(context, xpaht_strip_class);
         }
 
         // strip any <img> element where @src attribute contains this substring
         if let Some(config) = config {
             for xpath_strip_img_src in &config.strip_image_src {
-                let _ = Util::strip_node(
+                _ = Util::strip_node(
                     context,
                     &format!("//img[contains(@src,'{}')]", xpath_strip_img_src),
                 );
@@ -561,59 +561,60 @@ impl FullTextParser {
         }
 
         for xpath_strip_img_src in &global_config.strip_image_src {
-            let _ = Util::strip_node(
+            _ = Util::strip_node(
                 context,
                 &format!("//img[contains(@src,'{}')]", xpath_strip_img_src),
             );
         }
 
-        let _ = Self::fix_lazy_images(context, "lazyload", "data-src");
-        let _ = Self::fix_iframe_size(context, "youtube.com");
-        let _ = Self::remove_attribute(context, Some("a"), "onclick");
-        let _ = Self::remove_attribute(context, Some("img"), "srcset");
-        let _ = Self::remove_attribute(context, Some("img"), "sizes");
-        let _ = Self::add_attribute(context, Some("a"), "target", "_blank");
+        _ = Self::fix_lazy_images(context, "lazyload", "data-src");
+        _ = Self::fix_iframe_size(context, "youtube.com");
+        _ = Self::remove_attribute(context, Some("a"), "onclick");
+        _ = Self::remove_attribute(context, Some("img"), "srcset");
+        _ = Self::remove_attribute(context, Some("img"), "sizes");
+        _ = Self::add_attribute(context, Some("a"), "target", "_blank");
 
         // strip elements using Readability.com and Instapaper.com ignore class names
         // .entry-unrelated and .instapaper_ignore
         // See http://blog.instapaper.com/post/730281947
-        let _ = Util::strip_node(
+        _ = Util::strip_node(
             context,
             "//*[contains(@class,' entry-unrelated ') or contains(@class,' instapaper_ignore ')]",
         );
 
         // strip elements that contain style="display: none;"
-        let _ = Util::strip_node(context, "//*[contains(@style,'display:none')]");
-        let _ = Util::strip_node(context, "//*[contains(@style,'display: none')]");
-        let _ = Self::remove_attribute(context, None, "style");
+        _ = Util::strip_node(context, "//*[contains(@style,'display:none')]");
+        _ = Util::strip_node(context, "//*[contains(@style,'display: none')]");
+        _ = Self::remove_attribute(context, None, "style");
 
         // strip all comments
-        let _ = Util::strip_node(context, "//input");
-        let _ = Util::strip_node(context, "//textarea");
-        let _ = Util::strip_node(context, "//select");
-        let _ = Util::strip_node(context, "//button");
+        _ = Util::strip_node(context, "//input");
+        _ = Util::strip_node(context, "//textarea");
+        _ = Util::strip_node(context, "//select");
+        _ = Util::strip_node(context, "//button");
 
         // strip all input elements
-        let _ = Util::strip_node(context, "//comment()");
+        _ = Util::strip_node(context, "//comment()");
 
         // strip all scripts
-        let _ = Util::strip_node(context, "//script");
+        _ = Util::strip_node(context, "//script");
 
         // strip all styles
-        let _ = Util::strip_node(context, "//style");
+        _ = Util::strip_node(context, "//style");
 
         // strip all empty url-tags <a/>
-        let _ = Util::strip_node(context, "//a[not(node())]");
+        _ = Util::strip_node(context, "//a[not(node())]");
 
         // strip all external css and fonts
-        let _ = Util::strip_node(context, "//*[@type='text/css']");
+        _ = Util::strip_node(context, "//*[@type='text/css']");
 
         // other junk
-        let _ = Util::strip_node(context, "//object");
-        let _ = Util::strip_node(context, "//embed");
-        let _ = Util::strip_node(context, "//footer");
-        let _ = Util::strip_node(context, "//link");
-        let _ = Util::strip_node(context, "//aside");
+        _ = Util::strip_node(context, "//iframe");
+        _ = Util::strip_node(context, "//object");
+        _ = Util::strip_node(context, "//embed");
+        _ = Util::strip_node(context, "//footer");
+        _ = Util::strip_node(context, "//link");
+        _ = Util::strip_node(context, "//aside");
     }
 
     /**
@@ -818,7 +819,7 @@ impl FullTextParser {
                 continue;
             }
 
-            let _ = node.add_text_child(None, "empty", "");
+            _ = node.add_text_child(None, "empty", "");
         }
 
         Ok(())

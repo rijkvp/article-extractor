@@ -1,35 +1,45 @@
 use std::collections::HashSet;
 
 use once_cell::sync::Lazy;
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 
 pub const DEFAULT_CHAR_THRESHOLD: usize = 500;
-pub static IS_IMAGE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"/\.(jpg|jpeg|png|webp)/i"#).expect("IS_IMAGE regex"));
+pub static IS_IMAGE: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"\.(jpg|jpeg|png|webp)"#)
+        .case_insensitive(true)
+        .build()
+        .expect("IS_IMAGE regex")
+});
 pub static SIBLING_CONTENT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/\.( |$)/"#).expect("SIBLING_CONTENT regex"));
 pub static BYLINE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"/byline|author|dateline|writtenby|p-author/i"#).expect("BYLINE regex")
+    RegexBuilder::new(r#"byline|author|dateline|writtenby|p-author"#)
+        .case_insensitive(true)
+        .build()
+        .expect("BYLINE regex")
 });
 pub static NORMALIZE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/\s{2,}/g"#).expect("NORMALIZE regex"));
 pub static TOKENIZE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\W+"#).expect("TOKENIZE regex"));
 pub static UNLIELY_CANDIDATES: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"/-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|footer|gdpr|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote/i"#).expect("UNLIELY_CANDIDATES regex")
+    RegexBuilder::new(r#"-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|footer|gdpr|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote"#).case_insensitive(true).build().expect("UNLIELY_CANDIDATES regex")
 });
 pub static OKAY_MAYBE_ITS_A_CANDIDATE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"/and|article|body|column|content|main|shadow/i"#)
+    RegexBuilder::new(r#"and|article|body|column|content|main|shadow"#)
+        .case_insensitive(true)
+        .build()
         .expect("OKAY_MAYBE_ITS_A_CANDIDATE regex")
 });
 pub static HAS_CONTENT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/\S$/"#).expect("HAS_CONTENT regex"));
 pub static HASH_URL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"/^#.+/"#).expect("HASH_URL regex"));
-pub static POSITIVE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(
-        r#"article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story/i"#,
-    )
+pub static POSITIVE: Lazy<Regex> =
+    Lazy::new(|| {
+        RegexBuilder::new(
+        r#"article|body|content|entry|hentry|h-entry|main|page|pagination|post|text|blog|story"#,
+    ).case_insensitive(true).build()
     .expect("POSITIVE regex")
-});
+    });
 pub static NEGATIVE: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"-ad-|hidden|^hid$| hid$| hid |^hid"#).expect("NEGATIVE regex"));
 
@@ -38,10 +48,14 @@ pub static TITLE_SEPARATOR: Lazy<Regex> =
 pub static TITLE_CUT_END: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"(.*)[-|\\/>»] .*"#).expect("TITLE_CUT_END regex"));
 pub static WORD_COUNT: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\s+"#).expect("WORD_COUNT regex"));
-pub static TITLE_CUT_FRONT: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"/[^-|\\/>»]*[-|\\/>»](.*)/gi"#).expect("TITLE_CUT_FRONT regex"));
+pub static TITLE_CUT_FRONT: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"[^-|\\/>»]*[-|\\/>»](.*)"#)
+        .case_insensitive(true)
+        .build()
+        .expect("TITLE_CUT_FRONT regex")
+});
 pub static VIDEOS: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"///(www\.)?((dailymotion|youtube|youtube-nocookie|player\.vimeo|v\.qq)\.com|(archive|upload\.wikimedia)\.org|player\.twitch\.tv)/i"#).expect("VIDEOS regex")
+    RegexBuilder::new(r#"(www\.)?((dailymotion|youtube|youtube-nocookie|player\.vimeo|v\.qq)\.com|(archive|upload\.wikimedia)\.org|player\.twitch\.tv)"#).case_insensitive(true).build().expect("VIDEOS regex")
 });
 pub const SCORE_ATTR: &str = "content_score";
 pub const DATA_TABLE_ATTR: &str = "is_data_table";
@@ -72,8 +86,11 @@ pub static DIV_TO_P_ELEMS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     ])
 });
 
-pub static ALTER_TO_DIV_EXCEPTIONS: Lazy<HashSet<&'static str>> =
+pub static ALTER_TO_DIV_EXCEPTIONS: Lazy<HashSet<&str>> =
     Lazy::new(|| HashSet::from(["DIV", "ARTICLE", "SECTION", "P"]));
+
+pub static EMBED_TAG_NAMES: Lazy<HashSet<&str>> =
+    Lazy::new(|| HashSet::from(["OBJECT", "EMBED", "IFRAME"]));
 
 pub const PHRASING_ELEMS: &[&str] = &[
     // "CANVAS", "IFRAME", "SVG", "VIDEO",

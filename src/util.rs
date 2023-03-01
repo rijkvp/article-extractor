@@ -199,7 +199,18 @@ impl Util {
 
         let query = &format!("{}[not(ancestor::{})]", xpath, ancestor);
         let node_vec = Util::evaluate_xpath(context, query, false)?;
+
         for mut node in node_vec {
+            let tag_name = node.get_name();
+            if constants::EMBED_TAG_NAMES.contains(tag_name.to_uppercase().as_str()) {
+                if node
+                    .get_attributes()
+                    .iter()
+                    .any(|(_name, value)| constants::VIDEOS.is_match(value))
+                {
+                    continue;
+                }
+            }
             node.unlink();
         }
         Ok(())
