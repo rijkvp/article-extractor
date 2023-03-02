@@ -41,7 +41,7 @@ pub static POSITIVE: Lazy<Regex> =
     .expect("POSITIVE regex")
     });
 pub static NEGATIVE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"-ad-|hidden|^hid$| hid$| hid |^hid"#).expect("NEGATIVE regex"));
+    Lazy::new(|| Regex::new(r#"-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|foot|footer|footnote|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget"#).expect("NEGATIVE regex"));
 
 pub static TITLE_SEPARATOR: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"[-|\\/>»]"#).expect("TITLE_SEPARATOR regex"));
