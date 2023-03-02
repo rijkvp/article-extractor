@@ -552,7 +552,7 @@ impl Util {
 
         let weight = Self::get_class_weight(node);
         if weight < 0 {
-            return false;
+            return true;
         }
 
         if Self::get_char_count(node, ',') < 10 {
