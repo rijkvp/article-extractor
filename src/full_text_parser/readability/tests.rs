@@ -97,6 +97,11 @@ async fn basic_tags_cleaning() {
 }
 
 #[tokio::test]
+async fn bbc_1() {
+    run_test("bbc-1").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
