@@ -107,6 +107,11 @@ async fn blogger() {
 }
 
 #[tokio::test]
+async fn breitbart() {
+    run_test("breitbart").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
