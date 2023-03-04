@@ -504,7 +504,7 @@ impl Util {
 
     // Clean an element of all tags of type "tag" if they look fishy.
     // "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
-    pub fn clean_conditionally(root: &mut Node, tag: &str) -> Result<(), FullTextParserError> {
+    pub fn clean_conditionally(root: &mut Node, tag: &str) {
         // Gather counts for other typical elements embedded within.
         // Traverse backwards so we can remove nodes at the same time
         // without effecting the traversal.
@@ -516,11 +516,9 @@ impl Util {
             .filter(|node| Self::should_remove(node, tag))
             .collect::<Vec<_>>();
 
-        for mut node in nodes_to_remove {
+        for mut node in nodes_to_remove.into_iter().rev() {
             node.unlink();
         }
-
-        Ok(())
     }
 
     fn should_remove(node: &Node, tag: &str) -> bool {

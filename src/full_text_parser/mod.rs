@@ -587,13 +587,14 @@ impl FullTextParser {
         _ = Util::strip_node(context, "//*[contains(@style,'display: none')]");
         _ = Self::remove_attribute(context, None, "style");
 
-        // strip all comments
+        // strip all input elements
+        _ = Util::strip_node(context, "//form");
         _ = Util::strip_node(context, "//input");
         _ = Util::strip_node(context, "//textarea");
         _ = Util::strip_node(context, "//select");
         _ = Util::strip_node(context, "//button");
 
-        // strip all input elements
+        // strip all comments
         _ = Util::strip_node(context, "//comment()");
 
         // strip all scripts
@@ -859,17 +860,39 @@ impl FullTextParser {
         Util::mark_data_tables(&context)?;
 
         if let Some(mut root) = document.get_root_element() {
-            Util::clean_conditionally(&mut root, "form")?;
-            Util::clean_conditionally(&mut root, "fieldset")?;
-            Util::clean_conditionally(&mut root, "table")?;
-            Util::clean_conditionally(&mut root, "ul")?;
-            Util::clean_conditionally(&mut root, "div")?;
+            Self::remove_extra_p_and_div(&mut root);
+
+            Util::clean_conditionally(&mut root, "fieldset");
+            Util::clean_conditionally(&mut root, "table");
+            Util::clean_conditionally(&mut root, "ul");
+            Util::clean_conditionally(&mut root, "div");
 
             Self::clean_classes(&mut root)?;
             Self::simplify_nested_elements(&mut root)?;
         }
 
         Ok(())
+    }
+
+    fn remove_extra_p_and_div(root: &mut Node) {
+        let mut node_iter = Some(root.clone());
+
+        while let Some(mut node) = node_iter {
+            let tag_name = node.get_name();
+            if tag_name == "P" || tag_name == "DIV" {
+                let img_count = Util::get_elements_by_tag_name(&node, "img").len();
+                let embed_count = Util::get_elements_by_tag_name(&node, "embed").len();
+                let object_count = Util::get_elements_by_tag_name(&node, "object").len();
+                let iframe_count = Util::get_elements_by_tag_name(&node, "iframe").len();
+                let total_count = img_count + embed_count + object_count + iframe_count;
+
+                if total_count == 0 && Util::get_inner_text(&node, false).trim().is_empty() {
+                    node.unlink();
+                }
+            }
+
+            node_iter = Util::next_node(&node, false);
+        }
     }
 
     fn clean_classes(root: &mut Node) -> Result<(), FullTextParserError> {
