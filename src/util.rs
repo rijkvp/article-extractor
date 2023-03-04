@@ -249,6 +249,9 @@ impl Util {
     }
 
     pub fn is_whitespace(node: &Node) -> bool {
+        let content = node.get_content();
+        let tag_name = node.get_name().to_uppercase();
+
         let is_text_node = node
             .get_type()
             .map(|t| t == NodeType::TextNode)
@@ -258,8 +261,7 @@ impl Util {
             .map(|t| t == NodeType::ElementNode)
             .unwrap_or(false);
 
-        (is_text_node && node.get_content().trim().is_empty())
-            || (is_element_node && node.get_name().to_uppercase() == "BR")
+        (is_text_node && content.trim().is_empty()) || (is_element_node && tag_name == "BR")
     }
 
     pub fn remove_and_next(node: &mut Node) -> Option<Node> {

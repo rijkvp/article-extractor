@@ -120,31 +120,39 @@ impl Readability {
                 if tag_name == "DIV" {
                     // Put phrasing content into paragraphs.
                     let mut p: Option<Node> = None;
-                    for mut child_node in node_ref.get_child_nodes().into_iter() {
-                        if Self::is_phrasing_content(&child_node) {
+                    for mut child in node_ref.get_child_nodes().into_iter() {
+                        if Self::is_phrasing_content(&child) {
                             if let Some(p) = p.as_mut() {
-                                child_node.unlink();
-                                let _ = p.add_child(&mut child_node);
-                            } else if !Util::is_whitespace(&child_node) {
-                                child_node.unlink();
-                                let mut new_node = Node::new("p", None, &document)
-                                    .map_err(|()| FullTextParserError::Readability)?;
-                                new_node.add_child(&mut child_node).map_err(|error| {
+                                child.unlink();
+                                p.add_child(&mut child).map_err(|error| {
                                     log::error!("{error}");
                                     FullTextParserError::Readability
                                 })?;
-                                node_ref.add_child(&mut new_node).map_err(|error| {
+                            } else if !Util::is_whitespace(&child) {
+                                let mut new_node = Node::new("p", None, &document)
+                                    .map_err(|()| FullTextParserError::Readability)?;
+                                let mut old_node = node_ref.replace_child_node(new_node.clone(), child).map_err(|error| {
+                                    log::error!("{error}");
+                                    FullTextParserError::Readability
+                                })?;
+
+                                new_node.add_child(&mut old_node).map_err(|error| {
                                     log::error!("{error}");
                                     FullTextParserError::Readability
                                 })?;
                                 p.replace(new_node);
                             }
-                        } else if let Some(p) = p.as_mut() {
-                            for mut r_node in p.get_child_nodes().into_iter().rev() {
-                                if Util::is_whitespace(&r_node) {
-                                    r_node.unlink();
+                        } else if p.is_some() {
+                            if let Some(p) = p.as_mut() {
+                                for mut r_node in p.get_child_nodes().into_iter().rev() {
+                                    if Util::is_whitespace(&r_node) {
+                                        r_node.unlink();
+                                        continue;
+                                    }
+                                    break;
                                 }
                             }
+                            _ = p.take();
                         }
                     }
 
@@ -337,7 +345,7 @@ impl Readability {
             //     non_significant_whitespace: false,
             // });
             // std::fs::write("doc.html", &html).unwrap();
-
+            
             // The scores shouldn't get too low.
             let score_threshold = last_score / 3.0;
 
@@ -424,10 +432,11 @@ impl Readability {
                         let sibling_classes = sibling.get_class_names();
                         let tc_classes = top_candidate.get_class_names();
 
-                        if sibling_classes
-                            .iter()
-                            .all(|class| tc_classes.contains(class))
-                            && !tc_classes.is_empty()
+                        if !tc_classes.is_empty()
+                            && !sibling_classes.is_empty()
+                            && sibling_classes
+                                .iter()
+                                .all(|class| tc_classes.contains(class))
                         {
                             content_bonus +=
                                 Self::get_content_score(&top_candidate).unwrap_or(0.0) * 0.2;
