@@ -131,10 +131,12 @@ impl Readability {
                             } else if !Util::is_whitespace(&child) {
                                 let mut new_node = Node::new("p", None, &document)
                                     .map_err(|()| FullTextParserError::Readability)?;
-                                let mut old_node = node_ref.replace_child_node(new_node.clone(), child).map_err(|error| {
-                                    log::error!("{error}");
-                                    FullTextParserError::Readability
-                                })?;
+                                let mut old_node = node_ref
+                                    .replace_child_node(new_node.clone(), child)
+                                    .map_err(|error| {
+                                        log::error!("{error}");
+                                        FullTextParserError::Readability
+                                    })?;
 
                                 new_node.add_child(&mut old_node).map_err(|error| {
                                     log::error!("{error}");
@@ -345,7 +347,7 @@ impl Readability {
             //     non_significant_whitespace: false,
             // });
             // std::fs::write("doc.html", &html).unwrap();
-            
+
             // The scores shouldn't get too low.
             let score_threshold = last_score / 3.0;
 
