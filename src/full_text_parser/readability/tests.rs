@@ -112,6 +112,11 @@ async fn breitbart() {
 }
 
 #[tokio::test]
+async fn bug_1255978() {
+    run_test("bug-1255978").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
