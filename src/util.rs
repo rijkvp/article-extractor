@@ -511,13 +511,11 @@ impl Util {
         //
         // TODO: Consider taking into account original contentScore here.
         let nodes = Util::get_elements_by_tag_name(root, tag);
-        let nodes_to_remove = nodes
-            .into_iter()
-            .filter(|node| Self::should_remove(node, tag))
-            .collect::<Vec<_>>();
 
-        for mut node in nodes_to_remove.into_iter().rev() {
-            node.unlink();
+        for mut node in nodes.into_iter().rev() {
+            if Self::should_remove(&node, tag) {
+                node.unlink();
+            }
         }
     }
 
@@ -588,7 +586,8 @@ impl Util {
             }
 
             let link_density = Self::get_link_density(node);
-            let content_length = Self::get_inner_text(node, false).len();
+            let content = Self::get_inner_text(node, false);
+            let content_length = content.len();
 
             (img > 1
                 && (p as f64 / img as f64) < 0.5
