@@ -117,6 +117,11 @@ async fn bug_1255978() {
 }
 
 #[tokio::test]
+async fn buzzfeed_1() {
+    run_test("buzzfeed-1").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
