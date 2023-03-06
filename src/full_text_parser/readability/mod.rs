@@ -314,7 +314,7 @@ impl Readability {
                     );
                     for ancestors in alternative_candidate_ancestors.iter().take(tmp) {
                         lists_containing_this_ancestor +=
-                            ancestors.into_iter().filter(|n| n == &parent).count();
+                            ancestors.iter().filter(|n| n == &parent).count();
                     }
 
                     if lists_containing_this_ancestor >= constants::MINIMUM_TOPCANDIDATES {
