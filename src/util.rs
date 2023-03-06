@@ -465,9 +465,10 @@ impl Util {
         })
     }
 
-    pub fn get_node_ancestors(node: &Node, max_depth: u64) -> Vec<Node> {
+    pub fn get_node_ancestors(node: &Node, max_depth: Option<u64>) -> Vec<Node> {
         let mut ancestors = Vec::new();
         let mut node = node.clone();
+        let max_depth = max_depth.unwrap_or(u64::MAX);
 
         for _ in 0..max_depth {
             let parent = node.get_parent();

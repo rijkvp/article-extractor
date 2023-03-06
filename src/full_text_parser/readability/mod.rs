@@ -205,7 +205,7 @@ impl Readability {
                 }
 
                 // Exclude nodes with no ancestor.
-                let ancestors = Util::get_node_ancestors(&element_to_score, 5);
+                let ancestors = Util::get_node_ancestors(&element_to_score, Some(5));
                 if ancestors.is_empty() {
                     continue;
                 }
@@ -293,9 +293,8 @@ impl Readability {
                 for candidate in top_candidates.iter().skip(1) {
                     let score = Self::get_content_score(candidate).unwrap_or(0.0);
                     if score / top_score >= 0.75 {
-                        if let Some(ancestor) = top_candidate.get_parent() {
-                            alternative_candidate_ancestors.push(ancestor);
-                        }
+                        alternative_candidate_ancestors
+                            .push(Util::get_node_ancestors(candidate, None));
                     }
                 }
             }
@@ -304,13 +303,18 @@ impl Readability {
                 let mut parent_of_top_candidate = top_candidate.get_parent();
 
                 while let Some(parent) = &parent_of_top_candidate {
+                    if parent.get_name().to_uppercase() == "BODY" {
+                        break;
+                    }
+
                     let mut lists_containing_this_ancestor = 0;
                     let tmp = usize::min(
                         alternative_candidate_ancestors.len(),
                         constants::MINIMUM_TOPCANDIDATES,
                     );
-                    for ancestor in alternative_candidate_ancestors.iter().take(tmp) {
-                        lists_containing_this_ancestor += if ancestor == parent { 1 } else { 0 };
+                    for ancestors in alternative_candidate_ancestors.iter().take(tmp) {
+                        lists_containing_this_ancestor +=
+                            ancestors.into_iter().filter(|n| n == &parent).count();
                     }
 
                     if lists_containing_this_ancestor >= constants::MINIMUM_TOPCANDIDATES {
