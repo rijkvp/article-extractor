@@ -502,16 +502,20 @@ impl FullTextParser {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
             if let Some(url) = node.get_attribute(attribute) {
+                let trimmed_url = url.trim();
                 let is_relative_url = url::Url::parse(&url)
                     .err()
                     .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
                     .unwrap_or(false);
 
-                if is_relative_url {
-                    let completed_url = article_url.join(&url)?;
-                    node.set_attribute(attribute, completed_url.as_str())
-                        .map_err(|_| FullTextParserError::Scrape)?;
-                }
+                let completed_url = if is_relative_url {
+                    article_url.join(trimmed_url)?
+                } else {
+                    Url::parse(trimmed_url)?
+                };
+
+                node.set_attribute(attribute, completed_url.as_str())
+                    .map_err(|_| FullTextParserError::Scrape)?;
             }
         }
         Ok(())
@@ -867,7 +871,7 @@ impl FullTextParser {
             Util::clean_conditionally(&mut root, "ul");
             Util::clean_conditionally(&mut root, "div");
 
-            Self::clean_classes(&mut root)?;
+            Self::clean_attributes(&mut root)?;
             Self::simplify_nested_elements(&mut root)?;
         }
 
@@ -895,11 +899,16 @@ impl FullTextParser {
         }
     }
 
-    fn clean_classes(root: &mut Node) -> Result<(), FullTextParserError> {
+    fn clean_attributes(root: &mut Node) -> Result<(), FullTextParserError> {
         let mut node_iter = Some(root.clone());
 
         while let Some(mut node) = node_iter {
             node.remove_attribute("class").map_err(|e| {
+                log::error!("{e}");
+                FullTextParserError::Xml
+            })?;
+
+            node.remove_attribute("align").map_err(|e| {
                 log::error!("{e}");
                 FullTextParserError::Xml
             })?;
@@ -914,6 +923,10 @@ impl FullTextParser {
                     log::error!("{e}");
                     FullTextParserError::Xml
                 })?;
+
+            if node.get_name().to_uppercase() == "FONT" {
+                node.set_name("span").unwrap();
+            }
 
             node_iter = Util::next_node(&node, false);
         }

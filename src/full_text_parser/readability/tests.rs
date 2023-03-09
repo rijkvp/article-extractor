@@ -19,7 +19,7 @@ async fn run_test(name: &str) {
     let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document).unwrap();
 
     crate::FullTextParser::strip_junk(&xpath_ctx, None, &empty_config);
-    
+
     crate::FullTextParser::fix_urls(&xpath_ctx, &url);
     let mut article = Article {
         title: None,
@@ -124,6 +124,11 @@ async fn buzzfeed_1() {
 #[tokio::test]
 async fn citylab_1() {
     run_test("citylab-1").await
+}
+
+#[tokio::test]
+async fn clean_links() {
+    run_test("clean-links").await
 }
 
 #[tokio::test]
