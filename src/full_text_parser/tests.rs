@@ -123,3 +123,48 @@ async fn unwrap_noscript_images() {
     let res = document.to_string_with_options(options);
     assert_eq!(res, expected);
 }
+
+#[tokio::test]
+async fn unwrap_noscript_images_2() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    let html = r#"
+<picture class="c-lead-image__image">
+    <source srcset="https://cdn.citylab.com/media/img/citylab/2019/04/mr1/300.jpg?mod=1556645448" media="(max-width: 575px)" />
+    <img class="c-lead-image__img" srcset="https://cdn.citylab.com/media/img/citylab/2019/04/mr1/300.jpg?mod=1556645448" alt="" itemprop="contentUrl" onload="performance.mark(&quot;citylab_lead_image_loaded&quot;)" />
+    <noscript>
+        <img class="c-lead-image__img" src="https://cdn.citylab.com/media/img/citylab/2019/04/mr1/300.jpg?mod=1556645448" alt="" />
+    </noscript>
+</picture>
+    "#;
+
+    let expected = r#"<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/REC-html40/loose.dtd">
+<html><body>
+<picture class="c-lead-image__image">
+    <source srcset="https://cdn.citylab.com/media/img/citylab/2019/04/mr1/300.jpg?mod=1556645448" media="(max-width: 575px)"></source>
+    <img class="c-lead-image__img" src="https://cdn.citylab.com/media/img/citylab/2019/04/mr1/300.jpg?mod=1556645448" alt="" srcset="https://cdn.citylab.com/media/img/citylab/2019/04/mr1/300.jpg?mod=1556645448">
+    
+</picture>
+    </body></html>
+"#;
+
+    let empty_config = ConfigEntry::default();
+    let document = crate::FullTextParser::parse_html(html, None, &empty_config).unwrap();
+    let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document).unwrap();
+
+    crate::FullTextParser::unwrap_noscript_images(&xpath_ctx).unwrap();
+
+    let options = SaveOptions {
+        format: true,
+        no_declaration: false,
+        no_empty_tags: true,
+        no_xhtml: false,
+        xhtml: false,
+        as_xml: false,
+        as_html: true,
+        non_significant_whitespace: false,
+    };
+    let res = document.to_string_with_options(options);
+
+    assert_eq!(res, expected);
+}

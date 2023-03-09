@@ -183,7 +183,6 @@ impl FullTextParser {
         }
         Self::strip_junk(&xpath_ctx, config, global_config);
         Self::fix_urls(&xpath_ctx, &article.url);
-        Self::unwrap_noscript_images(&xpath_ctx)?;
         let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         if !found_body {
@@ -201,7 +200,6 @@ impl FullTextParser {
             xpath_ctx = Self::get_xpath_ctx(&document)?;
             Self::strip_junk(&xpath_ctx, config, global_config);
             Self::fix_urls(&xpath_ctx, &url);
-            Self::unwrap_noscript_images(&xpath_ctx)?;
             Self::extract_body(&xpath_ctx, root, config, global_config)?;
         }
 
@@ -567,6 +565,8 @@ impl FullTextParser {
             );
         }
 
+        _ = Self::unwrap_noscript_images(context);
+
         _ = Self::fix_lazy_images(context, "lazyload", "data-src");
         _ = Self::fix_iframe_size(context, "youtube.com");
         _ = Self::remove_attribute(context, Some("a"), "onclick");
@@ -700,7 +700,7 @@ impl FullTextParser {
                     }
 
                     if let Some(mut parent) = noscript_node.get_parent() {
-                        if let Some(first_child) = noscript_node.get_first_child() {
+                        if let Some(first_child) = noscript_node.get_first_element_child() {
                             parent.replace_child_node(first_child, prev).map_err(|e| {
                                 log::error!("{e}");
                                 FullTextParserError::Xml

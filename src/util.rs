@@ -494,9 +494,9 @@ impl Util {
     pub fn is_single_image(node: &Node) -> bool {
         if node.get_name().to_uppercase() == "IMG" {
             true
-        } else if node.get_child_nodes().len() != 1 || node.get_content().trim() != "" {
+        } else if node.get_child_elements().len() != 1 || node.get_content().trim() != "" {
             false
-        } else if let Some(first_child) = node.get_child_nodes().first() {
+        } else if let Some(first_child) = node.get_child_elements().first() {
             Self::is_single_image(first_child)
         } else {
             false
