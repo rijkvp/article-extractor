@@ -132,6 +132,11 @@ async fn clean_links() {
 }
 
 #[tokio::test]
+async fn cnet_svg_classes() {
+    run_test("cnet-svg-classes").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
