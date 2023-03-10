@@ -10,7 +10,7 @@
                             to JS that are used in the HTTP protocol. In addition, it introduces a
                             utility function <code>fetch()</code> that succinctly captures the intention
                             of retrieving a resource from the network.</p>
-<p>The <a href="https://fetch.spec.whatwg.org" target="_blank">Fetch specification</a>, which
+<p>The <a href="https://fetch.spec.whatwg.org/" target="_blank">Fetch specification</a>, which
                             defines the API, nails down the semantics of a user agent fetching a resource.
                             This, combined with ServiceWorkers, is an attempt to:</p>
 <ol>
@@ -91,7 +91,7 @@ console.<span>log</span><span>(</span>reqHeaders.<span>getAll</span><span>(</spa
 </ul>
 <p>The details of how each guard affects the behaviors of the Headers object
                 are
-                <br>in the <a href="https://fetch.spec.whatwg.org" target="_blank">specification</a>. For example,
+                <br>in the <a href="https://fetch.spec.whatwg.org/" target="_blank">specification</a>. For example,
                 you may not append or set a “request” guarded Headers’ “Content-Length”
                 header. Similarly, inserting “Set-Cookie” into a Response header is not
                 allowed so that ServiceWorkers may not set cookies via synthesized Responses.</p>
