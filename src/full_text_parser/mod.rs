@@ -845,22 +845,6 @@ impl FullTextParser {
             })?;
         }
 
-        // Remove extra paragraphs & divs
-        let mut nodes = Util::evaluate_xpath(&context, "//p", false)?;
-        nodes.append(&mut Util::evaluate_xpath(&context, "//P", false)?);
-        nodes.append(&mut Util::evaluate_xpath(&context, "//div", false)?);
-        for mut node in nodes {
-            let img_count = Util::get_elements_by_tag_name(&node, "img").len();
-            let embed_count = Util::get_elements_by_tag_name(&node, "embed").len();
-            let object_count = Util::get_elements_by_tag_name(&node, "object").len();
-            let iframe_count = Util::get_elements_by_tag_name(&node, "iframe").len();
-            let total_count = img_count + embed_count + object_count + iframe_count;
-
-            if total_count == 0 && Util::get_inner_text(&node, false).trim().is_empty() {
-                node.unlink();
-            }
-        }
-
         Util::mark_data_tables(&context)?;
 
         if let Some(mut root) = document.get_root_element() {
