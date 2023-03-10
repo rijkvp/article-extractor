@@ -355,7 +355,7 @@ impl Readability {
             // The scores shouldn't get too low.
             let score_threshold = last_score / 3.0;
 
-            while !Util::has_tag_name(parent_of_top_candidate.as_ref(), "BODY") {
+            while parent_of_top_candidate.is_some() && !Util::has_tag_name(parent_of_top_candidate.as_ref(), "BODY") {
                 if parent_of_top_candidate
                     .as_ref()
                     .map(|n| Self::get_content_score(n).is_none())
