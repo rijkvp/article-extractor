@@ -137,6 +137,11 @@ async fn cnet_svg_classes() {
 }
 
 #[tokio::test]
+async fn cnet() {
+    run_test("cnet").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
