@@ -188,17 +188,17 @@ impl Readability {
                 node = Util::next_node(node_ref, false);
             }
 
-            let html = document.to_string_with_options(libxml::tree::SaveOptions {
-                format: true,
-                no_declaration: false,
-                no_empty_tags: true,
-                no_xhtml: false,
-                xhtml: false,
-                as_xml: false,
-                as_html: true,
-                non_significant_whitespace: false,
-            });
-            std::fs::write("debug.html", &html).unwrap();
+            // let html = document.to_string_with_options(libxml::tree::SaveOptions {
+            //     format: true,
+            //     no_declaration: false,
+            //     no_empty_tags: true,
+            //     no_xhtml: false,
+            //     xhtml: false,
+            //     as_xml: false,
+            //     as_html: true,
+            //     non_significant_whitespace: false,
+            // });
+            // std::fs::write("debug.html", &html).unwrap();
 
             let mut candidates = Vec::new();
             // Loop through all paragraphs, and assign a score to them based on how content-y they look.
