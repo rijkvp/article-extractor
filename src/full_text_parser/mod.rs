@@ -869,18 +869,23 @@ impl FullTextParser {
         while let Some(node) = node_iter {
             let tag_name = node.get_name().to_uppercase();
             if tag_name == "TABLE" {
-
-                let t_body = if Util::has_single_tag_inside_element(&node, "TBODY") { node.get_child_elements().drain(..).next().unwrap() } else { node.clone() };
+                let t_body = if Util::has_single_tag_inside_element(&node, "TBODY") {
+                    node.get_child_elements().drain(..).next().unwrap()
+                } else {
+                    node.clone()
+                };
                 if Util::has_single_tag_inside_element(&t_body, "TR") {
                     let row = t_body.get_child_elements().first().cloned();
                     if let Some(row) = row {
                         if Util::has_single_tag_inside_element(&row, "TD") {
                             let cell = row.get_child_elements().first().cloned();
                             if let Some(mut cell) = cell {
-                                let all_phrasing_content = cell.get_child_elements()
+                                let all_phrasing_content = cell
+                                    .get_child_elements()
                                     .into_iter()
                                     .all(|child| Util::is_phrasing_content(&child));
-                                cell.set_name(if all_phrasing_content { "P" } else { "DIV" }).unwrap();
+                                cell.set_name(if all_phrasing_content { "P" } else { "DIV" })
+                                    .unwrap();
                                 if let Some(mut parent) = node.get_parent() {
                                     node_iter = Util::next_node(&node, false);
                                     parent.replace_child_node(cell, node.clone()).unwrap();
@@ -889,7 +894,6 @@ impl FullTextParser {
                             }
                         }
                     }
-                    
                 }
             }
 
