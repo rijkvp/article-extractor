@@ -147,6 +147,11 @@ async fn cnn() {
 }
 
 #[tokio::test]
+async fn comment_inside_script_parsing() {
+    run_test("comment-inside-script-parsing").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
