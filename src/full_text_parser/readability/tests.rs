@@ -162,6 +162,11 @@ async fn data_url_image() {
 }
 
 #[tokio::test]
+async fn dev418() {
+    run_test("dev418").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
