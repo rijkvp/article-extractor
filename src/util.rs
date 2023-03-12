@@ -619,7 +619,7 @@ impl Util {
                     return false;
                 }
             }
-            
+
             have_to_remove
         } else {
             false
