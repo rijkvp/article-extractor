@@ -142,6 +142,11 @@ async fn cnet() {
 }
 
 #[tokio::test]
+async fn cnn() {
+    run_test("cnn").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
