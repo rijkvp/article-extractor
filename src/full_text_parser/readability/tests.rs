@@ -157,6 +157,11 @@ async fn daringfireball_1() {
 }
 
 #[tokio::test]
+async fn data_url_image() {
+    run_test("data-url-image").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
