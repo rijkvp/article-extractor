@@ -33,13 +33,13 @@
     console.<span>log</span><span>(</span><span>"Looks like the response wasn't perfect, got status"</span><span>,</span> res.<span>status</span><span>)</span><span>;</span><span>}</span><span>}</span><span>,</span><span>function</span><span>(</span>e<span>)</span><span>{</span>
   console.<span>log</span><span>(</span><span>"Fetch failed!"</span><span>,</span> e<span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>Submitting some parameters, it would look like this:</p>
-<div><table><tbody><tr><td><pre>fetch<span>(</span><span>"http://www.example.org/submit.php"</span><span>,</span><span>{</span>
+<div><DIV><pre>fetch<span>(</span><span>"http://www.example.org/submit.php"</span><span>,</span><span>{</span>
   method<span>:</span><span>"POST"</span><span>,</span>
   headers<span>:</span><span>{</span><span>"Content-Type"</span><span>:</span><span>"application/x-www-form-urlencoded"</span><span>}</span><span>,</span>
   body<span>:</span><span>"firstName=Nikhil&amp;favColor=blue&amp;password=easytoguess"</span><span>}</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>res<span>)</span><span>{</span><span>if</span><span>(</span>res.<span>ok</span><span>)</span><span>{</span>
     alert<span>(</span><span>"Perfect! Your settings are saved."</span><span>)</span><span>;</span><span>}</span><span>else</span><span>if</span><span>(</span>res.<span>status</span><span>==</span><span>401</span><span>)</span><span>{</span>
     alert<span>(</span><span>"Oops! You are not authorized."</span><span>)</span><span>;</span><span>}</span><span>}</span><span>,</span><span>function</span><span>(</span>e<span>)</span><span>{</span>
-  alert<span>(</span><span>"Error submitting form!"</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+  alert<span>(</span><span>"Error submitting form!"</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>The <code>fetch()</code> function’s arguments are the same as those passed
                 to the
                 <br><code>Request()</code> constructor, so you may directly pass arbitrarily
@@ -53,16 +53,16 @@
                 <br>supporting CORS rules and ensuring cookies aren’t readable by third parties.</p>
 <p>The <a href="https://fetch.spec.whatwg.org/#headers-class" target="_blank">Headers interface</a> is
                 a simple multi-map of names to values:</p>
-<div><table><tbody><tr><td><pre><span>var</span> content <span>=</span><span>"Hello World"</span><span>;</span><span>var</span> reqHeaders <span>=</span><span>new</span> Headers<span>(</span><span>)</span><span>;</span>
+<div><DIV><pre><span>var</span> content <span>=</span><span>"Hello World"</span><span>;</span><span>var</span> reqHeaders <span>=</span><span>new</span> Headers<span>(</span><span>)</span><span>;</span>
 reqHeaders.<span>append</span><span>(</span><span>"Content-Type"</span><span>,</span><span>"text/plain"</span>
 reqHeaders.<span>append</span><span>(</span><span>"Content-Length"</span><span>,</span> content.<span>length</span>.<span>toString</span><span>(</span><span>)</span><span>)</span><span>;</span>
-reqHeaders.<span>append</span><span>(</span><span>"X-Custom-Header"</span><span>,</span><span>"ProcessThisImmediately"</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+reqHeaders.<span>append</span><span>(</span><span>"X-Custom-Header"</span><span>,</span><span>"ProcessThisImmediately"</span><span>)</span><span>;</span></pre></DIV></div>
 <p>The same can be achieved by passing an array of arrays or a JS object
                 literal
                 <br>to the constructor:</p>
-<div><table><tbody><tr><td><pre>reqHeaders <span>=</span><span>new</span> Headers<span>(</span><span>{</span><span>"Content-Type"</span><span>:</span><span>"text/plain"</span><span>,</span><span>"Content-Length"</span><span>:</span> content.<span>length</span>.<span>toString</span><span>(</span><span>)</span><span>,</span><span>"X-Custom-Header"</span><span>:</span><span>"ProcessThisImmediately"</span><span>,</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+<div><DIV><pre>reqHeaders <span>=</span><span>new</span> Headers<span>(</span><span>{</span><span>"Content-Type"</span><span>:</span><span>"text/plain"</span><span>,</span><span>"Content-Length"</span><span>:</span> content.<span>length</span>.<span>toString</span><span>(</span><span>)</span><span>,</span><span>"X-Custom-Header"</span><span>:</span><span>"ProcessThisImmediately"</span><span>,</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>The contents can be queried and retrieved:</p>
-<div><table><tbody><tr><td><pre>console.<span>log</span><span>(</span>reqHeaders.<span>has</span><span>(</span><span>"Content-Type"</span><span>)</span><span>)</span><span>;</span><span>// true</span>
+<div><DIV><pre>console.<span>log</span><span>(</span>reqHeaders.<span>has</span><span>(</span><span>"Content-Type"</span><span>)</span><span>)</span><span>;</span><span>// true</span>
 console.<span>log</span><span>(</span>reqHeaders.<span>has</span><span>(</span><span>"Set-Cookie"</span><span>)</span><span>)</span><span>;</span><span>// false</span>
 reqHeaders.<span>set</span><span>(</span><span>"Content-Type"</span><span>,</span><span>"text/html"</span><span>)</span><span>;</span>
 reqHeaders.<span>append</span><span>(</span><span>"X-Custom-Header"</span><span>,</span><span>"AnotherValue"</span><span>)</span><span>;</span>
@@ -71,7 +71,7 @@ console.<span>log</span><span>(</span>reqHeaders.<span>get</span><span>(</span><
 console.<span>log</span><span>(</span>reqHeaders.<span>getAll</span><span>(</span><span>"X-Custom-Header"</span><span>)</span><span>)</span><span>;</span><span>// ["ProcessThisImmediately", "AnotherValue"]</span>
  
 reqHeaders.<span>delete</span><span>(</span><span>"X-Custom-Header"</span><span>)</span><span>;</span>
-console.<span>log</span><span>(</span>reqHeaders.<span>getAll</span><span>(</span><span>"X-Custom-Header"</span><span>)</span><span>)</span><span>;</span><span>// []</span></pre></td></tr></tbody></table></div>
+console.<span>log</span><span>(</span>reqHeaders.<span>getAll</span><span>(</span><span>"X-Custom-Header"</span><span>)</span><span>)</span><span>;</span><span>// []</span></pre></DIV></div>
 <p>Some of these operations are only useful in ServiceWorkers, but they provide
             <br>a much nicer API to Headers.</p>
 <p>Since Headers can be sent in requests, or received in responses, and have
@@ -98,34 +98,34 @@ console.<span>log</span><span>(</span>reqHeaders.<span>getAll</span><span>(</spa
 <p>All of the Headers methods throw TypeError if <code>name</code> is not a
                 <a href="https://fetch.spec.whatwg.org/#concept-header-name" target="_blank">valid HTTP Header name</a>. The mutation operations will throw TypeError
                     if there is an immutable guard. Otherwise they fail silently. For example:</p>
-<div><table><tbody><tr><td><pre><span>var</span> res <span>=</span> Response.<span>error</span><span>(</span><span>)</span><span>;</span><span>try</span><span>{</span>
+<div><DIV><pre><span>var</span> res <span>=</span> Response.<span>error</span><span>(</span><span>)</span><span>;</span><span>try</span><span>{</span>
   res.<span>headers</span>.<span>set</span><span>(</span><span>"Origin"</span><span>,</span><span>"http://mybank.com"</span><span>)</span><span>;</span><span>}</span><span>catch</span><span>(</span>e<span>)</span><span>{</span>
-  console.<span>log</span><span>(</span><span>"Cannot pretend to be a bank!"</span><span>)</span><span>;</span><span>}</span></pre></td></tr></tbody></table></div>
+  console.<span>log</span><span>(</span><span>"Cannot pretend to be a bank!"</span><span>)</span><span>;</span><span>}</span></pre></DIV></div>
 <h2>Request</h2>
 <p>The Request interface defines a request to fetch a resource over HTTP.
             URL, method and headers are expected, but the Request also allows specifying
             a body, a request mode, credentials and cache hints.</p>
 <p>The simplest Request is of course, just a URL, as you may do to GET a
             resource.</p>
-<div><table><tbody><tr><td><pre><span>var</span> req <span>=</span><span>new</span> Request<span>(</span><span>"/index.html"</span><span>)</span><span>;</span>
+<div><DIV><pre><span>var</span> req <span>=</span><span>new</span> Request<span>(</span><span>"/index.html"</span><span>)</span><span>;</span>
 console.<span>log</span><span>(</span>req.<span>method</span><span>)</span><span>;</span><span>// "GET"</span>
-console.<span>log</span><span>(</span>req.<span>url</span><span>)</span><span>;</span><span>// "http://example.com/index.html"</span></pre></td></tr></tbody></table></div>
+console.<span>log</span><span>(</span>req.<span>url</span><span>)</span><span>;</span><span>// "http://example.com/index.html"</span></pre></DIV></div>
 <p>You may also pass a Request to the <code>Request()</code> constructor to
             create a copy.
             <br>(This is not the same as calling the <code>clone()</code> method, which
             is covered in
             <br>the “Reading bodies” section.).</p>
-<div><table><tbody><tr><td><pre><span>var</span> copy <span>=</span><span>new</span> Request<span>(</span>req<span>)</span><span>;</span>
+<div><DIV><pre><span>var</span> copy <span>=</span><span>new</span> Request<span>(</span>req<span>)</span><span>;</span>
 console.<span>log</span><span>(</span>copy.<span>method</span><span>)</span><span>;</span><span>// "GET"</span>
-console.<span>log</span><span>(</span>copy.<span>url</span><span>)</span><span>;</span><span>// "http://example.com/index.html"</span></pre></td></tr></tbody></table></div>
+console.<span>log</span><span>(</span>copy.<span>url</span><span>)</span><span>;</span><span>// "http://example.com/index.html"</span></pre></DIV></div>
 <p>Again, this form is probably only useful in ServiceWorkers.</p>
 <p>The non-URL attributes of the <code>Request</code> can only be set by passing
             initial
             <br>values as a second argument to the constructor. This argument is a dictionary.</p>
-<div><table><tbody><tr><td><pre><span>var</span> uploadReq <span>=</span><span>new</span> Request<span>(</span><span>"/uploadImage"</span><span>,</span><span>{</span>
+<div><DIV><pre><span>var</span> uploadReq <span>=</span><span>new</span> Request<span>(</span><span>"/uploadImage"</span><span>,</span><span>{</span>
   method<span>:</span><span>"POST"</span><span>,</span>
   headers<span>:</span><span>{</span><span>"Content-Type"</span><span>:</span><span>"image/png"</span><span>,</span><span>}</span><span>,</span>
-  body<span>:</span><span>"image data"</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+  body<span>:</span><span>"image data"</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>The Request’s mode is used to determine if cross-origin requests lead
                 to valid responses, and which properties on the response are readable.
                 Legal mode values are <code>"same-origin"</code>, <code>"no-cors"</code> (default)
@@ -134,10 +134,10 @@ console.<span>log</span><span>(</span>copy.<span>url</span><span>)</span><span>;
                 origin with this mode set, the result is simply an error. You could use
                 this to ensure that
                 <br>a request is always being made to your origin.</p>
-<div><table><tbody><tr><td><pre><span>var</span> arbitraryUrl <span>=</span> document.<span>getElementById</span><span>(</span><span>"url-input"</span><span>)</span>.<span>value</span><span>;</span>
+<div><DIV><pre><span>var</span> arbitraryUrl <span>=</span> document.<span>getElementById</span><span>(</span><span>"url-input"</span><span>)</span>.<span>value</span><span>;</span>
 fetch<span>(</span>arbitraryUrl<span>,</span><span>{</span> mode<span>:</span><span>"same-origin"</span><span>}</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>res<span>)</span><span>{</span>
   console.<span>log</span><span>(</span><span>"Response succeeded?"</span><span>,</span> res.<span>ok</span><span>)</span><span>;</span><span>}</span><span>,</span><span>function</span><span>(</span>e<span>)</span><span>{</span>
-  console.<span>log</span><span>(</span><span>"Please enter a same-origin URL!"</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+  console.<span>log</span><span>(</span><span>"Please enter a same-origin URL!"</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>The <code>"no-cors"</code> mode captures what the web platform does by default
                 for scripts you import from CDNs, images hosted on other domains, and so
                 on. First, it prevents the method from being anything other than “HEAD”,
@@ -155,7 +155,7 @@ fetch<span>(</span>arbitraryUrl<span>,</span><span>{</span> mode<span>:</span><s
                 headers is exposed in the Response, but the body is readable. For example,
                 you could get a list of Flickr’s <a href="https://www.flickr.com/services/api/flickr.interestingness.getList.html" target="_blank">most interesting</a> photos
                 today like this:</p>
-<div><table><tbody><tr><td><pre><span>var</span> u <span>=</span><span>new</span> URLSearchParams<span>(</span><span>)</span><span>;</span>
+<div><DIV><pre><span>var</span> u <span>=</span><span>new</span> URLSearchParams<span>(</span><span>)</span><span>;</span>
 u.<span>append</span><span>(</span><span>'method'</span><span>,</span><span>'flickr.interestingness.getList'</span><span>)</span><span>;</span>
 u.<span>append</span><span>(</span><span>'api_key'</span><span>,</span><span>'&lt;insert api key here&gt;'</span><span>)</span><span>;</span>
 u.<span>append</span><span>(</span><span>'format'</span><span>,</span><span>'json'</span><span>)</span><span>;</span>
@@ -163,11 +163,11 @@ u.<span>append</span><span>(</span><span>'nojsoncallback'</span><span>,</span><s
  
 apiCall.<span>then</span><span>(</span><span>function</span><span>(</span>response<span>)</span><span>{</span><span>return</span> response.<span>json</span><span>(</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>json<span>)</span><span>{</span><span>// photo is a list of photos.</span><span>return</span> json.<span>photos</span>.<span>photo</span><span>;</span><span>}</span><span>)</span><span>;</span><span>}</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>photos<span>)</span><span>{</span>
   photos.<span>forEach</span><span>(</span><span>function</span><span>(</span>photo<span>)</span><span>{</span>
-    console.<span>log</span><span>(</span>photo.<span>title</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+    console.<span>log</span><span>(</span>photo.<span>title</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>You may not read out the “Date” header since Flickr does not allow it
                 via
                 <br><code>Access-Control-Expose-Headers</code>.</p>
-<div><table><tbody><tr><td><pre>response.<span>headers</span>.<span>get</span><span>(</span><span>"Date"</span><span>)</span><span>;</span><span>// null</span></pre></td></tr></tbody></table></div>
+<div><DIV><pre>response.<span>headers</span>.<span>get</span><span>(</span><span>"Date"</span><span>)</span><span>;</span><span>// null</span></pre></DIV></div>
 <p>The <code>credentials</code> enumeration determines if cookies for the other
                 domain are
                 <br>sent to cross-origin requests. This is similar to XHR’s <code>withCredentials</code><br>flag, but tri-valued as <code>"omit"</code> (default), <code>"same-origin"</code> and <code>"include"</code>.</p>
@@ -222,9 +222,9 @@ apiCall.<span>then</span><span>(</span><span>function</span><span>(</span>respon
                 The
                 <br>idiomatic way to return a Response to an intercepted request in ServiceWorkers
                 is:</p>
-<div><table><tbody><tr><td><pre>addEventListener<span>(</span><span>'fetch'</span><span>,</span><span>function</span><span>(</span>event<span>)</span><span>{</span>
+<div><DIV><pre>addEventListener<span>(</span><span>'fetch'</span><span>,</span><span>function</span><span>(</span>event<span>)</span><span>{</span>
   event.<span>respondWith</span><span>(</span><span>new</span> Response<span>(</span><span>"Response body"</span><span>,</span><span>{</span>
-    headers<span>:</span><span>{</span><span>"Content-Type"</span><span>:</span><span>"text/plain"</span><span>}</span><span>}</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+    headers<span>:</span><span>{</span><span>"Content-Type"</span><span>:</span><span>"text/plain"</span><span>}</span><span>}</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>As you can see, Response has a two argument constructor, where both arguments
                 are optional. The first argument is a body initializer, and the second
                 is a dictionary to set the <code>status</code>, <code>statusText</code> and <code>headers</code>.</p>
@@ -266,13 +266,13 @@ apiCall.<span>then</span><span>(</span><span>function</span><span>(</span>respon
 <p>This is a significant improvement over XHR in terms of ease of use of
                 non-text data!</p>
 <p>Request bodies can be set by passing <code>body</code> parameters:</p>
-<div><table><tbody><tr><td><pre><span>var</span> form <span>=</span><span>new</span> FormData<span>(</span>document.<span>getElementById</span><span>(</span><span>'login-form'</span><span>)</span><span>)</span><span>;</span>
+<div><DIV><pre><span>var</span> form <span>=</span><span>new</span> FormData<span>(</span>document.<span>getElementById</span><span>(</span><span>'login-form'</span><span>)</span><span>)</span><span>;</span>
 fetch<span>(</span><span>"/login"</span><span>,</span><span>{</span>
   method<span>:</span><span>"POST"</span><span>,</span>
   body<span>:</span> form
-<span>}</span><span>)</span></pre></td></tr></tbody></table></div>
+<span>}</span><span>)</span></pre></DIV></div>
 <p>Responses take the first argument as the body.</p>
-<div><table><tbody><tr><td><pre><span>var</span> res <span>=</span><span>new</span> Response<span>(</span><span>new</span> File<span>(</span><span>[</span><span>"chunk"</span><span>,</span><span>"chunk"</span><span>]</span><span>,</span><span>"archive.zip"</span><span>,</span><span>{</span> type<span>:</span><span>"application/zip"</span><span>}</span><span>)</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+<div><DIV><pre><span>var</span> res <span>=</span><span>new</span> Response<span>(</span><span>new</span> File<span>(</span><span>[</span><span>"chunk"</span><span>,</span><span>"chunk"</span><span>]</span><span>,</span><span>"archive.zip"</span><span>,</span><span>{</span> type<span>:</span><span>"application/zip"</span><span>}</span><span>)</span><span>)</span><span>;</span></pre></DIV></div>
 <p>Both Request and Response (and by extension the <code>fetch()</code> function),
                     will try to intelligently <a href="https://fetch.spec.whatwg.org/#concept-bodyinit-extract" target="_blank">determine the content type</a>.
                     Request will also automatically set a “Content-Type” header if none is
@@ -281,14 +281,14 @@ fetch<span>(</span><span>"/login"</span><span>,</span><span>{</span>
 <p>It is important to realise that Request and Response bodies can only be
                     read once! Both interfaces have a boolean attribute <code>bodyUsed</code> to
                     determine if it is safe to read or not.</p>
-<div><table><tbody><tr><td><pre><span>var</span> res <span>=</span><span>new</span> Response<span>(</span><span>"one time use"</span><span>)</span><span>;</span>
+<div><DIV><pre><span>var</span> res <span>=</span><span>new</span> Response<span>(</span><span>"one time use"</span><span>)</span><span>;</span>
 console.<span>log</span><span>(</span>res.<span>bodyUsed</span><span>)</span><span>;</span><span>// false</span>
 res.<span>text</span><span>(</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>v<span>)</span><span>{</span>
   console.<span>log</span><span>(</span>res.<span>bodyUsed</span><span>)</span><span>;</span><span>// true</span><span>}</span><span>)</span><span>;</span>
 console.<span>log</span><span>(</span>res.<span>bodyUsed</span><span>)</span><span>;</span><span>// true</span>
  
 res.<span>text</span><span>(</span><span>)</span>.<span>catch</span><span>(</span><span>function</span><span>(</span>e<span>)</span><span>{</span>
-  console.<span>log</span><span>(</span><span>"Tried to read already consumed Response"</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+  console.<span>log</span><span>(</span><span>"Tried to read already consumed Response"</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>This decision allows easing the transition to an eventual <a href="https://streams.spec.whatwg.org/" target="_blank">stream-based</a> Fetch
                     API. The intention is to let applications consume data as it arrives, allowing
                     for JavaScript to deal with larger files like videos, and perform things
@@ -302,7 +302,7 @@ res.<span>text</span><span>(</span><span>)</span>.<span>catch</span><span>(</spa
                     will return a clone of the object, with a ‘new’ body. <code>clone()</code> MUST
                     be called before the body of the corresponding object has been used. That
                     is, <code>clone()</code> first, read later.</p>
-<div><table><tbody><tr><td><pre>addEventListener<span>(</span><span>'fetch'</span><span>,</span><span>function</span><span>(</span>evt<span>)</span><span>{</span><span>var</span> sheep <span>=</span><span>new</span> Response<span>(</span><span>"Dolly"</span><span>)</span><span>;</span>
+<div><DIV><pre>addEventListener<span>(</span><span>'fetch'</span><span>,</span><span>function</span><span>(</span>evt<span>)</span><span>{</span><span>var</span> sheep <span>=</span><span>new</span> Response<span>(</span><span>"Dolly"</span><span>)</span><span>;</span>
   console.<span>log</span><span>(</span>sheep.<span>bodyUsed</span><span>)</span><span>;</span><span>// false</span><span>var</span> clone <span>=</span> sheep.<span>clone</span><span>(</span><span>)</span><span>;</span>
   console.<span>log</span><span>(</span>clone.<span>bodyUsed</span><span>)</span><span>;</span><span>// false</span>
  
@@ -310,7 +310,7 @@ res.<span>text</span><span>(</span><span>)</span>.<span>catch</span><span>(</spa
   console.<span>log</span><span>(</span>sheep.<span>bodyUsed</span><span>)</span><span>;</span><span>// false</span>
   console.<span>log</span><span>(</span>clone.<span>bodyUsed</span><span>)</span><span>;</span><span>// true</span>
  
-  evt.<span>respondWith</span><span>(</span>cache.<span>add</span><span>(</span>sheep.<span>clone</span><span>(</span><span>)</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>e<span>)</span><span>{</span><span>return</span> sheep<span>;</span><span>}</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+  evt.<span>respondWith</span><span>(</span>cache.<span>add</span><span>(</span>sheep.<span>clone</span><span>(</span><span>)</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>e<span>)</span><span>{</span><span>return</span> sheep<span>;</span><span>}</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <h2>Future improvements</h2>
 <p>Along with the transition to streams, Fetch will eventually have the ability
                     to abort running <code>fetch()</code>es and some way to report the progress

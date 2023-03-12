@@ -856,8 +856,8 @@ impl FullTextParser {
             Self::clean_attributes(&mut root)?;
             Self::simplify_nested_elements(&mut root)?;
 
-            Self::remove_extra_p_and_div(&mut root);
             Self::remove_single_cell_tables(&mut root);
+            Self::remove_extra_p_and_div(&mut root);
         }
 
         Ok(())
@@ -887,7 +887,7 @@ impl FullTextParser {
                                 cell.set_name(if all_phrasing_content { "P" } else { "DIV" })
                                     .unwrap();
                                 if let Some(mut parent) = node.get_parent() {
-                                    node_iter = Util::next_node(&node, false);
+                                    node_iter = Util::next_node(&node, true);
                                     parent.replace_child_node(cell, node.clone()).unwrap();
                                     continue;
                                 }
@@ -914,7 +914,7 @@ impl FullTextParser {
                 let total_count = img_count + embed_count + object_count + iframe_count;
 
                 if total_count == 0 && Util::get_inner_text(&node, false).trim().is_empty() {
-                    node_iter = Util::next_node(&node, false);
+                    node_iter = Util::next_node(&node, true);
                     node.unlink();
                     continue;
                 }

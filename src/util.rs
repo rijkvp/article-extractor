@@ -289,12 +289,7 @@ impl Util {
         // (because this is depth-first traversal, we will have already
         // seen the parent nodes themselves).
         loop {
-            let parent = node.get_parent();
-            if parent.is_none() {
-                break;
-            }
-
-            if let Some(parent) = parent {
+            if let Some(parent) = node.get_parent() {
                 let parent_name = parent.get_name().to_uppercase();
                 if parent_name == "HTML" {
                     break;
@@ -306,6 +301,8 @@ impl Util {
                 } else {
                     node = parent;
                 }
+            } else {
+                break;
             }
         }
 
