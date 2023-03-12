@@ -394,7 +394,7 @@ impl Readability {
             // joining logic when adjacent content is actually located in parent's sibling node.
             parent_of_top_candidate = top_candidate.get_parent();
 
-            while Util::has_tag_name(parent_of_top_candidate.as_ref(), "BODY")
+            while !Util::has_tag_name(parent_of_top_candidate.as_ref(), "BODY")
                 && parent_of_top_candidate
                     .as_ref()
                     .map(|n| n.get_child_elements().len() == 1)
@@ -422,10 +422,10 @@ impl Readability {
             parent_of_top_candidate = top_candidate.get_parent();
             let siblings = parent_of_top_candidate
                 .as_ref()
-                .map(|n| n.get_child_nodes());
+                .map(|n| n.get_child_elements());
 
-            if let Some(siblings) = siblings {
-                for mut sibling in siblings {
+            if let Some(mut siblings) = siblings {
+                for mut sibling in siblings.drain(..) {
                     let mut append = false;
 
                     let score = Self::get_content_score(&sibling).unwrap_or(0.0);
