@@ -27,11 +27,11 @@
 <p>The most useful, high-level part of the Fetch API is the <code>fetch()</code> function.
                             In its simplest form it takes a URL and returns a promise that resolves
                             to the response. The response is captured as a <code>Response</code> object.</p>
-<div><table><tbody><tr><td><pre>fetch<span>(</span><span>"/data.json"</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>res<span>)</span><span>{</span><span>// res instanceof Response == true.</span><span>if</span><span>(</span>res.<span>ok</span><span>)</span><span>{</span>
+<div><DIV><pre>fetch<span>(</span><span>"/data.json"</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>res<span>)</span><span>{</span><span>// res instanceof Response == true.</span><span>if</span><span>(</span>res.<span>ok</span><span>)</span><span>{</span>
     res.<span>json</span><span>(</span><span>)</span>.<span>then</span><span>(</span><span>function</span><span>(</span>data<span>)</span><span>{</span>
       console.<span>log</span><span>(</span>data.<span>entries</span><span>)</span><span>;</span><span>}</span><span>)</span><span>;</span><span>}</span><span>else</span><span>{</span>
     console.<span>log</span><span>(</span><span>"Looks like the response wasn't perfect, got status"</span><span>,</span> res.<span>status</span><span>)</span><span>;</span><span>}</span><span>}</span><span>,</span><span>function</span><span>(</span>e<span>)</span><span>{</span>
-  console.<span>log</span><span>(</span><span>"Fetch failed!"</span><span>,</span> e<span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></td></tr></tbody></table></div>
+  console.<span>log</span><span>(</span><span>"Fetch failed!"</span><span>,</span> e<span>)</span><span>;</span><span>}</span><span>)</span><span>;</span></pre></DIV></div>
 <p>Submitting some parameters, it would look like this:</p>
 <div><table><tbody><tr><td><pre>fetch<span>(</span><span>"http://www.example.org/submit.php"</span><span>,</span><span>{</span>
   method<span>:</span><span>"POST"</span><span>,</span>

@@ -381,9 +381,9 @@ impl Util {
 
     pub fn has_single_tag_inside_element(node: &Node, tag: &str) -> bool {
         // There should be exactly 1 element child with given tag
-        if node.get_child_nodes().len() != 1
+        if node.get_child_elements().len() != 1
             || node
-                .get_child_nodes()
+                .get_child_elements()
                 .first()
                 .map(|n| n.get_name().to_uppercase() != tag)
                 .unwrap_or(false)
@@ -773,5 +773,18 @@ impl Util {
         }
 
         (rows, columns)
+    }
+
+    pub fn is_phrasing_content(node: &Node) -> bool {
+        let tag_name = node.get_name().to_uppercase();
+        let is_text_node = node
+            .get_type()
+            .map(|t| t == NodeType::TextNode)
+            .unwrap_or(false);
+
+        is_text_node
+            || constants::PHRASING_ELEMS.contains(&tag_name.as_str())
+            || ((tag_name == "A" || tag_name == "DEL" || tag_name == "INS")
+                && node.get_child_nodes().iter().all(Self::is_phrasing_content))
     }
 }

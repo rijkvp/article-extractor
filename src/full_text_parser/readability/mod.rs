@@ -5,7 +5,7 @@ mod tests;
 
 use std::cmp::Ordering;
 
-use libxml::tree::{Document, Node, NodeType};
+use libxml::tree::{Document, Node};
 
 use self::state::State;
 use super::error::FullTextParserError;
@@ -121,7 +121,7 @@ impl Readability {
                     // Put phrasing content into paragraphs.
                     let mut p: Option<Node> = None;
                     for mut child in node_ref.get_child_nodes().into_iter() {
-                        if Self::is_phrasing_content(&child) {
+                        if Util::is_phrasing_content(&child) {
                             if let Some(p) = p.as_mut() {
                                 child.unlink();
                                 p.add_child(&mut child).map_err(|error| {
@@ -165,7 +165,7 @@ impl Readability {
                     if Util::has_single_tag_inside_element(node_ref, "P")
                         && Util::get_link_density(node_ref) < 0.25
                     {
-                        if let Some(new_node) = node_ref.get_child_nodes().first() {
+                        if let Some(new_node) = node_ref.get_first_element_child() {
                             if let Some(mut parent) = node_ref.get_parent() {
                                 parent
                                     .replace_child_node(new_node.clone(), node_ref.clone())
@@ -187,6 +187,18 @@ impl Readability {
 
                 node = Util::next_node(node_ref, false);
             }
+
+            let html = document.to_string_with_options(libxml::tree::SaveOptions {
+                format: true,
+                no_declaration: false,
+                no_empty_tags: true,
+                no_xhtml: false,
+                xhtml: false,
+                as_xml: false,
+                as_html: true,
+                non_significant_whitespace: false,
+            });
+            std::fs::write("debug.html", &html).unwrap();
 
             let mut candidates = Vec::new();
             // Loop through all paragraphs, and assign a score to them based on how content-y they look.
@@ -339,18 +351,6 @@ impl Readability {
             // tree.
             let mut parent_of_top_candidate = top_candidate.get_parent();
             let mut last_score = Self::get_content_score(&top_candidate).unwrap_or(0.0);
-
-            // let html = document.to_string_with_options(libxml::tree::SaveOptions {
-            //     format: true,
-            //     no_declaration: false,
-            //     no_empty_tags: true,
-            //     no_xhtml: false,
-            //     xhtml: false,
-            //     as_xml: false,
-            //     as_html: true,
-            //     non_significant_whitespace: false,
-            // });
-            // std::fs::write("doc.html", &html).unwrap();
 
             // The scores shouldn't get too low.
             let score_threshold = last_score / 3.0;
@@ -645,19 +645,6 @@ impl Readability {
         } else {
             false
         }
-    }
-
-    fn is_phrasing_content(node: &Node) -> bool {
-        let tag_name = node.get_name().to_uppercase();
-        let is_text_node = node
-            .get_type()
-            .map(|t| t == NodeType::TextNode)
-            .unwrap_or(false);
-
-        is_text_node
-            || constants::PHRASING_ELEMS.contains(&tag_name.as_str())
-            || ((tag_name == "A" || tag_name == "DEL" || tag_name == "INS")
-                && node.get_child_nodes().iter().all(Self::is_phrasing_content))
     }
 
     // Initialize a node with the readability object. Also checks the

@@ -91,9 +91,9 @@
 <div><P id="architecture"><h2>
                                         Architecture
                                     </h2></P></div>
-<div><div><figure><img src="http://fakehost/cms/content/dam/dropbox/tech-blog/en-us/2020/11/atf/diagrams/Techblog-ATF-720x844px-1.png" aria-hidden="false" alt="Async Task Framework (ATF) [Fig 1]" height="1688" width="1440"><figcaption>
+<div><figure><img src="http://fakehost/cms/content/dam/dropbox/tech-blog/en-us/2020/11/atf/diagrams/Techblog-ATF-720x844px-1.png" aria-hidden="false" alt="Async Task Framework (ATF) [Fig 1]" height="1688" width="1440"><figcaption>
                                             Async Task Framework (ATF) [Fig 1]
-                                        </figcaption></figure></div></div>
+                                        </figcaption></figure></div>
 <div>
 <p>
                                     In this section, we describe the high-level architecture of ATF and give brief description of its different components. (See Fig. 1 above.) In this section, we describe the high-level architecture of ATF and give brief description of its different components. (See Fig. 1 above.) Dropbox <a href="https://dropbox.tech/infrastructure/courier-dropbox-migration-to-grpc" target="_blank">uses gRPC</a> for remote calls and our in-house <a href="https://dropbox.tech/infrastructure/reintroducing-edgestore" target="_blank">Edgestore</a> to store tasks.
@@ -270,7 +270,7 @@
 <p>
                                     Below is the state machine that defines task state transitions: <br></p>
 </div>
-<div><div><figure><img src="http://fakehost/cms/content/dam/dropbox/tech-blog/en-us/2020/11/atf/diagrams/Techblog-ATF-720x225px-2.png" aria-hidden="false" alt="Task State Transitions [Fig 2]" height="450" width="1440"></figure></div></div>
+<div><figure><img src="http://fakehost/cms/content/dam/dropbox/tech-blog/en-us/2020/11/atf/diagrams/Techblog-ATF-720x225px-2.png" aria-hidden="false" alt="Task State Transitions [Fig 2]" height="450" width="1440"></figure></div>
 <div><P id="-achieving-guarantees"><h2>
                                         Achieving guarantees
                                     </h2></P></div>
@@ -292,9 +292,9 @@
 <div><P id="ownership-model"><h2>
                                         Ownership model
                                     </h2></P></div>
-<div><p>
+<p>
                                     ATF is designed to be a self-serve framework for developers at Dropbox. The design is very intentional in driving an ownership model where lambda owners own all aspects of their lambdas’ operations. To promote this, all lambda worker clusters are owned by the lambda owners. They have full control over operations on these clusters, including code deployments and capacity management. Each executor process is bound to one lambda. Owners have the option of deploying multiple lambdas on their worker clusters simply by spawning new executor processes on their hosts.
-                                </p></div>
+                                </p>
 <div><P id="-extending-atf"><h2>
                                         Extending ATF
                                     </h2></P></div>
@@ -314,6 +314,6 @@
 <div><P id="conclusion"><h2>
                                         Conclusion
                                     </h2></P></div>
-<div><p>
-                                    We hope this post helps engineers elsewhere to develop better async task frameworks of their own. Many thanks to everyone who worked on this project: Anirudh Jayakumar, Deepak Gupta, Dmitry Kopytkov, Koundinya Muppalla, Peng Kang, Rajiv Desai, Ryan Armstrong, Steve Rodrigues, Thomissa Comellas, Xiaonan Zhang and Yuhuan Du.<br></p></div>
+<p>
+                                    We hope this post helps engineers elsewhere to develop better async task frameworks of their own. Many thanks to everyone who worked on this project: Anirudh Jayakumar, Deepak Gupta, Dmitry Kopytkov, Koundinya Muppalla, Peng Kang, Rajiv Desai, Ryan Armstrong, Steve Rodrigues, Thomissa Comellas, Xiaonan Zhang and Yuhuan Du.<br></p>
 </div></article>

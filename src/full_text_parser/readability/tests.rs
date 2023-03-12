@@ -172,6 +172,11 @@ async fn dropbox_blog() {
 }
 
 #[tokio::test]
+async fn ebbb_org() {
+    run_test("ebb-org").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
