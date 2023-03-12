@@ -848,8 +848,6 @@ impl FullTextParser {
         Util::mark_data_tables(&context)?;
 
         if let Some(mut root) = document.get_root_element() {
-            Self::remove_extra_p_and_div(&mut root);
-
             Util::clean_conditionally(&mut root, "fieldset");
             Util::clean_conditionally(&mut root, "table");
             Util::clean_conditionally(&mut root, "ul");
@@ -857,6 +855,8 @@ impl FullTextParser {
 
             Self::clean_attributes(&mut root)?;
             Self::simplify_nested_elements(&mut root)?;
+
+            Self::remove_extra_p_and_div(&mut root);
         }
 
         Ok(())
@@ -866,7 +866,7 @@ impl FullTextParser {
         let mut node_iter = Some(root.clone());
 
         while let Some(mut node) = node_iter {
-            let tag_name = node.get_name();
+            let tag_name = node.get_name().to_uppercase();
             if tag_name == "P" || tag_name == "DIV" {
                 let img_count = Util::get_elements_by_tag_name(&node, "img").len();
                 let embed_count = Util::get_elements_by_tag_name(&node, "embed").len();
@@ -875,7 +875,9 @@ impl FullTextParser {
                 let total_count = img_count + embed_count + object_count + iframe_count;
 
                 if total_count == 0 && Util::get_inner_text(&node, false).trim().is_empty() {
+                    node_iter = Util::next_node(&node, false);
                     node.unlink();
+                    continue;
                 }
             }
 
