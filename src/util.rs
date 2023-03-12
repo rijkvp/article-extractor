@@ -590,7 +590,7 @@ impl Util {
             let content = Self::get_inner_text(node, false);
             let content_length = content.len();
 
-            (img > 1
+            let have_to_remove = (img > 1
                 && (p as f64 / img as f64) < 0.5
                 && !Self::has_ancestor_tag(node, "figure", None, None::<fn(&Node) -> bool>))
                 || (!is_list && li > p as i64)
@@ -602,7 +602,25 @@ impl Util {
                     && !Self::has_ancestor_tag(node, "figure", None, None::<fn(&Node) -> bool>))
                 || (!is_list && weight < 25 && link_density > 0.2)
                 || (weight >= 25 && link_density > 0.5)
-                || ((embed_count == 1 && content_length < 75) || embed_count > 1)
+                || ((embed_count == 1 && content_length < 75) || embed_count > 1);
+
+            // Allow simple lists of images to remain in pages
+            if is_list && have_to_remove {
+                for child in node.get_child_elements() {
+                    // Don't filter in lists with li's that contain more than one child
+                    if child.get_child_elements().len() > 1 {
+                        return have_to_remove;
+                    }
+                }
+
+                let li_count = Util::get_elements_by_tag_name(node, "li").len();
+                // Only allow the list to remain if every li contains an image
+                if img == li_count {
+                    return false;
+                }
+            }
+            
+            have_to_remove
         } else {
             false
         }
