@@ -152,6 +152,11 @@ async fn comment_inside_script_parsing() {
 }
 
 #[tokio::test]
+async fn daringfireball_1() {
+    run_test("daringfireball-1").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
