@@ -288,21 +288,17 @@ impl Util {
         // And finally, move up the parent chain *and* find a sibling
         // (because this is depth-first traversal, we will have already
         // seen the parent nodes themselves).
-        loop {
-            if let Some(parent) = node.get_parent() {
-                let parent_name = parent.get_name().to_uppercase();
-                if parent_name == "HTML" {
-                    break;
-                }
-
-                let next_sibling = parent.get_next_sibling();
-                if next_sibling.is_some() {
-                    return next_sibling;
-                } else {
-                    node = parent;
-                }
-            } else {
+        while let Some(parent) = node.get_parent() {
+            let parent_name = parent.get_name().to_uppercase();
+            if parent_name == "HTML" {
                 break;
+            }
+
+            let next_sibling = parent.get_next_sibling();
+            if next_sibling.is_some() {
+                return next_sibling;
+            } else {
+                node = parent;
             }
         }
 
