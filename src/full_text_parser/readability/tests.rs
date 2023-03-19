@@ -222,6 +222,11 @@ async fn guardian_1() {
 }
 
 #[tokio::test]
+async fn heise() {
+    run_test("heise").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
