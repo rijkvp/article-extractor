@@ -232,6 +232,11 @@ async fn herald_sun_1() {
 }
 
 #[tokio::test]
+async fn hidden_nodes() {
+    run_test("hidden-nodes").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
