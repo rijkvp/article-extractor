@@ -497,6 +497,11 @@ impl Readability {
                 }
             }
 
+            crate::FullTextParser::post_process_content(
+                &mut article_content,
+                state.clean_conditionally,
+            )?;
+
             if needed_to_create_top_candidate {
                 // We already created a fake div thing, and there wouldn't have been any siblings left
                 // for the previous loop, so there's no point trying to create a new div, and then

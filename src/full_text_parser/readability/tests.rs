@@ -18,9 +18,7 @@ async fn run_test(name: &str) {
     let document = crate::FullTextParser::parse_html(&html, None, &empty_config).unwrap();
     let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document).unwrap();
 
-    crate::FullTextParser::strip_junk(&xpath_ctx, None, &empty_config);
-
-    crate::FullTextParser::fix_urls(&xpath_ctx, &url);
+    crate::FullTextParser::prep_content(&xpath_ctx, None, &empty_config, &url);
     let mut article = Article {
         title: None,
         author: None,
@@ -36,7 +34,9 @@ async fn run_test(name: &str) {
 
     metadata::extract(&xpath_ctx, None, None, &mut article);
     super::Readability::extract_body(document, &mut root, article.title.as_deref()).unwrap();
-    crate::FullTextParser::post_process_content(&article_document).unwrap();
+    if let Some(mut root) = article_document.get_root_element() {
+        crate::FullTextParser::post_process_content(&mut root, false).unwrap();
+    }
 
     article.document = Some(article_document);
     let html = article.get_content().unwrap();
@@ -234,6 +234,11 @@ async fn herald_sun_1() {
 #[tokio::test]
 async fn hidden_nodes() {
     run_test("hidden-nodes").await
+}
+
+#[tokio::test]
+async fn hukumusume() {
+    run_test("hukumusume").await
 }
 
 #[tokio::test]

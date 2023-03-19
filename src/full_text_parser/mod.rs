@@ -19,7 +19,6 @@ use fingerprints::Fingerprints;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node};
 use libxml::xpath::Context;
-use log::{debug, error, info, warn};
 use reqwest::header::HeaderMap;
 use reqwest::{Client, Url};
 use std::path::Path;
@@ -42,7 +41,7 @@ impl FullTextParser {
     ) -> Result<Article, FullTextParserError> {
         libxml::tree::node::set_node_rc_guard(10);
 
-        info!("Scraping article: '{}'", url.as_str());
+        log::debug!("Scraping article: '{url}'");
 
         // check if we have a config for the url
         let config = self.get_grabber_config(url);
@@ -58,14 +57,14 @@ impl FullTextParser {
             .headers(headers)
             .send()
             .await
-            .map_err(|err| {
-                error!("Failed head request to: '{}' - '{}'", url.as_str(), err);
+            .map_err(|error| {
+                log::error!("Failed head request to: '{url}' - '{error}'");
                 FullTextParserError::Http
             })?;
 
         // check if url redirects and we need to pick up the new url
         let url = if let Some(new_url) = Util::check_redirect(&response, url) {
-            debug!("Url '{}' redirects to '{}'", url.as_str(), new_url.as_str());
+            log::debug!("Url '{url}' redirects to '{new_url}'");
             new_url
         } else {
             url.clone()
@@ -117,16 +116,18 @@ impl FullTextParser {
         .await?;
 
         let context = Context::new(&document).map_err(|()| {
-            error!("Failed to create xpath context for extracted article");
+            log::error!("Failed to create xpath context for extracted article");
             FullTextParserError::Xml
         })?;
 
         if let Err(error) = Self::prevent_self_closing_tags(&context) {
-            error!("Preventing self closing tags failed - '{}'", error);
+            log::error!("Preventing self closing tags failed - '{error}'");
             return Err(error);
         }
 
-        Self::post_process_content(&document)?;
+        if let Some(mut root) = document.get_root_element() {
+            Self::post_process_content(&mut root, false)?;
+        }
 
         article.document = Some(document);
 
@@ -151,14 +152,14 @@ impl FullTextParser {
             global_config.single_page_link.as_deref(),
         );
         if let Some(xpath_single_page_link) = rule {
-            debug!(
+            log::debug!(
                 "Single page link xpath specified in config '{}'",
                 xpath_single_page_link
             );
 
             if let Some(single_page_url) = Util::find_page_url(&xpath_ctx, xpath_single_page_link) {
                 // parse again with single page url
-                debug!("Single page link found '{}'", single_page_url);
+                log::debug!("Single page link found '{}'", single_page_url);
 
                 if let Err(error) = self
                     .parse_single_page(
@@ -171,8 +172,8 @@ impl FullTextParser {
                     )
                     .await
                 {
-                    log::warn!("Single Page parsing: {}", error);
-                    log::debug!("Continuing with regular parser.");
+                    log::warn!("Single Page parsing: {error}");
+                    log::info!("Continuing with regular parser.");
                 }
             }
         }
@@ -181,26 +182,35 @@ impl FullTextParser {
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
         }
-        Self::strip_junk(&xpath_ctx, config, global_config);
-        Self::fix_urls(&xpath_ctx, &article.url);
+        Self::prep_content(&xpath_ctx, config, global_config, &article.url);
         let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         if !found_body {
             if let Err(error) = Readability::extract_body(document, root, article.title.as_deref())
             {
-                log::error!("Both ftr and readability failed to find content: {}", error);
+                log::error!("Both ftr and readability failed to find content: {error}");
                 return Err(error);
             }
         }
 
         while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
+            log::debug!("");
+
             let headers = Util::generate_headers(config, global_config)?;
             let html = Self::download(&url, client, headers).await?;
             document = Self::parse_html(&html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
-            Self::strip_junk(&xpath_ctx, config, global_config);
-            Self::fix_urls(&xpath_ctx, &url);
-            Self::extract_body(&xpath_ctx, root, config, global_config)?;
+            Self::prep_content(&xpath_ctx, config, global_config, &url);
+            let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
+
+            if !found_body {
+                if let Err(error) =
+                    Readability::extract_body(document, root, article.title.as_deref())
+                {
+                    log::error!("Both ftr and readability failed to find content: {error}");
+                    return Err(error);
+                }
+            }
         }
 
         Ok(())
@@ -227,14 +237,14 @@ impl FullTextParser {
         // parse html
         let parser = Parser::default_html();
         parser.parse_string(html.as_str()).map_err(|err| {
-            error!("Parsing HTML failed for downloaded HTML {:?}", err);
+            log::error!("Parsing HTML failed for downloaded HTML {:?}", err);
             FullTextParserError::Xml
         })
     }
 
     fn get_xpath_ctx(doc: &Document) -> Result<Context, FullTextParserError> {
         Context::new(doc).map_err(|()| {
-            error!("Creating xpath context failed for downloaded HTML");
+            log::error!("Creating xpath context failed for downloaded HTML");
             FullTextParserError::Xml
         })
     }
@@ -254,8 +264,7 @@ impl FullTextParser {
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         metadata::extract(&xpath_ctx, config, Some(global_config), article);
         Self::check_for_thumbnail(&xpath_ctx, article);
-        Self::strip_junk(&xpath_ctx, config, global_config);
-        Self::fix_urls(&xpath_ctx, url);
+        Self::prep_content(&xpath_ctx, config, global_config, url);
         Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         Ok(())
@@ -272,7 +281,7 @@ impl FullTextParser {
             .send()
             .await
             .map_err(|err| {
-                error!(
+                log::error!(
                     "Downloading HTML failed: GET '{}' - '{}'",
                     url.as_str(),
                     err
@@ -289,22 +298,22 @@ impl FullTextParser {
 
             match from_utf8(&bytes) {
                 Ok(utf8_str) => {
-                    debug!("Valid utf-8 string");
+                    log::debug!("Valid utf-8 string");
                     return Ok(utf8_str.into());
                 }
                 Err(error) => {
-                    debug!("Invalid utf-8 string");
+                    log::debug!("Invalid utf-8 string");
                     let lossy_string = std::string::String::from_utf8_lossy(&bytes);
 
                     if let Some(encoding) = Self::get_encoding_from_html(&lossy_string) {
-                        debug!("Encoding extracted from HTML: '{}'", encoding);
+                        log::debug!("Encoding extracted from HTML: '{}'", encoding);
                         if let Some(decoded_html) = Self::decode_html(&bytes, encoding) {
                             return Ok(decoded_html);
                         }
                     }
 
                     if let Some(encoding) = Self::get_encoding_from_http_header(&headers) {
-                        debug!("Encoding extracted from headers: '{}'", encoding);
+                        log::debug!("Encoding extracted from headers: '{}'", encoding);
                         if let Some(decoded_html) = Self::decode_html(&bytes, encoding) {
                             return Ok(decoded_html);
                         }
@@ -350,7 +359,7 @@ impl FullTextParser {
                 return Some(decoded_html.into_owned());
             }
         }
-        warn!("Could not decode HTML. Encoding: '{}'", encoding);
+        log::warn!("Could not decode HTML. Encoding: '{}'", encoding);
         None
     }
 
@@ -364,7 +373,7 @@ impl FullTextParser {
                 Ok(name.into())
             }
             None => {
-                error!("Getting config failed due to bad Url");
+                log::error!("Getting config failed due to bad Url");
                 Err(FullTextParserError::Config)
             }
         }
@@ -420,7 +429,7 @@ impl FullTextParser {
                 .and_then(|correct_url| node.set_property("src", &correct_url).ok())
                 .is_none()
             {
-                warn!("Failed to fix lazy loading image");
+                log::warn!("Failed to fix lazy loading image");
             }
         }
         Ok(())
@@ -445,10 +454,10 @@ impl FullTextParser {
                     })
                     .is_err();
                 if !success {
-                    warn!("Failed to add iframe as child of video wrapper <div>");
+                    log::warn!("Failed to add iframe as child of video wrapper <div>");
                 }
             } else {
-                warn!("Failed to get parent of iframe");
+                log::warn!("Failed to get parent of iframe");
             }
         }
         Ok(())
@@ -529,7 +538,21 @@ impl FullTextParser {
         _ = Self::repair_urls(context, "//iframe", "src", url);
     }
 
-    fn strip_junk(context: &Context, config: Option<&ConfigEntry>, global_config: &ConfigEntry) {
+    fn prep_content(
+        context: &Context,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
+        url: &Url,
+    ) {
+        // replace H1 with H2 as H1 should be only title that is displayed separately
+        if let Ok(h1_nodes) = Util::evaluate_xpath(context, "//h1", false) {
+            for mut h1_node in h1_nodes {
+                _ = h1_node.set_name("h2");
+            }
+        }
+
+        _ = Util::mark_data_tables(context);
+
         // strip specified xpath
         if let Some(config) = config {
             for xpath_strip in &config.xpath_strip {
@@ -620,6 +643,8 @@ impl FullTextParser {
         _ = Util::strip_node(context, "//footer");
         _ = Util::strip_node(context, "//link");
         _ = Util::strip_node(context, "//aside");
+
+        Self::fix_urls(context, url);
     }
 
     /**
@@ -759,11 +784,13 @@ impl FullTextParser {
                     return Err(FullTextParserError::Xml);
                 }
 
+                Self::post_process_content(&mut node, true)?;
+
                 node.unlink();
                 if root.add_child(&mut node).is_ok() {
                     found_something = true;
                 } else {
-                    error!("Failed to add body to prepared document");
+                    log::error!("Failed to add body to prepared document");
                     return Err(FullTextParserError::Xml);
                 }
             }
@@ -830,35 +857,22 @@ impl FullTextParser {
         Ok(())
     }
 
-    pub(crate) fn post_process_content(document: &Document) -> Result<(), FullTextParserError> {
-        let context = Context::new(document).map_err(|()| {
-            error!("Creating xpath context failed for article HTML");
-            FullTextParserError::Xml
-        })?;
-
-        // replace H1 with H2 as H1 should be only title that is displayed separately
-        let h1_nodes = Util::evaluate_xpath(&context, "//h1", false)?;
-        for mut h1_node in h1_nodes {
-            h1_node.set_name("h2").map_err(|e| {
-                log::error!("{e}");
-                FullTextParserError::Xml
-            })?;
+    pub(crate) fn post_process_content(
+        node: &mut Node,
+        clean_conditionally: bool,
+    ) -> Result<(), FullTextParserError> {
+        if clean_conditionally {
+            Util::clean_conditionally(node, "fieldset");
+            Util::clean_conditionally(node, "table");
+            Util::clean_conditionally(node, "ul");
+            Util::clean_conditionally(node, "div");
         }
 
-        Util::mark_data_tables(&context)?;
+        Self::clean_attributes(node)?;
+        Self::simplify_nested_elements(node)?;
 
-        if let Some(mut root) = document.get_root_element() {
-            Util::clean_conditionally(&mut root, "fieldset");
-            Util::clean_conditionally(&mut root, "table");
-            Util::clean_conditionally(&mut root, "ul");
-            Util::clean_conditionally(&mut root, "div");
-
-            Self::clean_attributes(&mut root)?;
-            Self::simplify_nested_elements(&mut root)?;
-
-            Self::remove_single_cell_tables(&mut root);
-            Self::remove_extra_p_and_div(&mut root);
-        }
+        Self::remove_single_cell_tables(node);
+        Self::remove_extra_p_and_div(node);
 
         Ok(())
     }
@@ -927,6 +941,17 @@ impl FullTextParser {
         let mut node_iter = Some(root.clone());
 
         while let Some(mut node) = node_iter {
+            let tag_name = node.get_name().to_uppercase();
+
+            for attr in constants::PRESENTATIONAL_ATTRIBUTES {
+                _ = node.remove_attribute(attr);
+            }
+
+            if constants::DEPRECATED_SIZE_ATTRIBUTE_ELEMS.contains(tag_name.as_str()) {
+                _ = node.remove_attribute("width");
+                _ = node.remove_attribute("height");
+            }
+
             node.remove_attribute("class").map_err(|e| {
                 log::error!("{e}");
                 FullTextParserError::Xml
