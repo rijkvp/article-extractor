@@ -914,8 +914,7 @@ impl FullTextParser {
                 let total_count = img_count + embed_count + object_count + iframe_count;
 
                 if total_count == 0 && Util::get_inner_text(&node, false).trim().is_empty() {
-                    node_iter = Util::next_node(&node, true);
-                    node.unlink();
+                    node_iter = Util::remove_and_next(&mut node);
                     continue;
                 }
             }
