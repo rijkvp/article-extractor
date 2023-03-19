@@ -182,6 +182,11 @@ async fn ehow_1() {
 }
 
 #[tokio::test]
+async fn ehow_2() {
+    run_test("ehow-2").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
