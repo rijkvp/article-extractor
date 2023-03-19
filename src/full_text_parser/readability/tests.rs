@@ -187,6 +187,11 @@ async fn ehow_2() {
 }
 
 #[tokio::test]
+async fn embedded_videos() {
+    run_test("embedded-videos").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
