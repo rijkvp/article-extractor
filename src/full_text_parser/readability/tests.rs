@@ -202,6 +202,21 @@ async fn firefox_nightly_blog() {
 }
 
 #[tokio::test]
+async fn folha() {
+    run_test("folha").await
+}
+
+#[tokio::test]
+async fn gmw() {
+    run_test("gmw").await
+}
+
+#[tokio::test]
+async fn google_sre_book_1() {
+    run_test("google-sre-book-1").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
