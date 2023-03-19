@@ -240,6 +240,11 @@ async fn hukumusume() {
 }
 
 #[tokio::test]
+async fn iab_1() {
+    run_test("iab-1").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
