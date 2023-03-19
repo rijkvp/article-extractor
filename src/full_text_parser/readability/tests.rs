@@ -227,6 +227,11 @@ async fn heise() {
 }
 
 #[tokio::test]
+async fn herald_sun_1() {
+    run_test("herald-sun-1").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
