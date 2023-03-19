@@ -173,7 +173,7 @@ impl Readability {
                                         log::error!("{error}");
                                         FullTextParserError::Readability
                                     })?;
-                                node = Some(new_node.clone());
+                                node = Util::next_node(&new_node, false);
                                 elements_to_score.push(new_node.clone());
                                 continue;
                             }
@@ -210,9 +210,10 @@ impl Readability {
                 }
 
                 let inner_text = Util::get_inner_text(&element_to_score, true);
+                let inner_text_len = inner_text.len();
 
                 // If this paragraph is less than 25 characters, don't even count it.
-                if inner_text.len() < 25 {
+                if inner_text_len < 25 {
                     continue;
                 }
 
@@ -235,7 +236,9 @@ impl Readability {
 
                 // Initialize and score ancestors.
                 for (level, mut ancestor) in ancestors.into_iter().enumerate() {
-                    if ancestor.get_parent().is_none() {
+                    let tag_name = ancestor.get_name().to_uppercase();
+
+                    if ancestor.get_parent().is_none() || tag_name == "HTML" {
                         continue;
                     }
 
@@ -256,9 +259,10 @@ impl Readability {
                         level as f64 * 3.0
                     };
 
-                    if let Some(mut score) = Self::get_content_score(&ancestor) {
-                        score += content_score / score_divider;
-                        Self::set_content_score(&mut ancestor, score)?;
+                    if let Some(score) = Self::get_content_score(&ancestor) {
+                        let add_score = content_score / score_divider;
+                        let new_score = score + add_score;
+                        Self::set_content_score(&mut ancestor, new_score)?;
                     }
                 }
             }
