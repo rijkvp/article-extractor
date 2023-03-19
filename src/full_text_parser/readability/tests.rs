@@ -192,6 +192,16 @@ async fn embedded_videos() {
 }
 
 #[tokio::test]
+async fn engadget() {
+    run_test("engadget").await
+}
+
+#[tokio::test]
+async fn firefox_nightly_blog() {
+    run_test("firefox-nightly-blog").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
