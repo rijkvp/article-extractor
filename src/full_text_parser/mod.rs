@@ -855,9 +855,7 @@ impl FullTextParser {
         Ok(())
     }
 
-    pub(crate) fn post_process_document(
-        document: &Document
-    ) -> Result<(), FullTextParserError> {
+    pub(crate) fn post_process_document(document: &Document) -> Result<(), FullTextParserError> {
         if let Some(mut root) = document.get_root_element() {
             Self::simplify_nested_elements(&mut root)?;
 
@@ -869,9 +867,7 @@ impl FullTextParser {
         Ok(())
     }
 
-    pub(crate) fn post_process_page(
-        node: &mut Node,
-    ) -> Result<(), FullTextParserError> {
+    pub(crate) fn post_process_page(node: &mut Node) -> Result<(), FullTextParserError> {
         Util::clean_conditionally(node, "fieldset");
         Util::clean_conditionally(node, "table");
         Util::clean_conditionally(node, "ul");

@@ -73,8 +73,6 @@ pub const UNLIKELY_ROLES: &[&str] = &[
 
 pub const DEFAULT_TAGS_TO_SCORE: &[&str] =
     &["SECTION", "H2", "H3", "H4", "H5", "H6", "P", "TD", "PRE"];
-pub const DEPRECATED_SIZE_ATTRIBUTE_ELEMS: Lazy<HashSet<&str>> =
-    Lazy::new(|| HashSet::from(["TABLE", "TH", "TD", "HR", "PRE"]));
 pub const PRESENTATIONAL_ATTRIBUTES: &[&str] = &[
     "align",
     "background",
@@ -89,6 +87,8 @@ pub const PRESENTATIONAL_ATTRIBUTES: &[&str] = &[
     "valign",
     "vspace",
 ];
+pub static DEPRECATED_SIZE_ATTRIBUTE_ELEMS: Lazy<HashSet<&str>> =
+    Lazy::new(|| HashSet::from(["TABLE", "TH", "TD", "HR", "PRE"]));
 pub static DIV_TO_P_ELEMS: Lazy<HashSet<&str>> = Lazy::new(|| {
     HashSet::from([
         "BLOCKQUOTE",
