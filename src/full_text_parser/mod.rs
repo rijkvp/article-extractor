@@ -125,9 +125,7 @@ impl FullTextParser {
             return Err(error);
         }
 
-        if let Some(mut root) = document.get_root_element() {
-            Self::post_process_content(&mut root, false)?;
-        }
+        Self::post_process_document(&document)?;
 
         article.document = Some(document);
 
@@ -784,7 +782,7 @@ impl FullTextParser {
                     return Err(FullTextParserError::Xml);
                 }
 
-                Self::post_process_content(&mut node, true)?;
+                Self::post_process_page(&mut node)?;
 
                 node.unlink();
                 if root.add_child(&mut node).is_ok() {
@@ -857,20 +855,29 @@ impl FullTextParser {
         Ok(())
     }
 
-    pub(crate) fn post_process_content(
-        node: &mut Node,
-        clean_conditionally: bool,
+    pub(crate) fn post_process_document(
+        document: &Document
     ) -> Result<(), FullTextParserError> {
-        if clean_conditionally {
-            Util::clean_conditionally(node, "fieldset");
-            Util::clean_conditionally(node, "table");
-            Util::clean_conditionally(node, "ul");
-            Util::clean_conditionally(node, "div");
+        if let Some(mut root) = document.get_root_element() {
+            Self::simplify_nested_elements(&mut root)?;
+
+            Self::clean_attributes(&mut root)?;
+            Self::remove_single_cell_tables(&mut root);
+            Self::remove_extra_p_and_div(&mut root);
         }
 
-        Self::clean_attributes(node)?;
-        Self::simplify_nested_elements(node)?;
+        Ok(())
+    }
 
+    pub(crate) fn post_process_page(
+        node: &mut Node,
+    ) -> Result<(), FullTextParserError> {
+        Util::clean_conditionally(node, "fieldset");
+        Util::clean_conditionally(node, "table");
+        Util::clean_conditionally(node, "ul");
+        Util::clean_conditionally(node, "div");
+
+        Self::clean_attributes(node)?;
         Self::remove_single_cell_tables(node);
         Self::remove_extra_p_and_div(node);
 

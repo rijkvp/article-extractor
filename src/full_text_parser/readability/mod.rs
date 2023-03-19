@@ -497,10 +497,9 @@ impl Readability {
                 }
             }
 
-            crate::FullTextParser::post_process_content(
-                &mut article_content,
-                state.clean_conditionally,
-            )?;
+            if state.clean_conditionally {
+                crate::FullTextParser::post_process_page(&mut article_content)?;
+            }
 
             if needed_to_create_top_candidate {
                 // We already created a fake div thing, and there wouldn't have been any siblings left

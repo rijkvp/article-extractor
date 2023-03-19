@@ -34,9 +34,7 @@ async fn run_test(name: &str) {
 
     metadata::extract(&xpath_ctx, None, None, &mut article);
     super::Readability::extract_body(document, &mut root, article.title.as_deref()).unwrap();
-    if let Some(mut root) = article_document.get_root_element() {
-        crate::FullTextParser::post_process_content(&mut root, false).unwrap();
-    }
+    crate::FullTextParser::post_process_document(&article_document).unwrap();
 
     article.document = Some(article_document);
     let html = article.get_content().unwrap();
