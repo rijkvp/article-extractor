@@ -245,6 +245,11 @@ async fn iab_1() {
 }
 
 #[tokio::test]
+async fn ietf_1() {
+    run_test("ietf-1").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
