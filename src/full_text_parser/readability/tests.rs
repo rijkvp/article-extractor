@@ -8,7 +8,10 @@ use crate::{
 
 async fn run_test(name: &str) {
     libxml::tree::node::set_node_rc_guard(10);
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .is_test(true)
+        .try_init();
 
     let empty_config = ConfigEntry::default();
 
@@ -170,7 +173,7 @@ async fn dropbox_blog() {
 }
 
 #[tokio::test]
-async fn ebbb_org() {
+async fn ebb_org() {
     run_test("ebb-org").await
 }
 

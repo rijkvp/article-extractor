@@ -1001,7 +1001,7 @@ impl FullTextParser {
                     || Util::has_single_tag_inside_element(&node, "SECTION")
                 {
                     if let Some(mut parent) = node.get_parent() {
-                        if let Some(mut child) = node.get_child_nodes().into_iter().next() {
+                        if let Some(mut child) = node.get_child_elements().into_iter().next() {
                             for (k, v) in node.get_attributes().into_iter() {
                                 child.set_attribute(&k, &v).map_err(|e| {
                                     log::error!("{e}");

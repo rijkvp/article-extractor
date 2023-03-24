@@ -18,8 +18,7 @@ pub static BYLINE: Lazy<Regex> = Lazy::new(|| {
         .build()
         .expect("BYLINE regex")
 });
-pub static NORMALIZE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"/\s{2,}/g"#).expect("NORMALIZE regex"));
+pub static NORMALIZE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\s{2,}"#).expect("NORMALIZE regex"));
 pub static TOKENIZE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\W+"#).expect("TOKENIZE regex"));
 pub static UNLIELY_CANDIDATES: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"-ad-|ai2html|banner|breadcrumbs|combx|comment|community|cover-wrap|disqus|extra|footer|gdpr|header|legends|menu|related|remark|replies|rss|shoutbox|sidebar|skyscraper|social|sponsor|supplemental|ad-break|agegate|pagination|pager|popup|yom-remote"#).case_insensitive(true).build().expect("UNLIELY_CANDIDATES regex")

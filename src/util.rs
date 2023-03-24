@@ -308,7 +308,7 @@ impl Util {
     pub fn get_inner_text(node: &Node, normalize_spaces: bool) -> String {
         let content = node.get_content().trim().to_owned();
         if normalize_spaces {
-            constants::NORMALIZE.replace(&content, " ").into()
+            constants::NORMALIZE.replace_all(&content, " ").into()
         } else {
             content
         }
@@ -427,7 +427,7 @@ impl Util {
     }
 
     pub fn get_link_density(node: &Node) -> f64 {
-        let text_length = Util::get_inner_text(node, false).len();
+        let text_length = Util::get_inner_text(node, true).len();
         if text_length == 0 {
             return 0.0;
         }
@@ -443,7 +443,7 @@ impl Util {
                 } else {
                     1.0
                 };
-                link_length += Util::get_inner_text(&link_node, false).len() as f64 * coefficient;
+                link_length += Util::get_inner_text(&link_node, true).len() as f64 * coefficient;
             }
         }
 
@@ -580,7 +580,7 @@ impl Util {
             }
 
             let link_density = Self::get_link_density(node);
-            let content = Self::get_inner_text(node, false);
+            let content = Self::get_inner_text(node, true);
             let content_length = content.len();
 
             let have_to_remove = (img > 1
@@ -779,5 +779,22 @@ impl Util {
             || constants::PHRASING_ELEMS.contains(&tag_name.as_str())
             || ((tag_name == "A" || tag_name == "DEL" || tag_name == "INS")
                 && node.get_child_nodes().iter().all(Self::is_phrasing_content))
+    }
+
+    #[allow(dead_code)]
+    pub fn serialize_node(node: &Node, filename: &str) {
+        let mut doc = libxml::tree::Document::new().unwrap();
+        doc.set_root_element(node);
+        let html = doc.to_string_with_options(libxml::tree::SaveOptions {
+            format: true,
+            no_declaration: false,
+            no_empty_tags: true,
+            no_xhtml: false,
+            xhtml: false,
+            as_xml: false,
+            as_html: true,
+            non_significant_whitespace: false,
+        });
+        std::fs::write(filename, &html).unwrap();
     }
 }

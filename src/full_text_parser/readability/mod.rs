@@ -34,7 +34,7 @@ impl Readability {
                 let tag_name = node_ref.get_name().to_uppercase();
 
                 if tag_name == "TEXT" && node_ref.get_content().trim().is_empty() {
-                    node = Util::remove_and_next(node_ref);
+                    node = Util::next_node(node_ref, true);
                     continue;
                 }
 
@@ -188,18 +188,6 @@ impl Readability {
                 node = Util::next_node(node_ref, false);
             }
 
-            // let html = document.to_string_with_options(libxml::tree::SaveOptions {
-            //     format: true,
-            //     no_declaration: false,
-            //     no_empty_tags: true,
-            //     no_xhtml: false,
-            //     xhtml: false,
-            //     as_xml: false,
-            //     as_html: true,
-            //     non_significant_whitespace: false,
-            // });
-            // std::fs::write("debug.html", &html).unwrap();
-
             let mut candidates = Vec::new();
             // Loop through all paragraphs, and assign a score to them based on how content-y they look.
             // Then add their score to their parent node.
@@ -262,6 +250,10 @@ impl Readability {
                     if let Some(score) = Self::get_content_score(&ancestor) {
                         let add_score = content_score / score_divider;
                         let new_score = score + add_score;
+                        log::debug!(
+                            "{}: {score} + {add_score} = {new_score}",
+                            ancestor.get_name()
+                        );
                         Self::set_content_score(&mut ancestor, new_score)?;
                     }
                 }
@@ -289,9 +281,14 @@ impl Readability {
             });
 
             let top_candidates = candidates.into_iter().take(5).collect::<Vec<_>>();
-            // for candidate in top_candidates.iter() {
-            //     println!("candidate: {} {:?}", candidate.get_name(), candidate.get_attributes());
-            // }
+
+            for candidate in top_candidates.iter() {
+                log::debug!(
+                    "candidate: {} {:?}",
+                    candidate.get_name(),
+                    candidate.get_attributes()
+                );
+            }
             let mut needed_to_create_top_candidate = false;
             let mut top_candidate = top_candidates.first().cloned().unwrap_or_else(|| {
                 // If we still have no top candidate, just use the body as a last resort.
@@ -301,6 +298,8 @@ impl Readability {
                 needed_to_create_top_candidate = true;
                 rt
             });
+
+            //Util::serialize_node(&top_candidate, "top_candidate.html");
 
             let mut alternative_candidate_ancestors = Vec::new();
             // Find a better top candidate node if it contains (at least three) nodes which belong to `topCandidates` array
@@ -345,6 +344,8 @@ impl Readability {
             if Self::get_content_score(&top_candidate).is_none() {
                 Self::initialize_node(&mut top_candidate, &state)?;
             }
+
+            //Util::serialize_node(&top_candidate, "new_top_candidate.html");
 
             // Because of our bonus system, parents of candidates might have scores
             // themselves. They get half of the node. There won't be nodes with higher
@@ -433,7 +434,11 @@ impl Readability {
                     let mut append = false;
 
                     let score = Self::get_content_score(&sibling).unwrap_or(0.0);
-                    log::debug!("Looking at sibling node: {sibling:?} with score {score}");
+                    log::debug!(
+                        "Looking at sibling node: {} ({:?}) with score {score}",
+                        sibling.get_name(),
+                        sibling.get_attribute("class")
+                    );
 
                     if top_candidate == sibling {
                         append = true;
@@ -473,14 +478,22 @@ impl Readability {
                     }
 
                     if append {
-                        log::debug!("Appending node: {sibling:?}");
+                        log::debug!(
+                            "Appending node: {} ({:?})",
+                            sibling.get_name(),
+                            sibling.get_attribute("class")
+                        );
 
                         if !constants::ALTER_TO_DIV_EXCEPTIONS
                             .contains(sibling.get_name().to_uppercase().as_str())
                         {
                             // We have a node that isn't a common block level element, like a form or td tag.
                             // Turn it into a div so it doesn't get filtered out later by accident.
-                            log::debug!("Altering sibling: {sibling:?} to div.");
+                            log::debug!(
+                                "Altering sibling: {} ({:?})",
+                                sibling.get_name(),
+                                sibling.get_attribute("class")
+                            );
 
                             sibling.set_name("DIV").map_err(|error| {
                                 log::error!("{error}");
@@ -543,6 +556,8 @@ impl Readability {
             // finding the -right- content.
             let text = Util::get_inner_text(&article_content, true);
             let text_length = text.len();
+
+            //Util::serialize_node(&article_content, "debug.html");
 
             if text_length < constants::DEFAULT_CHAR_THRESHOLD {
                 parse_successful = false;
