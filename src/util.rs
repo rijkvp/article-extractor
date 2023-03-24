@@ -795,6 +795,6 @@ impl Util {
             as_html: true,
             non_significant_whitespace: false,
         });
-        std::fs::write(filename, &html).unwrap();
+        std::fs::write(filename, html).unwrap();
     }
 }
