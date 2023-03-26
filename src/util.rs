@@ -358,7 +358,7 @@ impl Util {
                 None => return false,
             };
 
-            if tmp_node.get_name() == tag_name
+            if tmp_node.get_name().to_uppercase() == tag_name
                 && filter
                     .as_ref()
                     .map(|filter| filter(&tmp_node))

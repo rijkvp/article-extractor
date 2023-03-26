@@ -535,9 +535,11 @@ impl FullTextParser {
                     if let Some(mut parent) = node.get_parent() {
                         let new_node = if child_count == 1 && first_child_is_text {
                             let link_content = node.get_content();
-                            Node::new_text(&link_content, document).expect("Failed to create new text node")
+                            Node::new_text(&link_content, document)
+                                .expect("Failed to create new text node")
                         } else {
-                            let mut container = Node::new("span", None, document).expect("Failed to create new span container node");
+                            let mut container = Node::new("span", None, document)
+                                .expect("Failed to create new span container node");
                             for mut child in child_nodes.drain(..) {
                                 child.unlink();
                                 _ = container.add_child(&mut child);

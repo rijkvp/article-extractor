@@ -258,6 +258,16 @@ async fn js_link_replacement() {
 }
 
 #[tokio::test]
+async fn keep_images() {
+    run_test("keep-images").await
+}
+
+#[tokio::test]
+async fn keep_tabular_data() {
+    run_test("keep-tabular-data").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }

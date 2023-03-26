@@ -576,7 +576,7 @@ impl Readability {
             let text = Util::get_inner_text(&article_content, true);
             let text_length = text.len();
 
-            //Util::serialize_node(&article_content, "debug.html");
+            //Util::serialize_node(&article_content, "dbg.html");
 
             if text_length < constants::DEFAULT_CHAR_THRESHOLD {
                 parse_successful = false;
