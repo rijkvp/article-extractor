@@ -17,7 +17,7 @@ use crate::util::Util;
 use encoding_rs::Encoding;
 use fingerprints::Fingerprints;
 use libxml::parser::Parser;
-use libxml::tree::{Document, Node};
+use libxml::tree::{Document, Node, NodeType};
 use libxml::xpath::Context;
 use reqwest::header::HeaderMap;
 use reqwest::{Client, Url};
@@ -180,7 +180,7 @@ impl FullTextParser {
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
         }
-        Self::prep_content(&xpath_ctx, config, global_config, &article.url);
+        Self::prep_content(&xpath_ctx, config, global_config, &article.url, &document);
         let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         if !found_body {
@@ -198,7 +198,7 @@ impl FullTextParser {
             let html = Self::download(&url, client, headers).await?;
             document = Self::parse_html(&html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
-            Self::prep_content(&xpath_ctx, config, global_config, &url);
+            Self::prep_content(&xpath_ctx, config, global_config, &url, &document);
             let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
             if !found_body {
@@ -262,7 +262,7 @@ impl FullTextParser {
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         metadata::extract(&xpath_ctx, config, Some(global_config), article);
         Self::check_for_thumbnail(&xpath_ctx, article);
-        Self::prep_content(&xpath_ctx, config, global_config, url);
+        Self::prep_content(&xpath_ctx, config, global_config, url, &document);
         Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         Ok(())
@@ -505,6 +505,7 @@ impl FullTextParser {
         xpath: &str,
         attribute: &str,
         article_url: &url::Url,
+        document: &Document,
     ) -> Result<(), FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
@@ -514,26 +515,54 @@ impl FullTextParser {
                     .err()
                     .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
                     .unwrap_or(false);
+                let is_javascript = trimmed_url.contains("javascript:");
 
-                let completed_url = if is_relative_url {
-                    article_url.join(trimmed_url)?
+                if is_relative_url {
+                    let completed_url = match article_url.join(trimmed_url) {
+                        Ok(joined_url) => joined_url,
+                        Err(_) => continue,
+                    };
+                    _ = node.set_attribute(attribute, completed_url.as_str());
+                } else if is_javascript {
+                    // if the link only contains simple text content, it can be converted to a text node
+                    let mut child_nodes = node.get_child_nodes();
+                    let child_count = child_nodes.len();
+                    let first_child_is_text = child_nodes
+                        .first()
+                        .and_then(|n| n.get_type())
+                        .map(|t| t == NodeType::TextNode)
+                        .unwrap_or(false);
+                    if let Some(mut parent) = node.get_parent() {
+                        let new_node = if child_count == 1 && first_child_is_text {
+                            let link_content = node.get_content();
+                            Node::new_text(&link_content, document).expect("Failed to create new text node")
+                        } else {
+                            let mut container = Node::new("span", None, document).expect("Failed to create new span container node");
+                            for mut child in child_nodes.drain(..) {
+                                child.unlink();
+                                _ = container.add_child(&mut child);
+                            }
+                            container
+                        };
+
+                        _ = parent.replace_child_node(new_node, node);
+                    }
+                } else if let Ok(parsed_url) = Url::parse(trimmed_url) {
+                    _ = node.set_attribute(attribute, parsed_url.as_str());
                 } else {
-                    Url::parse(trimmed_url)?
+                    _ = node.set_attribute(attribute, trimmed_url);
                 };
-
-                node.set_attribute(attribute, completed_url.as_str())
-                    .map_err(|_| FullTextParserError::Scrape)?;
             }
         }
         Ok(())
     }
 
-    fn fix_urls(context: &Context, url: &Url) {
-        _ = Self::repair_urls(context, "//img", "src", url);
-        _ = Self::repair_urls(context, "//a", "src", url);
-        _ = Self::repair_urls(context, "//a", "href", url);
-        _ = Self::repair_urls(context, "//object", "data", url);
-        _ = Self::repair_urls(context, "//iframe", "src", url);
+    fn fix_urls(context: &Context, url: &Url, document: &Document) {
+        _ = Self::repair_urls(context, "//img", "src", url, document);
+        _ = Self::repair_urls(context, "//a", "src", url, document);
+        _ = Self::repair_urls(context, "//a", "href", url, document);
+        _ = Self::repair_urls(context, "//object", "data", url, document);
+        _ = Self::repair_urls(context, "//iframe", "src", url, document);
     }
 
     fn prep_content(
@@ -541,6 +570,7 @@ impl FullTextParser {
         config: Option<&ConfigEntry>,
         global_config: &ConfigEntry,
         url: &Url,
+        document: &Document,
     ) {
         // replace H1 with H2 as H1 should be only title that is displayed separately
         if let Ok(h1_nodes) = Util::evaluate_xpath(context, "//h1", false) {
@@ -642,7 +672,7 @@ impl FullTextParser {
         _ = Util::strip_node(context, "//link");
         _ = Util::strip_node(context, "//aside");
 
-        Self::fix_urls(context, url);
+        Self::fix_urls(context, url, document);
     }
 
     /**
@@ -858,7 +888,6 @@ impl FullTextParser {
     pub(crate) fn post_process_document(document: &Document) -> Result<(), FullTextParserError> {
         if let Some(mut root) = document.get_root_element() {
             Self::simplify_nested_elements(&mut root)?;
-
             Self::clean_attributes(&mut root)?;
             Self::remove_single_cell_tables(&mut root);
             Self::remove_extra_p_and_div(&mut root);

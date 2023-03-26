@@ -293,13 +293,32 @@ impl Readability {
             let mut top_candidate = top_candidates.first().cloned().unwrap_or_else(|| {
                 // If we still have no top candidate, just use the body as a last resort.
                 // We also have to copy the body node so it is something we can modify.
-                let mut rt = document.get_root_element().expect("doc should have root");
-                Self::initialize_node(&mut rt, &state).expect("init should not fail");
+                let mut root = document.get_root_element().expect("doc should have root");
+                if let Some(body) = root
+                    .get_child_elements()
+                    .into_iter()
+                    .find(|n| n.get_name().to_uppercase() == "BODY")
+                {
+                    root = body;
+                }
+
+                let mut new_top_candidate =
+                    Node::new("DIV", None, &document).expect("can't create new node");
+
+                for mut child in root.get_child_elements().drain(..) {
+                    child.unlink();
+                    new_top_candidate.add_child(&mut child).unwrap();
+                }
+
+                root.add_child(&mut new_top_candidate).unwrap();
+
+                Self::initialize_node(&mut new_top_candidate, &state)
+                    .expect("init should not fail");
                 needed_to_create_top_candidate = true;
-                rt
+                new_top_candidate
             });
 
-            //Util::serialize_node(&top_candidate, "top_candidate.html");
+            // Util::serialize_node(&top_candidate, "top_candidate.html");
 
             let mut alternative_candidate_ancestors = Vec::new();
             // Find a better top candidate node if it contains (at least three) nodes which belong to `topCandidates` array

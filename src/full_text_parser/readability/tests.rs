@@ -21,7 +21,7 @@ async fn run_test(name: &str) {
     let document = crate::FullTextParser::parse_html(&html, None, &empty_config).unwrap();
     let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document).unwrap();
 
-    crate::FullTextParser::prep_content(&xpath_ctx, None, &empty_config, &url);
+    crate::FullTextParser::prep_content(&xpath_ctx, None, &empty_config, &url, &document);
     let mut article = Article {
         title: None,
         author: None,
@@ -250,6 +250,11 @@ async fn iab_1() {
 #[tokio::test]
 async fn ietf_1() {
     run_test("ietf-1").await
+}
+
+#[tokio::test]
+async fn js_link_replacement() {
+    run_test("js-link-replacement").await
 }
 
 #[tokio::test]
