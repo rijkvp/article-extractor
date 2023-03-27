@@ -10,6 +10,24 @@ pub static IS_IMAGE: Lazy<Regex> = Lazy::new(|| {
         .build()
         .expect("IS_IMAGE regex")
 });
+pub static COPY_TO_SRCSET: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"\.(jpg|jpeg|png|webp)\s+\d"#)
+        .case_insensitive(true)
+        .build()
+        .expect("COPY_TO_SRC regex")
+});
+pub static COPY_TO_SRC: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"^\s*\S+\.(jpg|jpeg|png|webp)\S*\s*$"#)
+        .case_insensitive(true)
+        .build()
+        .expect("COPY_TO_SRC regex")
+});
+pub static IS_BASE64: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"base64\s*"#)
+        .case_insensitive(true)
+        .build()
+        .expect("IS_BASE64 regex")
+});
 pub static SIBLING_CONTENT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/\.( |$)/"#).expect("SIBLING_CONTENT regex"));
 pub static BYLINE: Lazy<Regex> = Lazy::new(|| {
@@ -56,6 +74,12 @@ pub static TITLE_CUT_FRONT: Lazy<Regex> = Lazy::new(|| {
 });
 pub static VIDEOS: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"(www\.)?((dailymotion|youtube|youtube-nocookie|player\.vimeo|v\.qq)\.com|(archive|upload\.wikimedia)\.org|player\.twitch\.tv)"#).case_insensitive(true).build().expect("VIDEOS regex")
+});
+pub static BASE64_DATA_URL: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"^data:\s*([^\s;,]+)\s*;\s*base64\s*,"#)
+        .case_insensitive(true)
+        .build()
+        .expect("BASE64_DATA_URL regex")
 });
 pub const SCORE_ATTR: &str = "content_score";
 pub const DATA_TABLE_ATTR: &str = "is_data_table";

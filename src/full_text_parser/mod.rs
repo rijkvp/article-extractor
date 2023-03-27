@@ -414,20 +414,83 @@ impl FullTextParser {
         }
     }
 
-    fn fix_lazy_images(
-        context: &Context,
-        class: &str,
-        property_url: &str,
-    ) -> Result<(), FullTextParserError> {
-        let xpath = &format!("//img[contains(@class, '{}')]", class);
-        let node_vec = Util::evaluate_xpath(context, xpath, false)?;
+    fn fix_lazy_images(context: &Context, doc: &Document) -> Result<(), FullTextParserError> {
+        let node_vec = Util::evaluate_xpath(context, "//img|picture|figure", false)?;
         for mut node in node_vec {
-            if node
-                .get_property(property_url)
-                .and_then(|correct_url| node.set_property("src", &correct_url).ok())
-                .is_none()
-            {
-                log::warn!("Failed to fix lazy loading image");
+
+            // In some sites (e.g. Kotaku), they put 1px square image as base64 data uri in the src attribute.
+            // So, here we check if the data uri is too short, just might as well remove it.
+            if let Some(src) = node.get_attribute("src") {
+
+                // Make sure it's not SVG, because SVG can have a meaningful image in under 133 bytes.
+                if let Some(mime) = constants::BASE64_DATA_URL.captures(&src).and_then(|c| c.get(1).map(|c| c.as_str())) {
+                    if mime == "image/svg+xml" {
+                        continue;
+                    }
+                }
+
+                // Make sure this element has other attributes which contains image.
+                // If it doesn't, then this src is important and shouldn't be removed.
+                let mut src_could_be_removed = false;
+                for (name, val) in node.get_attributes() {
+                    if name == "src" {
+                        continue;
+                    }
+            
+                    if constants::IS_IMAGE.is_match(&val) {
+                        src_could_be_removed = true;
+                        break;
+                    }
+                }
+
+                // Here we assume if image is less than 100 bytes (or 133B after encoded to base64)
+                // it will be too small, therefore it might be placeholder image.
+                if src_could_be_removed {
+                    if let Some(_match) = constants::IS_BASE64.find(&src) {
+                        let b64starts = _match.start() + 7;
+                        let b64length = src.len() - b64starts;
+                        if b64length < 133 {
+                            _ = node.remove_attribute("src");
+                        }
+                    }
+                }
+            }
+
+            let class_contains_lazy = node.get_attribute("class").map(|c| c.to_lowercase().contains("lazy")).unwrap_or(false);
+            let has_scr = node.has_attribute("src");
+            let has_srcset = node.has_attribute("srcset");
+
+            if (has_scr || has_srcset) && !class_contains_lazy {
+                continue;
+            }
+        
+
+            for (name, val) in node.get_attributes() {
+                if name == "src" || name == "srcset" || name == "alt" {
+                    continue;
+                }
+
+                let mut copy_to: Option<&str> = None;
+                if constants::COPY_TO_SRCSET.is_match(&val) {
+                    copy_to = Some("srcset");
+                } else if constants::COPY_TO_SRC.is_match(&val) {
+                    copy_to = Some("src");
+                }
+
+                if let Some(copy_to) = copy_to {
+                    let tag_name = node.get_name().to_uppercase();
+
+                    //if this is an img or picture, set the attribute directly
+                    if tag_name == "IMG" || tag_name == "PICTURE" {
+                        _= node.set_attribute(copy_to, &val);
+                    } else if tag_name == "FIGURE" && !Util::has_decendent_tag(&node, "img") && !Util::has_decendent_tag(&node, "picture") {
+                        //if the item is a <figure> that does not contain an image or picture, create one and place it inside the figure
+                        //see the nytimes-3 testcase for an example
+                        let mut img = Node::new("img", None, doc).unwrap();
+                        _ =  img.set_attribute(copy_to, &val);
+                        _ =  node.add_child(&mut img);
+                    }
+                }
             }
         }
         Ok(())
@@ -624,11 +687,9 @@ impl FullTextParser {
 
         _ = Self::unwrap_noscript_images(context);
 
-        _ = Self::fix_lazy_images(context, "lazyload", "data-src");
+        _ = Self::fix_lazy_images(context, document);
         _ = Self::fix_iframe_size(context, "youtube.com");
         _ = Self::remove_attribute(context, Some("a"), "onclick");
-        _ = Self::remove_attribute(context, Some("img"), "srcset");
-        _ = Self::remove_attribute(context, Some("img"), "sizes");
         _ = Self::add_attribute(context, Some("a"), "target", "_blank");
 
         // strip elements using Readability.com and Instapaper.com ignore class names

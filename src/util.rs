@@ -334,6 +334,19 @@ impl Util {
         1.0 - distance_b
     }
 
+    pub fn has_decendent_tag(node: &Node, tag_name: &str) -> bool {
+        let mut node_iter = Self::next_node(node, false);
+        while let Some(node) = node_iter {
+            if Self::has_tag_name(Some(&node), tag_name) {
+                return true;
+            }
+
+            node_iter = Util::next_node(&node, false);
+        }
+
+        false
+    }
+
     pub fn has_ancestor_tag<F>(
         node: &Node,
         tag_name: &str,

@@ -268,6 +268,26 @@ async fn keep_tabular_data() {
 }
 
 #[tokio::test]
+async fn la_nacion() {
+    run_test("la-nacion").await
+}
+
+#[tokio::test]
+async fn lazy_image_1() {
+    run_test("lazy-image-1").await
+}
+
+#[tokio::test]
+async fn lazy_image_2() {
+    run_test("lazy-image-2").await
+}
+
+#[tokio::test]
+async fn lazy_image_3() {
+    run_test("lazy-image-3").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
