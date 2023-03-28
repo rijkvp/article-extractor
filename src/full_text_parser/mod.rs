@@ -417,13 +417,14 @@ impl FullTextParser {
     fn fix_lazy_images(context: &Context, doc: &Document) -> Result<(), FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, "//img|picture|figure", false)?;
         for mut node in node_vec {
-
             // In some sites (e.g. Kotaku), they put 1px square image as base64 data uri in the src attribute.
             // So, here we check if the data uri is too short, just might as well remove it.
             if let Some(src) = node.get_attribute("src") {
-
                 // Make sure it's not SVG, because SVG can have a meaningful image in under 133 bytes.
-                if let Some(mime) = constants::BASE64_DATA_URL.captures(&src).and_then(|c| c.get(1).map(|c| c.as_str())) {
+                if let Some(mime) = constants::BASE64_DATA_URL
+                    .captures(&src)
+                    .and_then(|c| c.get(1).map(|c| c.as_str()))
+                {
                     if mime == "image/svg+xml" {
                         continue;
                     }
@@ -436,7 +437,7 @@ impl FullTextParser {
                     if name == "src" {
                         continue;
                     }
-            
+
                     if constants::IS_IMAGE.is_match(&val) {
                         src_could_be_removed = true;
                         break;
@@ -456,14 +457,16 @@ impl FullTextParser {
                 }
             }
 
-            let class_contains_lazy = node.get_attribute("class").map(|c| c.to_lowercase().contains("lazy")).unwrap_or(false);
+            let class_contains_lazy = node
+                .get_attribute("class")
+                .map(|c| c.to_lowercase().contains("lazy"))
+                .unwrap_or(false);
             let has_scr = node.has_attribute("src");
             let has_srcset = node.has_attribute("srcset");
 
             if (has_scr || has_srcset) && !class_contains_lazy {
                 continue;
             }
-        
 
             for (name, val) in node.get_attributes() {
                 if name == "src" || name == "srcset" || name == "alt" {
@@ -482,13 +485,16 @@ impl FullTextParser {
 
                     //if this is an img or picture, set the attribute directly
                     if tag_name == "IMG" || tag_name == "PICTURE" {
-                        _= node.set_attribute(copy_to, &val);
-                    } else if tag_name == "FIGURE" && !Util::has_decendent_tag(&node, "img") && !Util::has_decendent_tag(&node, "picture") {
+                        _ = node.set_attribute(copy_to, &val);
+                    } else if tag_name == "FIGURE"
+                        && !Util::has_decendent_tag(&node, "img")
+                        && !Util::has_decendent_tag(&node, "picture")
+                    {
                         //if the item is a <figure> that does not contain an image or picture, create one and place it inside the figure
                         //see the nytimes-3 testcase for an example
                         let mut img = Node::new("img", None, doc).unwrap();
-                        _ =  img.set_attribute(copy_to, &val);
-                        _ =  node.add_child(&mut img);
+                        _ = img.set_attribute(copy_to, &val);
+                        _ = node.add_child(&mut img);
                     }
                 }
             }
