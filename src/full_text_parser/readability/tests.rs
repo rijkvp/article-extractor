@@ -288,6 +288,26 @@ async fn lazy_image_3() {
 }
 
 #[tokio::test]
+async fn lemonde_1() {
+    run_test("lemonde-1").await
+}
+
+#[tokio::test]
+async fn liberation_1() {
+    run_test("liberation-1").await
+}
+
+#[tokio::test]
+async fn lifehacker_post_comment_load() {
+    run_test("lifehacker-post-comment-load").await
+}
+
+#[tokio::test]
+async fn lifehacker_working() {
+    run_test("lifehacker-working").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }

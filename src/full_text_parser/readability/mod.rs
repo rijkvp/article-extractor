@@ -482,7 +482,7 @@ impl Readability {
                             append = true;
                         } else if sibling.get_name().to_uppercase() == "P" {
                             let link_density = Util::get_link_density(&sibling);
-                            let node_content = Util::get_inner_text(&sibling, false);
+                            let node_content = Util::get_inner_text(&sibling, true);
                             let node_length = node_content.len();
 
                             if node_length > 80
