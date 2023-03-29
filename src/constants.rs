@@ -63,11 +63,12 @@ pub static NEGATIVE: Lazy<Regex> = Lazy::new(|| {
 
 pub static TITLE_SEPARATOR: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#" [-|—\\/>»] "#).expect("TITLE_SEPARATOR regex"));
-pub static TITLE_CUT_END: Lazy<Regex> =  Lazy::new(||
+pub static TITLE_CUT_END: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"(.*)[-|—\\/>»] .*"#)
-    .case_insensitive(true)
-    .build()
-    .expect("TITLE_CUT_END regex"));
+        .case_insensitive(true)
+        .build()
+        .expect("TITLE_CUT_END regex")
+});
 pub static WORD_COUNT: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\s+"#).expect("WORD_COUNT regex"));
 pub static TITLE_CUT_FRONT: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"[^-|\\/>»]*[-|\\/>»](.*)"#)

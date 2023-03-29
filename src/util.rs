@@ -317,8 +317,14 @@ impl Util {
     pub fn text_similarity(a: &str, b: &str) -> f64 {
         let a = a.to_lowercase();
         let b = b.to_lowercase();
-        let tokens_a = constants::TOKENIZE.split(&a).filter(|token| !token.is_empty()).collect::<Vec<_>>();
-        let tokens_b = constants::TOKENIZE.split(&b).filter(|token| !token.is_empty()).collect::<Vec<_>>();
+        let tokens_a = constants::TOKENIZE
+            .split(&a)
+            .filter(|token| !token.is_empty())
+            .collect::<Vec<_>>();
+        let tokens_b = constants::TOKENIZE
+            .split(&b)
+            .filter(|token| !token.is_empty())
+            .collect::<Vec<_>>();
         if tokens_a.is_empty() || tokens_b.is_empty() {
             return 0.0;
         }
