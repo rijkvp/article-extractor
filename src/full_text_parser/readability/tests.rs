@@ -337,6 +337,26 @@ async fn medium_3() {
     run_test("medium-3").await
 }
 
+// #[tokio::test]
+// async fn mercurial() {
+//     run_test("mercurial").await
+// }
+
+#[tokio::test]
+async fn metadata_content_missing() {
+    run_test("metadata-content-missing").await
+}
+
+#[tokio::test]
+async fn missing_paragraphs() {
+    run_test("missing-paragraphs").await
+}
+
+// #[tokio::test]
+// async fn mozilla_1() {
+//     run_test("mozilla-1").await
+// }
+
 #[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await

@@ -259,6 +259,8 @@ impl Readability {
                 }
             }
 
+            //Util::serialize_document(&document, "dbg.html");
+
             // After we've calculated scores, loop through all of the possible
             // candidate nodes we found and find the one with the highest score.
             for candidate in candidates.iter_mut() {

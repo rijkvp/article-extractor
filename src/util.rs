@@ -1,5 +1,5 @@
 use libxml::{
-    tree::{Node, NodeType},
+    tree::{Node, NodeType, Document},
     xpath::Context,
 };
 use reqwest::{
@@ -804,6 +804,21 @@ impl Util {
     pub fn serialize_node(node: &Node, filename: &str) {
         let mut doc = libxml::tree::Document::new().unwrap();
         doc.set_root_element(node);
+        let html = doc.to_string_with_options(libxml::tree::SaveOptions {
+            format: true,
+            no_declaration: false,
+            no_empty_tags: true,
+            no_xhtml: false,
+            xhtml: false,
+            as_xml: false,
+            as_html: true,
+            non_significant_whitespace: false,
+        });
+        std::fs::write(filename, html).unwrap();
+    }
+
+    #[allow(dead_code)]
+    pub fn serialize_document(doc: &Document, filename: &str) {
         let html = doc.to_string_with_options(libxml::tree::SaveOptions {
             format: true,
             no_declaration: false,
