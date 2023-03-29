@@ -683,7 +683,7 @@ impl Readability {
         let heading = Util::get_inner_text(node, false);
 
         if let Some(title) = title {
-            Util::text_similarity(&heading, title) > 0.75
+            Util::text_similarity(title, &heading) > 0.75
         } else {
             false
         }

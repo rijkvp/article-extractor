@@ -308,6 +308,36 @@ async fn lifehacker_working() {
 }
 
 #[tokio::test]
+async fn links_in_tables() {
+    run_test("links-in-tables").await
+}
+
+#[tokio::test]
+async fn lwn_1() {
+    run_test("lwn-1").await
+}
+
+// #[tokio::test]
+// async fn medicalnewstoday() {
+//     run_test("medicalnewstoday").await
+// }
+
+#[tokio::test]
+async fn medium_1() {
+    run_test("medium-1").await
+}
+
+#[tokio::test]
+async fn medium_2() {
+    run_test("medium-2").await
+}
+
+#[tokio::test]
+async fn medium_3() {
+    run_test("medium-3").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
