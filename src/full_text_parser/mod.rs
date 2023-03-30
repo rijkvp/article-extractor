@@ -692,6 +692,7 @@ impl FullTextParser {
         }
 
         _ = Self::unwrap_noscript_images(context);
+        _ = Util::strip_node(context, "//noscript");
 
         _ = Self::fix_lazy_images(context, document);
         _ = Self::fix_iframe_size(context, "youtube.com");

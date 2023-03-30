@@ -317,10 +317,10 @@ async fn lwn_1() {
     run_test("lwn-1").await
 }
 
-// #[tokio::test]
-// async fn medicalnewstoday() {
-//     run_test("medicalnewstoday").await
-// }
+#[tokio::test]
+async fn medicalnewstoday() {
+    run_test("medicalnewstoday").await
+}
 
 #[tokio::test]
 async fn medium_1() {
