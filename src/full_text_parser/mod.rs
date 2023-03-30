@@ -551,24 +551,6 @@ impl FullTextParser {
         Ok(())
     }
 
-    fn add_attribute(
-        context: &Context,
-        tag: Option<&str>,
-        attribute: &str,
-        value: &str,
-    ) -> Result<(), FullTextParserError> {
-        let xpath_tag = tag.unwrap_or("*");
-
-        let xpath = &format!("//{}", xpath_tag);
-        let node_vec = Util::evaluate_xpath(context, xpath, false)?;
-        for mut node in node_vec {
-            if let Err(err) = node.set_attribute(attribute, value) {
-                log::warn!("Failed to set attribute '{}' on node: {}", attribute, err);
-            }
-        }
-        Ok(())
-    }
-
     fn repair_urls(
         context: &Context,
         xpath: &str,
@@ -580,13 +562,21 @@ impl FullTextParser {
         for mut node in node_vec {
             if let Some(url) = node.get_attribute(attribute) {
                 let trimmed_url = url.trim();
+
+                let is_hash_url = url.starts_with('#');
                 let is_relative_url = url::Url::parse(&url)
                     .err()
                     .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
                     .unwrap_or(false);
                 let is_javascript = trimmed_url.contains("javascript:");
 
-                if is_relative_url {
+                if !is_hash_url && node.get_name().to_uppercase() == "A" {
+                    _ = node.set_attribute("target", "_blank");
+                }
+
+                if is_hash_url {
+                    _ = node.set_attribute(attribute, trimmed_url);
+                } else if is_relative_url {
                     let completed_url = match article_url.join(trimmed_url) {
                         Ok(joined_url) => joined_url,
                         Err(_) => continue,
@@ -697,7 +687,6 @@ impl FullTextParser {
         _ = Self::fix_lazy_images(context, document);
         _ = Self::fix_iframe_size(context, "youtube.com");
         _ = Self::remove_attribute(context, Some("a"), "onclick");
-        _ = Self::add_attribute(context, Some("a"), "target", "_blank");
 
         // strip elements using Readability.com and Instapaper.com ignore class names
         // .entry-unrelated and .instapaper_ignore

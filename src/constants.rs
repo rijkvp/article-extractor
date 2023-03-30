@@ -49,7 +49,7 @@ pub static OKAY_MAYBE_ITS_A_CANDIDATE: Lazy<Regex> = Lazy::new(|| {
 });
 pub static HAS_CONTENT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"/\S$/"#).expect("HAS_CONTENT regex"));
-pub static HASH_URL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"/^#.+/"#).expect("HASH_URL regex"));
+pub static HASH_URL: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^#.+"#).expect("HASH_URL regex"));
 pub static POSITIVE: Lazy<Regex> =
     Lazy::new(|| {
         RegexBuilder::new(

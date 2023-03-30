@@ -337,10 +337,10 @@ async fn medium_3() {
     run_test("medium-3").await
 }
 
-// #[tokio::test]
-// async fn mercurial() {
-//     run_test("mercurial").await
-// }
+#[tokio::test]
+async fn mercurial() {
+    run_test("mercurial").await
+}
 
 #[tokio::test]
 async fn metadata_content_missing() {
