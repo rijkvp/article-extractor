@@ -352,10 +352,10 @@ async fn missing_paragraphs() {
     run_test("missing-paragraphs").await
 }
 
-// #[tokio::test]
-// async fn mozilla_1() {
-//     run_test("mozilla-1").await
-// }
+#[tokio::test]
+async fn mozilla_1() {
+    run_test("mozilla-1").await
+}
 
 #[tokio::test]
 async fn webmd_1() {
