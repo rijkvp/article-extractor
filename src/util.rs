@@ -1,5 +1,5 @@
 use libxml::{
-    tree::{Node, NodeType, Document},
+    tree::{Document, Node, NodeType},
     xpath::Context,
 };
 use reqwest::{
