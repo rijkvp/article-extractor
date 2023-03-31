@@ -358,6 +358,21 @@ async fn mozilla_1() {
 }
 
 #[tokio::test]
+async fn mozilla_2() {
+    run_test("mozilla-2").await
+}
+
+#[tokio::test]
+async fn msn() {
+    run_test("msn").await
+}
+
+#[tokio::test]
+async fn normalize_spaces() {
+    run_test("normalize-spaces").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
