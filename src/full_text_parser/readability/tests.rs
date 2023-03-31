@@ -18,6 +18,7 @@ async fn run_test(name: &str) {
     let url = Url::parse("http://fakehost/test/base/").unwrap();
     let html = std::fs::read_to_string(format!("./resources/tests/readability/{name}/source.html"))
         .expect("Failed to read source HTML");
+
     let document = crate::FullTextParser::parse_html(&html, None, &empty_config).unwrap();
     let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document).unwrap();
 
@@ -402,10 +403,10 @@ async fn pixnet() {
     run_test("pixnet").await
 }
 
-// #[tokio::test]
-// async fn qq() {
-//     run_test("qq").await
-// }
+#[tokio::test]
+async fn qq() {
+    run_test("qq").await
+}
 
 #[tokio::test]
 async fn quanta_1() {
