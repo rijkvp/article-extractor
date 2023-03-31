@@ -398,6 +398,46 @@ async fn nytimes_5() {
 }
 
 #[tokio::test]
+async fn pixnet() {
+    run_test("pixnet").await
+}
+
+// #[tokio::test]
+// async fn qq() {
+//     run_test("qq").await
+// }
+
+#[tokio::test]
+async fn quanta_1() {
+    run_test("quanta-1").await
+}
+
+#[tokio::test]
+async fn remove_aria_hidden() {
+    run_test("remove-aria-hidden").await
+}
+
+#[tokio::test]
+async fn remove_extra_paragraphs() {
+    run_test("remove-extra-paragraphs").await
+}
+
+#[tokio::test]
+async fn reordering_paragraphs() {
+    run_test("reordering-paragraphs").await
+}
+
+#[tokio::test]
+async fn remove_script_tags() {
+    run_test("remove-script-tags").await
+}
+
+// #[tokio::test]
+// async fn replace_font_tags() {
+//     run_test("replace-font-tags").await
+// }
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
