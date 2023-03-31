@@ -382,10 +382,20 @@ async fn nytimes_2() {
     run_test("nytimes-2").await
 }
 
-// #[tokio::test]
-// async fn nytimes_3() {
-//     run_test("nytimes-3").await
-// }
+#[tokio::test]
+async fn nytimes_3() {
+    run_test("nytimes-3").await
+}
+
+#[tokio::test]
+async fn nytimes_4() {
+    run_test("nytimes-4").await
+}
+
+#[tokio::test]
+async fn nytimes_5() {
+    run_test("nytimes-5").await
+}
 
 #[tokio::test]
 async fn webmd_1() {

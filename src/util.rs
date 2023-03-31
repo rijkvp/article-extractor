@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use libxml::{
     tree::{Document, Node, NodeType},
     xpath::Context,
@@ -340,14 +342,21 @@ impl Util {
         1.0 - distance_b
     }
 
-    pub fn has_decendent_tag(node: &Node, tag_name: &str) -> bool {
-        let mut node_iter = Self::next_node(node, false);
-        while let Some(node) = node_iter {
-            if Self::has_tag_name(Some(&node), tag_name) {
+    pub fn has_any_descendent_tag(node: &Node, tag_names: &HashSet<&str>) -> bool {
+        let children = node.get_child_elements();
+        let is_direct_child = children
+            .iter()
+            .map(|node| node.get_name().to_uppercase())
+            .any(|name| tag_names.contains(name.as_str()));
+
+        if is_direct_child {
+            return true;
+        }
+
+        for child in children {
+            if Util::has_any_descendent_tag(&child, tag_names) {
                 return true;
             }
-
-            node_iter = Util::next_node(&node, false);
         }
 
         false
@@ -521,7 +530,11 @@ impl Util {
 
         for mut node in nodes.into_iter().rev() {
             if Util::get_class_weight(&node) < 0 {
-                log::debug!("Removing header with low class weight: {} {}", node.get_name(), node.get_attribute("class").unwrap_or_default());
+                log::debug!(
+                    "Removing header with low class weight: {} {}",
+                    node.get_name(),
+                    node.get_attribute("class").unwrap_or_default()
+                );
                 node.unlink();
             }
         }

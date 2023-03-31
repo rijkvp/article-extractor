@@ -21,6 +21,7 @@ use libxml::tree::{Document, Node, NodeType};
 use libxml::xpath::Context;
 use reqwest::header::HeaderMap;
 use reqwest::{Client, Url};
+use std::collections::HashSet;
 use std::path::Path;
 use std::str::from_utf8;
 
@@ -493,8 +494,7 @@ impl FullTextParser {
                     if tag_name == "IMG" || tag_name == "PICTURE" {
                         _ = node.set_attribute(copy_to, &val);
                     } else if tag_name == "FIGURE"
-                        && !Util::has_decendent_tag(&node, "img")
-                        && !Util::has_decendent_tag(&node, "picture")
+                        && !Util::has_any_descendent_tag(&node, &HashSet::from(["IMG", "PICTURE"]))
                     {
                         //if the item is a <figure> that does not contain an image or picture, create one and place it inside the figure
                         //see the nytimes-3 testcase for an example
