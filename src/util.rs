@@ -515,6 +515,18 @@ impl Util {
         }
     }
 
+    pub fn clean_headers(root: &mut Node) {
+        let mut nodes = Util::get_elements_by_tag_name(root, "h1");
+        nodes.append(&mut Util::get_elements_by_tag_name(root, "h2"));
+
+        for mut node in nodes.into_iter().rev() {
+            if Util::get_class_weight(&node) < 0 {
+                log::debug!("Removing header with low class weight: {} {}", node.get_name(), node.get_attribute("class").unwrap_or_default());
+                node.unlink();
+            }
+        }
+    }
+
     // Clean an element of all tags of type "tag" if they look fishy.
     // "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
     pub fn clean_conditionally(root: &mut Node, tag: &str) {

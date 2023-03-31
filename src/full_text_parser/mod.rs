@@ -415,8 +415,16 @@ impl FullTextParser {
     }
 
     fn fix_lazy_images(context: &Context, doc: &Document) -> Result<(), FullTextParserError> {
-        let node_vec = Util::evaluate_xpath(context, "//img|picture|figure", false)?;
-        for mut node in node_vec {
+        let mut img_nodes = Util::evaluate_xpath(context, "//img", false)?;
+        let pic_nodes = Util::evaluate_xpath(context, "//picture", false)?;
+        let fig_nodes = Util::evaluate_xpath(context, "//figure", false)?;
+
+        img_nodes.extend(pic_nodes);
+        img_nodes.extend(fig_nodes);
+
+        for mut node in img_nodes {
+            let tag_name = node.get_name().to_uppercase();
+
             // In some sites (e.g. Kotaku), they put 1px square image as base64 data uri in the src attribute.
             // So, here we check if the data uri is too short, just might as well remove it.
             if let Some(src) = node.get_attribute("src") {
@@ -481,8 +489,6 @@ impl FullTextParser {
                 }
 
                 if let Some(copy_to) = copy_to {
-                    let tag_name = node.get_name().to_uppercase();
-
                     //if this is an img or picture, set the attribute directly
                     if tag_name == "IMG" || tag_name == "PICTURE" {
                         _ = node.set_attribute(copy_to, &val);
@@ -956,6 +962,7 @@ impl FullTextParser {
     }
 
     pub(crate) fn post_process_page(node: &mut Node) -> Result<(), FullTextParserError> {
+        Util::clean_headers(node);
         Util::clean_conditionally(node, "fieldset");
         Util::clean_conditionally(node, "table");
         Util::clean_conditionally(node, "ul");

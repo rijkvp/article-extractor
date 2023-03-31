@@ -373,6 +373,21 @@ async fn normalize_spaces() {
 }
 
 #[tokio::test]
+async fn nytimes_1() {
+    run_test("nytimes-1").await
+}
+
+#[tokio::test]
+async fn nytimes_2() {
+    run_test("nytimes-2").await
+}
+
+// #[tokio::test]
+// async fn nytimes_3() {
+//     run_test("nytimes-3").await
+// }
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
