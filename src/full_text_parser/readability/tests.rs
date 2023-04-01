@@ -459,6 +459,36 @@ async fn social_buttons() {
 }
 
 #[tokio::test]
+async fn style_tags_removal() {
+    run_test("style-tags-removal").await
+}
+
+#[tokio::test]
+async fn svg_parsing() {
+    run_test("svg-parsing").await
+}
+
+#[tokio::test]
+async fn table_style_attributes() {
+    run_test("table-style-attributes").await
+}
+
+#[tokio::test]
+async fn title_and_h1_discrepancy() {
+    run_test("title-and-h1-discrepancy").await
+}
+
+#[tokio::test]
+async fn tmz_1() {
+    run_test("tmz-1").await
+}
+
+#[tokio::test]
+async fn telegraph() {
+    run_test("telegraph").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
