@@ -489,6 +489,36 @@ async fn telegraph() {
 }
 
 #[tokio::test]
+async fn toc_missing() {
+    run_test("toc-missing").await
+}
+
+#[tokio::test]
+async fn topicseed_1() {
+    run_test("topicseed-1").await
+}
+
+#[tokio::test]
+async fn tumblr() {
+    run_test("tumblr").await
+}
+
+#[tokio::test]
+async fn v8_blog() {
+    run_test("v8-blog").await
+}
+
+#[tokio::test]
+async fn videos_1() {
+    run_test("videos-1").await
+}
+
+#[tokio::test]
+async fn videos_2() {
+    run_test("videos-2").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }
