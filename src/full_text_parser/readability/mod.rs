@@ -705,7 +705,11 @@ impl Readability {
             0
         };
         let score = score + class_weight;
-        log::debug!("initialize node {} {}: {score}", node.get_name(), node.get_attribute("class").unwrap_or_default());
+        log::debug!(
+            "initialize node {} {}: {score}",
+            node.get_name(),
+            node.get_attribute("class").unwrap_or_default()
+        );
         Self::set_content_score(node, score as f64)?;
         Ok(())
     }

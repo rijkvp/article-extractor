@@ -60,7 +60,12 @@ pub static POSITIVE: Lazy<Regex> =
 pub static NEGATIVE: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"-ad-|hidden|^hid$| hid$| hid |^hid |banner|combx|comment|com-|contact|foot|footer|footnote|gdpr|masthead|media|meta|outbrain|promo|related|scroll|share|shoutbox|sidebar|skyscraper|sponsor|shopping|tags|tool|widget"#).case_insensitive(true).build().expect("NEGATIVE regex")
 });
-
+pub static SHARE_ELEMENTS: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"(\b|_)(share|sharedaddy)(\b|_)"#)
+        .case_insensitive(true)
+        .build()
+        .expect("SHARE_ELEMENTS regex")
+});
 pub static TITLE_SEPARATOR: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#" [-|—\\/>»] "#).expect("TITLE_SEPARATOR regex"));
 pub static TITLE_CUT_END: Lazy<Regex> = Lazy::new(|| {

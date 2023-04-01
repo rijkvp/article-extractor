@@ -439,6 +439,26 @@ async fn replace_font_tags() {
 }
 
 #[tokio::test]
+async fn salon_1() {
+    run_test("salon-1").await
+}
+
+#[tokio::test]
+async fn seattletimes_1() {
+    run_test("seattletimes-1").await
+}
+
+#[tokio::test]
+async fn simplyfound_1() {
+    run_test("simplyfound-1").await
+}
+
+#[tokio::test]
+async fn social_buttons() {
+    run_test("social-buttons").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
 }

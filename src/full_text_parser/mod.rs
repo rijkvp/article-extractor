@@ -975,6 +975,7 @@ impl FullTextParser {
         Util::clean_conditionally(node, "ul");
         Util::clean_conditionally(node, "div");
 
+        Self::remove_share_elements(node);
         Self::clean_attributes(node)?;
         Self::remove_single_cell_tables(node);
         Self::remove_extra_p_and_div(node);
@@ -1039,6 +1040,26 @@ impl FullTextParser {
             }
 
             node_iter = Util::next_node(&node, false);
+        }
+    }
+
+    fn remove_share_elements(root: &mut Node) {
+        let mut node_iter = Some(root.clone());
+
+        while let Some(mut node) = node_iter {
+            let match_string = format!(
+                "{} {}",
+                node.get_attribute("class").unwrap_or_default(),
+                node.get_attribute("id").unwrap_or_default()
+            );
+
+            if constants::SHARE_ELEMENTS.is_match(&match_string)
+                && node.get_content().len() < constants::DEFAULT_CHAR_THRESHOLD
+            {
+                node_iter = Util::remove_and_next(&mut node);
+            } else {
+                node_iter = Util::next_node(&node, false);
+            }
         }
     }
 
