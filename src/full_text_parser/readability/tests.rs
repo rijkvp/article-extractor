@@ -433,10 +433,10 @@ async fn remove_script_tags() {
     run_test("remove-script-tags").await
 }
 
-// #[tokio::test]
-// async fn replace_font_tags() {
-//     run_test("replace-font-tags").await
-// }
+#[tokio::test]
+async fn replace_font_tags() {
+    run_test("replace-font-tags").await
+}
 
 #[tokio::test]
 async fn webmd_1() {

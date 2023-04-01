@@ -646,6 +646,13 @@ impl FullTextParser {
             }
         }
 
+        // rename all font nodes to span
+        if let Ok(font_nodes) = Util::evaluate_xpath(context, "//font", false) {
+            for mut font_node in font_nodes {
+                _ = font_node.set_name("span");
+            }
+        }
+
         _ = Util::mark_data_tables(context);
 
         // strip specified xpath
@@ -1070,10 +1077,6 @@ impl FullTextParser {
                     log::error!("{e}");
                     FullTextParserError::Xml
                 })?;
-
-            if node.get_name().to_uppercase() == "FONT" {
-                node.set_name("span").unwrap();
-            }
 
             node_iter = Util::next_node(&node, false);
         }
