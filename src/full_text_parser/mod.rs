@@ -580,6 +580,36 @@ impl FullTextParser {
                     _ = node.set_attribute("target", "_blank");
                 }
 
+                if let Some(srcset) = node.get_attribute("srcset") {
+                    let res = constants::SRC_SET_URL
+                        .captures_iter(&srcset)
+                        .map(|cap| {
+                            let cap0 = cap.get(0).map_or("", |m| m.as_str());
+                            let cap1 = cap.get(1).map_or("", |m| m.as_str());
+                            let cap2 = cap.get(2).map_or("", |m| m.as_str());
+                            let cap3 = cap.get(3).map_or("", |m| m.as_str());
+
+                            let is_relative_url = url::Url::parse(&cap1)
+                                .err()
+                                .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
+                                .unwrap_or(false);
+
+                            if is_relative_url {
+                                let completed_url = article_url
+                                    .join(&cap1)
+                                    .map(|u| u.as_str().to_owned())
+                                    .unwrap_or_default();
+                                format!("{completed_url}{cap2}{cap3}")
+                            } else {
+                                cap0.to_string()
+                            }
+                        })
+                        .collect::<Vec<String>>()
+                        .join(" ");
+
+                    _ = node.set_attribute("srcset", res.as_str());
+                }
+
                 if is_hash_url {
                     _ = node.set_attribute(attribute, trimmed_url);
                 } else if is_relative_url {

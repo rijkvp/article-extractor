@@ -519,6 +519,31 @@ async fn videos_2() {
 }
 
 #[tokio::test]
+async fn wapo_1() {
+    run_test("wapo-1").await
+}
+
+#[tokio::test]
+async fn wapo_2() {
+    run_test("wapo-2").await
+}
+
+#[tokio::test]
 async fn webmd_1() {
     run_test("webmd-1").await
+}
+
+#[tokio::test]
+async fn webmd_2() {
+    run_test("webmd-2").await
+}
+
+#[tokio::test]
+async fn wikia() {
+    run_test("wikia").await
+}
+
+#[tokio::test]
+async fn wikipedia() {
+    run_test("wikipedia").await
 }

@@ -66,6 +66,8 @@ pub static SHARE_ELEMENTS: Lazy<Regex> = Lazy::new(|| {
         .build()
         .expect("SHARE_ELEMENTS regex")
 });
+pub static SRC_SET_URL: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"(\S+)(\s+[\d.]+[xw])?(\s*(?:,|$))"#).expect("SRC_SET_URL regex"));
 pub static TITLE_SEPARATOR: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#" [-|—\\/>»] "#).expect("TITLE_SEPARATOR regex"));
 pub static TITLE_CUT_END: Lazy<Regex> = Lazy::new(|| {
