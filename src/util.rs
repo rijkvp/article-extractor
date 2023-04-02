@@ -245,7 +245,10 @@ impl Util {
             .get_attribute("aria-hidden")
             .map(|attr| attr == "true")
             .unwrap_or(false);
-        let has_fallback_image = node.get_class_names().contains("fallback-image");
+        let has_fallback_image = node
+            .get_class_names()
+            .iter()
+            .any(|class| class.contains("fallback-image"));
 
         !is_hidden && !aria_hidden || has_fallback_image
     }

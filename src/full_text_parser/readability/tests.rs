@@ -547,3 +547,18 @@ async fn wikia() {
 async fn wikipedia() {
     run_test("wikipedia").await
 }
+
+#[tokio::test]
+async fn wikipedia_2() {
+    run_test("wikipedia-2").await
+}
+
+#[tokio::test]
+async fn wikipedia_3() {
+    run_test("wikipedia-3").await
+}
+
+#[tokio::test]
+async fn wordpress() {
+    run_test("wordpress").await
+}

@@ -48,6 +48,7 @@ impl Readability {
                 };
 
                 if !Util::is_probably_visible(node_ref) {
+                    log::debug!("removing hidden node {match_string}");
                     node = Util::remove_and_next(node_ref);
                     continue;
                 }
