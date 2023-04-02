@@ -562,3 +562,28 @@ async fn wikipedia_3() {
 async fn wordpress() {
     run_test("wordpress").await
 }
+
+#[tokio::test]
+async fn yahoo_1() {
+    run_test("yahoo-1").await
+}
+
+#[tokio::test]
+async fn yahoo_2() {
+    run_test("yahoo-2").await
+}
+
+#[tokio::test]
+async fn yahoo_3() {
+    run_test("yahoo-3").await
+}
+
+#[tokio::test]
+async fn yahoo_4() {
+    run_test("yahoo-4").await
+}
+
+#[tokio::test]
+async fn youth() {
+    run_test("youth").await
+}
