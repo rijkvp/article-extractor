@@ -589,14 +589,14 @@ impl FullTextParser {
                             let cap2 = cap.get(2).map_or("", |m| m.as_str());
                             let cap3 = cap.get(3).map_or("", |m| m.as_str());
 
-                            let is_relative_url = url::Url::parse(&cap1)
+                            let is_relative_url = url::Url::parse(cap1)
                                 .err()
                                 .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
                                 .unwrap_or(false);
 
                             if is_relative_url {
                                 let completed_url = article_url
-                                    .join(&cap1)
+                                    .join(cap1)
                                     .map(|u| u.as_str().to_owned())
                                     .unwrap_or_default();
                                 format!("{completed_url}{cap2}{cap3}")
