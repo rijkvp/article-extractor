@@ -9,3 +9,4 @@ repository = "https://gitlab.com/news-flash/article_scraper"
 
 [dependencies]
 article_scraper = { path  = "../article_scraper/" }
+clap =  { version = "4.2", features = [ "derive" ] }
