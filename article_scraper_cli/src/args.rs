@@ -6,25 +6,29 @@ use std::path::PathBuf;
 pub struct Args {
     /// Turn debug logging on
     #[arg(short, long)]
-    debug: bool,
+    pub debug: bool,
 
     #[command(subcommand)]
-    command: Option<Commands>,
+    pub command: Commands,
 
     /// Destination of resulting HTML file
     #[arg(short, long, value_name = "FILE")]
-    output: Option<PathBuf>,
+    pub output: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
-enum Commands {
+pub enum Commands {
     /// Only use the Readability parser
     Readability {
         /// Source HTML file
         #[arg(long, value_name = "FILE")]
         html: Option<PathBuf>,
 
-        /// Source Url
+        /// Base to complete relative Url
+        #[arg(long, value_name = "URL")]
+        base_url: Option<String>,
+
+        /// Source Url to download HTML from
         #[arg(long, value_name = "URL")]
         source_url: Option<String>,
     },

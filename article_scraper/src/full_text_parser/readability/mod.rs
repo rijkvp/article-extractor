@@ -14,6 +14,45 @@ use crate::{constants, util::Util};
 pub struct Readability;
 
 impl Readability {
+    async fn extract_from_str(
+        html: &str,
+        base_url: Option<url::Url>,
+    ) -> Result<String, FullTextParserError> {
+        libxml::tree::node::set_node_rc_guard(10);
+        let empty_config = crate::full_text_parser::config::ConfigEntry::default();
+
+        let url =
+            base_url.unwrap_or_else(|| url::Url::parse("http://fakehost/test/base/").unwrap());
+        let document = crate::FullTextParser::parse_html(html, None, &empty_config)?;
+        let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document)?;
+
+        crate::FullTextParser::prep_content(&xpath_ctx, None, &empty_config, &url, &document);
+        let mut article = crate::article::Article {
+            title: None,
+            author: None,
+            url,
+            date: None,
+            thumbnail_url: None,
+            document: None,
+        };
+
+        let mut article_document = Document::new().map_err(|()| FullTextParserError::Xml)?;
+        let mut root =
+            Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
+        article_document.set_root_element(&root);
+
+        crate::full_text_parser::metadata::extract(&xpath_ctx, None, None, &mut article);
+        super::Readability::extract_body(document, &mut root, article.title.as_deref())?;
+        crate::FullTextParser::post_process_document(&article_document)?;
+
+        article.document = Some(article_document);
+        let html = article
+            .get_content()
+            .ok_or(FullTextParserError::Readability)?;
+
+        Ok(html)
+    }
+
     pub fn extract_body(
         document: Document,
         root: &mut Node,
