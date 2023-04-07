@@ -14,7 +14,7 @@ use crate::{constants, util::Util};
 pub struct Readability;
 
 impl Readability {
-    async fn extract_from_str(
+    pub async fn extract_from_str(
         html: &str,
         base_url: Option<url::Url>,
     ) -> Result<String, FullTextParserError> {

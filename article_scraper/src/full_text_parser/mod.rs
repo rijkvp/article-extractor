@@ -9,7 +9,7 @@ mod tests;
 
 use self::config::{ConfigCollection, ConfigEntry};
 use self::error::FullTextParserError;
-use self::readability::Readability;
+pub use self::readability::Readability;
 use crate::article::Article;
 use crate::constants;
 use crate::util::Util;
@@ -269,7 +269,7 @@ impl FullTextParser {
         Ok(())
     }
 
-    async fn download(
+    pub async fn download(
         url: &url::Url,
         client: &Client,
         headers: HeaderMap,

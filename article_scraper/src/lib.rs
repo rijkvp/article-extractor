@@ -7,7 +7,8 @@ mod util;
 
 use article::Article;
 use error::ScraperError;
-use full_text_parser::FullTextParser;
+pub use full_text_parser::FullTextParser;
+pub use full_text_parser::Readability;
 use images::ImageDownloader;
 use reqwest::Client;
 use std::path::Path;
