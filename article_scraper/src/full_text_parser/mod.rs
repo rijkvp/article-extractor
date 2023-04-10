@@ -35,7 +35,69 @@ impl FullTextParser {
         Self { config_files }
     }
 
-    pub async fn parse(
+    pub async fn parse_offline(
+        &self,
+        html: &str,
+        config: Option<&ConfigEntry>,
+        base_url: Option<Url>,
+    ) -> Result<String, FullTextParserError> {
+        libxml::tree::node::set_node_rc_guard(10);
+
+        let global_config = self
+            .config_files
+            .get("global.txt")
+            .ok_or(FullTextParserError::Config)?;
+
+        let url =
+            base_url.unwrap_or_else(|| url::Url::parse("http://fakehost/test/base/").unwrap());
+
+        let mut article = Article {
+            title: None,
+            author: None,
+            url,
+            date: None,
+            thumbnail_url: None,
+            document: None,
+        };
+
+        let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
+        let mut root =
+            Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
+        document.set_root_element(&root);
+
+        Self::generate_head(&mut root, &document)?;
+
+        let document = Self::parse_html(html, config, global_config)?;
+        let xpath_ctx = Self::get_xpath_ctx(&document)?;
+
+        metadata::extract(&xpath_ctx, config, Some(global_config), &mut article);
+        if article.thumbnail_url.is_none() {
+            Self::check_for_thumbnail(&xpath_ctx, &mut article);
+        }
+        Self::prep_content(&xpath_ctx, config, global_config, &article.url, &document);
+        let found_body = Self::extract_body(&xpath_ctx, &mut root, config, global_config)?;
+        if !found_body {
+            log::error!("Ftr failed to find content");
+            return Err(FullTextParserError::Scrape);
+        }
+
+        while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
+            log::info!("Next page url: {url}");
+        }
+
+        if let Err(error) = Self::prevent_self_closing_tags(&xpath_ctx) {
+            log::error!("Preventing self closing tags failed - '{error}'");
+            return Err(error);
+        }
+
+        Self::post_process_document(&document)?;
+
+        article.document = Some(document);
+        let html = article.get_content().ok_or(FullTextParserError::Scrape)?;
+        Ok(html)
+    }
+
+    pub(crate) async fn parse(
         &self,
         url: &url::Url,
         client: &Client,

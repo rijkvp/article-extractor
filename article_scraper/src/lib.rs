@@ -7,6 +7,7 @@ mod util;
 
 use article::Article;
 use error::ScraperError;
+pub use full_text_parser::config::ConfigEntry as FtrConfigEntry;
 pub use full_text_parser::FullTextParser;
 pub use full_text_parser::Readability;
 use images::ImageDownloader;
