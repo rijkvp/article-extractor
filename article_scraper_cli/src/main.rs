@@ -31,6 +31,7 @@ async fn main() {
     .unwrap();
 
     match args.command {
+        Commands::All { source_url: _ } => unimplemented!(),
         Commands::Readability {
             html,
             base_url,

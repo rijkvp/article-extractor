@@ -18,6 +18,12 @@ pub struct Args {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Use the complete pipeline
+    All {
+        /// Source Url to download HTML from
+        #[arg(long, value_name = "URL")]
+        source_url: Option<String>,
+    },
     /// Only use the Readability parser
     Readability {
         /// Source HTML file
@@ -32,6 +38,7 @@ pub enum Commands {
         #[arg(long, value_name = "URL")]
         source_url: Option<String>,
     },
+    /// Only use (a subset of) the Ftr parser
     Ftr {
         /// Source HTML file
         #[arg(long, value_name = "FILE")]

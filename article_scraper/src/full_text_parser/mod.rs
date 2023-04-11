@@ -20,7 +20,7 @@ use libxml::parser::Parser;
 use libxml::tree::{Document, Node, NodeType};
 use libxml::xpath::Context;
 use reqwest::header::HeaderMap;
-use reqwest::{Client, Url};
+use reqwest::{Client, Response, Url};
 use std::collections::HashSet;
 use std::path::Path;
 use std::str::from_utf8;
@@ -114,16 +114,7 @@ impl FullTextParser {
             .ok_or(FullTextParserError::Config)?;
 
         let headers = Util::generate_headers(config, global_config)?;
-
-        let response = client
-            .head(url.clone())
-            .headers(headers)
-            .send()
-            .await
-            .map_err(|error| {
-                log::error!("Failed head request to: '{url}' - '{error}'");
-                FullTextParserError::Http
-            })?;
+        let response = Self::get_response(&url, &client, headers).await?;
 
         // check if url redirects and we need to pick up the new url
         let url = if let Some(new_url) = Util::check_redirect(&response, url) {
@@ -154,8 +145,7 @@ impl FullTextParser {
 
         Self::generate_head(&mut root, &document)?;
 
-        let headers = Util::generate_headers(config, global_config)?;
-        let html = Self::download(&url, client, headers).await?;
+        let html = Self::get_body(response).await?;
 
         // check for fingerprints
         let config = if config.is_none() {
@@ -255,7 +245,7 @@ impl FullTextParser {
         }
 
         while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
-            log::debug!("");
+            log::debug!("next page");
 
             let headers = Util::generate_headers(config, global_config)?;
             let html = Self::download(&url, client, headers).await?;
@@ -331,11 +321,11 @@ impl FullTextParser {
         Ok(())
     }
 
-    pub async fn download(
+    async fn get_response(
         url: &url::Url,
         client: &Client,
         headers: HeaderMap,
-    ) -> Result<String, FullTextParserError> {
+    ) -> Result<Response, FullTextParserError> {
         let response = client
             .get(url.as_str())
             .headers(headers)
@@ -349,7 +339,10 @@ impl FullTextParser {
                 );
                 FullTextParserError::Http
             })?;
+        Ok(response)
+    }
 
+    async fn get_body(response: Response) -> Result<String, FullTextParserError> {
         if response.status().is_success() {
             let headers = response.headers().clone();
             let bytes = response
@@ -386,6 +379,16 @@ impl FullTextParser {
         }
 
         Err(FullTextParserError::Http)
+    }
+
+    pub async fn download(
+        url: &url::Url,
+        client: &Client,
+        headers: HeaderMap,
+    ) -> Result<String, FullTextParserError> {
+        let response = Self::get_response(url, client, headers).await?;
+        let body = Self::get_body(response).await?;
+        Ok(body)
     }
 
     fn get_encoding_from_http_header(headers: &reqwest::header::HeaderMap) -> Option<&str> {
