@@ -2,9 +2,7 @@ use std::path::Path;
 use std::{path::PathBuf, process::exit};
 
 use crate::args::{Args, Commands};
-use article_scraper::FtrConfigEntry;
-use article_scraper::FullTextParser;
-use article_scraper::Readability;
+use article_scraper::{ArticleScraper, FtrConfigEntry, FullTextParser, Readability};
 use clap::Parser;
 use reqwest::header::HeaderMap;
 use reqwest::Client;
@@ -31,7 +29,10 @@ async fn main() {
     .unwrap();
 
     match args.command {
-        Commands::All { source_url: _ } => unimplemented!(),
+        Commands::All {
+            source_url,
+            download_images,
+        } => extract_full(source_url, download_images, args.output).await,
         Commands::Readability {
             html,
             base_url,
@@ -43,6 +44,51 @@ async fn main() {
             source_url,
             config,
         } => extract_ftr(html, source_url, base_url, config, args.output).await,
+    }
+}
+
+async fn extract_full(source_url: String, download_images: bool, output: Option<PathBuf>) {
+    let scraper = ArticleScraper::new(None).await;
+
+    let source_url = match Url::parse(&source_url) {
+        Ok(url) => url,
+        Err(error) => {
+            log::error!("Failed to parse url {source_url}: {error}");
+            exit(0);
+        }
+    };
+
+    let res = scraper
+        .parse(&source_url, download_images, &Client::new())
+        .await;
+    let article = match res {
+        Ok(article) => article,
+        Err(error) => {
+            log::error!("Failed to grab article: {error}");
+            exit(0);
+        }
+    };
+
+    let output = if let Some(output) = output {
+        output
+    } else {
+        PathBuf::from("result.html")
+    };
+
+    let content = match article.get_content() {
+        Some(content) => content,
+        None => {
+            log::error!("No Content");
+            exit(0);
+        }
+    };
+
+    match std::fs::write(&output, content) {
+        Ok(()) => log::info!("successfully written result to {output:?}"),
+        Err(err) => {
+            log::error!("Failed to write to file {output:?}: {err}");
+            exit(0);
+        }
     }
 }
 

@@ -114,7 +114,7 @@ impl FullTextParser {
             .ok_or(FullTextParserError::Config)?;
 
         let headers = Util::generate_headers(config, global_config)?;
-        let response = Self::get_response(&url, &client, headers).await?;
+        let response = Self::get_response(url, client, headers).await?;
 
         // check if url redirects and we need to pick up the new url
         let url = if let Some(new_url) = Util::check_redirect(&response, url) {

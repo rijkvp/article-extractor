@@ -22,7 +22,11 @@ pub enum Commands {
     All {
         /// Source Url to download HTML from
         #[arg(long, value_name = "URL")]
-        source_url: Option<String>,
+        source_url: String,
+
+        /// Source Url to download HTML from
+        #[arg(short, long)]
+        download_images: bool,
     },
     /// Only use the Readability parser
     Readability {

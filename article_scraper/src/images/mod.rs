@@ -4,8 +4,7 @@ use base64::Engine;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
-use log::{debug, error};
-use reqwest::{Client, Response};
+use reqwest::{Client, Response, Url};
 use std::io::Cursor;
 
 mod error;
@@ -29,47 +28,7 @@ impl ImageDownloader {
             .parse_string(html)
             .map_err(|_| ImageDownloadError::HtmlParse)?;
 
-        self.download_images_from_document(&doc, client).await
-    }
-
-    pub async fn download_images_from_document(
-        &self,
-        doc: &Document,
-        client: &Client,
-    ) -> Result<String, ImageDownloadError> {
-        let xpath_ctx = Context::new(doc).map_err(|()| {
-            error!("Failed to create xpath context for document");
-            ImageDownloadError::HtmlParse
-        })?;
-
-        let xpath = "//img";
-        let node_vec = Util::evaluate_xpath(&xpath_ctx, xpath, false)
-            .map_err(|_| ImageDownloadError::HtmlParse)?;
-        for mut node in node_vec {
-            if let Some(url) = node.get_property("src") {
-                if !url.starts_with("data:") {
-                    if let Ok(url) = url::Url::parse(&url) {
-                        let parent_url = match self.check_image_parent(&node, &url, client).await {
-                            Ok(url) => Some(url),
-                            Err(_) => None,
-                        };
-
-                        if let Ok((small_image, big_image)) =
-                            self.save_image(&url, &parent_url, client).await
-                        {
-                            if node.set_property("src", &small_image).is_err() {
-                                return Err(ImageDownloadError::HtmlParse);
-                            }
-                            if let Some(big_image) = big_image {
-                                if node.set_property("big-src", &big_image).is_err() {
-                                    return Err(ImageDownloadError::HtmlParse);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        self.download_images_from_document(&doc, client).await?;
 
         let options = SaveOptions {
             format: false,
@@ -84,6 +43,67 @@ impl ImageDownloader {
         Ok(doc.to_string_with_options(options))
     }
 
+    pub async fn download_images_from_document(
+        &self,
+        doc: &Document,
+        client: &Client,
+    ) -> Result<(), ImageDownloadError> {
+        let xpath_ctx = Context::new(doc).map_err(|()| {
+            log::error!("Failed to create xpath context for document");
+            ImageDownloadError::HtmlParse
+        })?;
+
+        let xpath = "//img";
+        let node_vec = Util::evaluate_xpath(&xpath_ctx, xpath, false)
+            .map_err(|_| ImageDownloadError::HtmlParse)?;
+
+        let mut image_urls = Vec::new();
+
+        for node in node_vec {
+            image_urls.push(Self::harvest_image_urls(node, client));
+        }
+
+        let res = futures::future::join_all(image_urls).await;
+
+        // if let Ok((small_image, big_image)) = self.save_image(&url, &parent_url, client).await {
+        //     if node.set_property("src", &small_image).is_err() {
+        //         return Err(ImageDownloadError::HtmlParse);
+        //     }
+        //     if let Some(big_image) = big_image {
+        //         if node.set_property("big-src", &big_image).is_err() {
+        //             return Err(ImageDownloadError::HtmlParse);
+        //         }
+        //     }
+        // }
+
+        Ok(())
+    }
+
+    async fn harvest_image_urls(
+        node: Node,
+        client: &Client,
+    ) -> Result<(Url, Option<Url>), ImageDownloadError> {
+        let src = match node.get_property("src") {
+            Some(src) => {
+                if src.starts_with("data:") {
+                    log::debug!("");
+                    return Err(ImageDownloadError::Unknown);
+                } else {
+                    src
+                }
+            }
+            None => {
+                log::debug!("");
+                return Err(ImageDownloadError::Unknown);
+            }
+        };
+
+        let url = Url::parse(&src).map_err(ImageDownloadError::InvalidUrl)?;
+        let parent_url = Self::check_image_parent(&node, &url, client).await.ok();
+
+        Ok((url, parent_url))
+    }
+
     async fn save_image(
         &self,
         image_url: &url::Url,
@@ -91,7 +111,7 @@ impl ImageDownloader {
         client: &Client,
     ) -> Result<(String, Option<String>), ImageDownloadError> {
         let response = client.get(image_url.clone()).send().await.map_err(|err| {
-            error!("GET {} failed - {}", image_url.as_str(), err);
+            log::error!("GET {} failed - {}", image_url.as_str(), err);
             ImageDownloadError::Http
         })?;
 
@@ -152,7 +172,7 @@ impl ImageDownloader {
         let big_image_string = match big_image_base64 {
             Some(big_image_base64) => {
                 let content_type_big = content_type_big.ok_or_else(|| {
-                    debug!("content_type_big should not be None when a big image exists");
+                    log::debug!("content_type_big should not be None when a big image exists");
                     ImageDownloadError::ParentDownload
                 })?;
                 Some(format!(
@@ -179,7 +199,7 @@ impl ImageDownloader {
                 }
             }
 
-            error!("{} is not an image", response.url());
+            log::warn!("{} is not an image", response.url());
             Err(ImageDownloadError::ContentType)
         } else {
             Err(ImageDownloadError::Http)
@@ -194,7 +214,7 @@ impl ImageDownloader {
         let mut resized_image: Option<Vec<u8>> = None;
 
         let mut image = image::load_from_memory(image_buffer).map_err(|err| {
-            error!("Failed to open image to resize: {}", err);
+            log::error!("Failed to open image to resize: {}", err);
             ImageDownloadError::ImageScale
         })?;
 
@@ -204,7 +224,7 @@ impl ImageDownloader {
                 image::ImageOutputFormat::Png,
             )
             .map_err(|err| {
-                error!("Failed to save resized image to resize: {}", err);
+                log::error!("Failed to save resized image to resize: {}", err);
                 ImageDownloadError::ImageScale
             })?;
 
@@ -222,7 +242,7 @@ impl ImageDownloader {
                     image::ImageOutputFormat::Png,
                 )
                 .map_err(|err| {
-                    error!("Failed to save resized image to resize: {}", err);
+                    log::error!("Failed to save resized image to resize: {}", err);
                     ImageDownloadError::ImageScale
                 })?;
             resized_image = Some(resized_buf);
@@ -232,56 +252,71 @@ impl ImageDownloader {
     }
 
     async fn check_image_parent(
-        &self,
         node: &Node,
-        child_url: &url::Url,
+        child_url: &Url,
         client: &Client,
-    ) -> Result<url::Url, ImageDownloadError> {
-        if let Some(parent) = node.get_parent() {
-            if parent.get_name() == "a" {
-                if let Some(url) = parent.get_property("href") {
-                    let parent_url = url::Url::parse(&url).map_err(|err| {
-                        error!("Failed to parse parent image url: {}", err);
-                        ImageDownloadError::InvalidUrl(err)
-                    })?;
-                    let parent_response = client
-                        .head(parent_url.clone())
-                        .send()
-                        .await
-                        .map_err(|_| ImageDownloadError::Http)?;
-                    let _ = ImageDownloader::check_image_content_type(&parent_response)?;
-                    let child_response = client
-                        .get(child_url.clone())
-                        .send()
-                        .await
-                        .map_err(|_| ImageDownloadError::Http)?;
-                    let parent_length = Self::get_content_lenght(&parent_response)?;
-                    let child_length = Self::get_content_lenght(&child_response)?;
-
-                    if parent_length > child_length {
-                        return Ok(parent_url);
-                    }
-
-                    return Ok(child_url.clone());
-                }
+    ) -> Result<Url, ImageDownloadError> {
+        let parent = match node.get_parent() {
+            Some(parent) => parent,
+            None => {
+                log::debug!("No parent node");
+                return Err(ImageDownloadError::ParentDownload);
             }
+        };
+
+        if parent.get_name().to_lowercase() != "a" {
+            log::debug!("parent is not an <a> node");
+            return Err(ImageDownloadError::ParentDownload);
         }
 
-        debug!("Image parent element not relevant");
+        let href = match parent.get_property("href") {
+            Some(href) => href,
+            None => {
+                log::debug!("Parent doesn't have href prop");
+                return Err(ImageDownloadError::ParentDownload);
+            }
+        };
+
+        let parent_url = Url::parse(&href).map_err(|err| {
+            log::debug!("Failed to parse parent image url: {}", err);
+            ImageDownloadError::InvalidUrl(err)
+        })?;
+        let parent_response = client
+            .head(parent_url.clone())
+            .send()
+            .await
+            .map_err(|_| ImageDownloadError::Http)?;
+        let _ = ImageDownloader::check_image_content_type(&parent_response)?;
+        let child_response = client
+            .head(child_url.clone())
+            .send()
+            .await
+            .map_err(|_| ImageDownloadError::Http)?;
+        let parent_length = Self::get_content_lenght(&parent_response)?;
+        let child_length = Self::get_content_lenght(&child_response)?;
+
+        if parent_length > child_length {
+            return Ok(parent_url);
+        }
+
+        log::debug!("Image parent element not relevant");
         Err(ImageDownloadError::ParentDownload)
     }
 
     fn get_content_lenght(response: &Response) -> Result<u64, ImageDownloadError> {
-        if response.status().is_success() {
-            if let Some(content_length) = response.headers().get(reqwest::header::CONTENT_LENGTH) {
-                if let Ok(content_length) = content_length.to_str() {
-                    if let Ok(content_length) = content_length.parse::<u64>() {
-                        return Ok(content_length);
-                    }
-                }
-            }
+        let status_code = response.status();
+
+        if !status_code.is_success() {
+            log::warn!("response: {status_code}");
+            return Err(ImageDownloadError::Http);
         }
-        Err(ImageDownloadError::ContentLenght)
+
+        response
+            .headers()
+            .get(reqwest::header::CONTENT_LENGTH)
+            .and_then(|content_length| content_length.to_str().ok())
+            .and_then(|content_length| content_length.parse::<u64>().ok())
+            .ok_or(ImageDownloadError::ContentLenght)
     }
 }
 
@@ -293,7 +328,7 @@ mod tests {
     use std::io::Write;
 
     #[tokio::test]
-    async fn close_tags() {
+    async fn fedora31() {
         let image_dowloader = ImageDownloader::new((2048, 2048));
         let html = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
             .expect("Failed to read HTML");

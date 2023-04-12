@@ -33,19 +33,17 @@ impl ArticleScraper {
         download_images: bool,
         client: &Client,
     ) -> Result<Article, ScraperError> {
-        let res = self.full_text_parser.parse(url, client).await;
+        let res = self.full_text_parser.parse(url, client).await?;
 
         if download_images {
-            if let Ok(res) = res {
-                if let Some(document) = res.document.as_ref() {
-                    let _image_res = self
-                        .image_downloader
-                        .download_images_from_document(document, client)
-                        .await;
-                }
+            if let Some(document) = res.document.as_ref() {
+                let _image_res = self
+                    .image_downloader
+                    .download_images_from_document(document, client)
+                    .await;
             }
         }
 
-        unimplemented!()
+        Ok(res)
     }
 }
