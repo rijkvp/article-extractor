@@ -4,6 +4,7 @@ use base64::Engine;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
+use reqwest::header::{HeaderValue, CONTENT_TYPE};
 use reqwest::{Client, Response, Url};
 use std::io::Cursor;
 
@@ -63,26 +64,47 @@ impl ImageDownloader {
             image_urls.push(Self::harvest_image_urls(node, client));
         }
 
-        let res = futures::future::join_all(image_urls).await;
+        let res = futures::future::join_all(image_urls)
+            .await
+            .into_iter()
+            .filter_map(|r| r.ok())
+            .collect::<Vec<_>>();
 
-        // if let Ok((small_image, big_image)) = self.save_image(&url, &parent_url, client).await {
-        //     if node.set_property("src", &small_image).is_err() {
-        //         return Err(ImageDownloadError::HtmlParse);
-        //     }
-        //     if let Some(big_image) = big_image {
-        //         if node.set_property("big-src", &big_image).is_err() {
-        //             return Err(ImageDownloadError::HtmlParse);
-        //         }
-        //     }
-        // }
+        let mut download_futures = Vec::new();
+
+        for (node, url, parent_url) in res {
+            download_futures.push(self.download_and_replace_image(node, url, parent_url, client));
+        }
+
+        _ = futures::future::join_all(download_futures).await;
 
         Ok(())
+    }
+
+    async fn download_and_replace_image(
+        &self,
+        mut node: Node,
+        image_url: Url,
+        parent_url: Option<Url>,
+        client: &Client,
+    ) {
+        _ = self
+            .download_image_base64(&image_url, parent_url.as_ref(), client)
+            .await
+            .map(|(small, big)| {
+                _ = node.set_property("src", &small);
+
+                if let Some(big) = big {
+                    _ = node.set_property("big-src", &big);
+                }
+            })
+            .map_err(|error| log::error!("Failed to download image: {error}"));
     }
 
     async fn harvest_image_urls(
         node: Node,
         client: &Client,
-    ) -> Result<(Url, Option<Url>), ImageDownloadError> {
+    ) -> Result<(Node, Url, Option<Url>), ImageDownloadError> {
         let src = match node.get_property("src") {
             Some(src) => {
                 if src.starts_with("data:") {
@@ -101,13 +123,13 @@ impl ImageDownloader {
         let url = Url::parse(&src).map_err(ImageDownloadError::InvalidUrl)?;
         let parent_url = Self::check_image_parent(&node, &url, client).await.ok();
 
-        Ok((url, parent_url))
+        Ok((node, url, parent_url))
     }
 
-    async fn save_image(
+    async fn download_image_base64(
         &self,
-        image_url: &url::Url,
-        parent_url: &Option<url::Url>,
+        image_url: &Url,
+        parent_url: Option<&Url>,
         client: &Client,
     ) -> Result<(String, Option<String>), ImageDownloadError> {
         let response = client.get(image_url.clone()).send().await.map_err(|err| {
@@ -185,11 +207,9 @@ impl ImageDownloader {
         Ok((small_image_string, big_image_string))
     }
 
-    fn check_image_content_type(
-        response: &Response,
-    ) -> Result<reqwest::header::HeaderValue, ImageDownloadError> {
+    fn check_image_content_type(response: &Response) -> Result<HeaderValue, ImageDownloadError> {
         if response.status().is_success() {
-            if let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) {
+            if let Some(content_type) = response.headers().get(CONTENT_TYPE) {
                 if content_type
                     .to_str()
                     .map_err(|_| ImageDownloadError::ContentType)?
