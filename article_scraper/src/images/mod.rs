@@ -1,6 +1,8 @@
 pub use self::error::ImageDownloadError;
+use self::request::ImageRequest;
 use crate::util::Util;
 use base64::Engine;
+use image::ImageOutputFormat;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
@@ -9,6 +11,7 @@ use reqwest::{Client, Response, Url};
 use std::io::Cursor;
 
 mod error;
+mod request;
 
 pub struct ImageDownloader {
     max_size: (u32, u32),
@@ -72,8 +75,15 @@ impl ImageDownloader {
 
         let mut download_futures = Vec::new();
 
-        for (node, url, parent_url) in res {
-            download_futures.push(self.download_and_replace_image(node, url, parent_url, client));
+        for (request, parent_request) in res {
+            if let Some(parent_request) = parent_request {
+                if parent_request.content_lenght > request.content_lenght {
+                    download_futures
+                        .push(self.download_and_replace_image(parent_request, "big-src"));
+                }
+            }
+
+            download_futures.push(self.download_and_replace_image(request, "src"));
         }
 
         _ = futures::future::join_all(download_futures).await;
@@ -81,22 +91,19 @@ impl ImageDownloader {
         Ok(())
     }
 
-    async fn download_and_replace_image(
-        &self,
-        mut node: Node,
-        image_url: Url,
-        parent_url: Option<Url>,
-        client: &Client,
-    ) {
-        _ = self
-            .download_image_base64(&image_url, parent_url.as_ref(), client)
-            .await
-            .map(|(small, big)| {
-                _ = node.set_property("src", &small);
+    async fn download_and_replace_image(&self, request: ImageRequest, prop_name: &str) {
+        let ImageRequest {
+            mut node,
+            http_response,
+            content_lenght,
+            content_type,
+        } = request;
 
-                if let Some(big) = big {
-                    _ = node.set_property("big-src", &big);
-                }
+        _ = self
+            .download_image_base64(http_response, content_lenght, content_type)
+            .await
+            .map(|image| {
+                _ = node.set_property(prop_name, &image);
             })
             .map_err(|error| log::error!("Failed to download image: {error}"));
     }
@@ -104,7 +111,7 @@ impl ImageDownloader {
     async fn harvest_image_urls(
         node: Node,
         client: &Client,
-    ) -> Result<(Node, Url, Option<Url>), ImageDownloadError> {
+    ) -> Result<(ImageRequest, Option<ImageRequest>), ImageDownloadError> {
         let src = match node.get_property("src") {
             Some(src) => {
                 if src.starts_with("data:") {
@@ -121,132 +128,81 @@ impl ImageDownloader {
         };
 
         let url = Url::parse(&src).map_err(ImageDownloadError::InvalidUrl)?;
-        let parent_url = Self::check_image_parent(&node, &url, client).await.ok();
+        let parent_request = Self::check_image_parent(&node, client).await.ok();
 
-        Ok((node, url, parent_url))
+        println!("url: {url}");
+
+        let response = client
+            .get(url)
+            .send()
+            .await
+            .map_err(|_| ImageDownloadError::Http)?;
+        let content_type = ImageDownloader::get_content_type(&response);
+        let content_lenght = Self::get_content_lenght(&response).unwrap_or(0);
+
+        let request = ImageRequest {
+            node,
+            http_response: response,
+            content_lenght,
+            content_type,
+        };
+
+        Ok((request, parent_request))
     }
 
     async fn download_image_base64(
         &self,
-        image_url: &Url,
-        parent_url: Option<&Url>,
-        client: &Client,
-    ) -> Result<(String, Option<String>), ImageDownloadError> {
-        let response = client.get(image_url.clone()).send().await.map_err(|err| {
-            log::error!("GET {} failed - {}", image_url.as_str(), err);
-            ImageDownloadError::Http
-        })?;
+        http_response: Response,
+        content_length: u64,
+        content_type: Option<HeaderValue>,
+    ) -> Result<String, ImageDownloadError> {
+        if content_length == 0 {
+            return Err(ImageDownloadError::ContentLenght);
+        }
 
-        let content_type_small = ImageDownloader::check_image_content_type(&response)?;
-        let content_type_small = content_type_small
-            .to_str()
-            .map_err(|_| ImageDownloadError::ContentType)?;
-        let mut content_type_big: Option<String> = None;
+        let content_type = content_type
+            .as_ref()
+            .and_then(|content_type| content_type.to_str().ok())
+            .ok_or_else(|| ImageDownloadError::ContentType)?;
 
-        let mut small_image = response
+        if !content_type.contains("image") {
+            return Err(ImageDownloadError::ContentType);
+        }
+
+        let mut image = http_response
             .bytes()
             .await
             .map_err(|_| ImageDownloadError::Http)?
             .as_ref()
             .to_vec();
 
-        let mut big_image: Option<Vec<u8>> = None;
-
-        if let Some(parent_url) = parent_url {
-            let response_big = client
-                .get(parent_url.clone())
-                .send()
-                .await
-                .map_err(|_| ImageDownloadError::Http)?;
-            content_type_big = Some(
-                ImageDownloader::check_image_content_type(&response_big)?
-                    .to_str()
-                    .map_err(|_| ImageDownloadError::ContentType)?
-                    .to_owned(),
-            );
-            big_image = Some(
-                response_big
-                    .bytes()
-                    .await
-                    .map_err(|_| ImageDownloadError::Http)?
-                    .to_vec(),
-            );
-        }
-
-        if content_type_small != "image/svg+xml" && content_type_small != "image/gif" {
-            let (original_image, resized_image) = Self::scale_image(&small_image, self.max_size)?;
-            if let Some(resized_image) = resized_image {
-                small_image = resized_image;
-                if big_image.is_none() {
-                    big_image = Some(original_image);
-                    content_type_big = Some(content_type_small.to_owned());
-                }
-            } else {
-                small_image = original_image;
+        if content_type != "image/svg+xml" && content_type != "image/gif" {
+            if let Some(resized_image) = Self::scale_image(&image, self.max_size) {
+                image = resized_image;
             }
         }
 
-        let small_image_base64 = base64::engine::general_purpose::STANDARD.encode(&small_image);
-        let big_image_base64 =
-            big_image.map(|img| base64::engine::general_purpose::STANDARD.encode(img));
-        let small_image_string =
-            format!("data:{};base64,{}", content_type_small, small_image_base64);
-        let big_image_string = match big_image_base64 {
-            Some(big_image_base64) => {
-                let content_type_big = content_type_big.ok_or_else(|| {
-                    log::debug!("content_type_big should not be None when a big image exists");
-                    ImageDownloadError::ParentDownload
-                })?;
-                Some(format!(
-                    "data:{};base64,{}",
-                    content_type_big, big_image_base64
-                ))
-            }
-            None => None,
-        };
-        Ok((small_image_string, big_image_string))
+        let image_base64 = base64::engine::general_purpose::STANDARD.encode(&image);
+        let image_string = format!("data:{};base64,{}", content_type, image_base64);
+        Ok(image_string)
     }
 
-    fn check_image_content_type(response: &Response) -> Result<HeaderValue, ImageDownloadError> {
+    fn get_content_type(response: &Response) -> Option<HeaderValue> {
         if response.status().is_success() {
-            if let Some(content_type) = response.headers().get(CONTENT_TYPE) {
-                if content_type
-                    .to_str()
-                    .map_err(|_| ImageDownloadError::ContentType)?
-                    .contains("image")
-                {
-                    return Ok(content_type.clone());
-                }
-            }
-
-            log::warn!("{} is not an image", response.url());
-            Err(ImageDownloadError::ContentType)
+            response.headers().get(CONTENT_TYPE).cloned()
         } else {
-            Err(ImageDownloadError::Http)
+            None
         }
     }
 
-    fn scale_image(
-        image_buffer: &[u8],
-        max_dimensions: (u32, u32),
-    ) -> Result<(Vec<u8>, Option<Vec<u8>>), ImageDownloadError> {
-        let mut original_image: Vec<u8> = Vec::new();
-        let mut resized_image: Option<Vec<u8>> = None;
-
-        let mut image = image::load_from_memory(image_buffer).map_err(|err| {
-            log::error!("Failed to open image to resize: {}", err);
-            ImageDownloadError::ImageScale
-        })?;
-
-        image
-            .write_to(
-                &mut Cursor::new(&mut original_image),
-                image::ImageOutputFormat::Png,
-            )
-            .map_err(|err| {
-                log::error!("Failed to save resized image to resize: {}", err);
-                ImageDownloadError::ImageScale
-            })?;
+    fn scale_image(image_buffer: &[u8], max_dimensions: (u32, u32)) -> Option<Vec<u8>> {
+        let mut image = match image::load_from_memory(image_buffer) {
+            Err(error) => {
+                log::error!("Failed to open image to resize: {}", error);
+                return None;
+            }
+            Ok(image) => image,
+        };
 
         let dimensions = (image.width(), image.height());
         if dimensions.0 > max_dimensions.0 || dimensions.1 > max_dimensions.1 {
@@ -256,26 +212,23 @@ impl ImageDownloader {
                 image::imageops::FilterType::Lanczos3,
             );
             let mut resized_buf: Vec<u8> = Vec::new();
-            image
-                .write_to(
-                    &mut Cursor::new(&mut resized_buf),
-                    image::ImageOutputFormat::Png,
-                )
-                .map_err(|err| {
-                    log::error!("Failed to save resized image to resize: {}", err);
-                    ImageDownloadError::ImageScale
-                })?;
-            resized_image = Some(resized_buf);
-        }
+            if let Err(error) =
+                image.write_to(&mut Cursor::new(&mut resized_buf), ImageOutputFormat::Png)
+            {
+                log::error!("Failed to save resized image to resize: {}", error);
+                return None;
+            }
 
-        Ok((original_image, resized_image))
+            Some(resized_buf)
+        } else {
+            None
+        }
     }
 
     async fn check_image_parent(
         node: &Node,
-        child_url: &Url,
         client: &Client,
-    ) -> Result<Url, ImageDownloadError> {
+    ) -> Result<ImageRequest, ImageDownloadError> {
         let parent = match node.get_parent() {
             Some(parent) => parent,
             None => {
@@ -301,26 +254,23 @@ impl ImageDownloader {
             log::debug!("Failed to parse parent image url: {}", err);
             ImageDownloadError::InvalidUrl(err)
         })?;
-        let parent_response = client
-            .head(parent_url.clone())
+
+        println!("parent url: {parent_url}");
+
+        let response = client
+            .get(parent_url.clone())
             .send()
             .await
             .map_err(|_| ImageDownloadError::Http)?;
-        let _ = ImageDownloader::check_image_content_type(&parent_response)?;
-        let child_response = client
-            .head(child_url.clone())
-            .send()
-            .await
-            .map_err(|_| ImageDownloadError::Http)?;
-        let parent_length = Self::get_content_lenght(&parent_response)?;
-        let child_length = Self::get_content_lenght(&child_response)?;
+        let content_type = ImageDownloader::get_content_type(&response);
+        let content_lenght = Self::get_content_lenght(&response).unwrap_or(0);
 
-        if parent_length > child_length {
-            return Ok(parent_url);
-        }
-
-        log::debug!("Image parent element not relevant");
-        Err(ImageDownloadError::ParentDownload)
+        Ok(ImageRequest {
+            node: parent,
+            http_response: response,
+            content_lenght,
+            content_type,
+        })
     }
 
     fn get_content_lenght(response: &Response) -> Result<u64, ImageDownloadError> {
