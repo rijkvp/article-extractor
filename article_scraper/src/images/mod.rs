@@ -6,8 +6,7 @@ use image::ImageOutputFormat;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
-use reqwest::header::{HeaderValue, CONTENT_TYPE};
-use reqwest::{Client, Response, Url};
+use reqwest::{Client, Url};
 use std::io::Cursor;
 
 mod error;
@@ -76,36 +75,12 @@ impl ImageDownloader {
         let mut download_futures = Vec::new();
 
         for (request, parent_request) in res {
-            if let Some(parent_request) = parent_request {
-                if parent_request.content_lenght > request.content_lenght {
-                    download_futures
-                        .push(self.download_and_replace_image(parent_request, "big-src"));
-                }
-            }
-
-            download_futures.push(self.download_and_replace_image(request, "src"));
+            download_futures.push(self.download_and_replace_image(request, parent_request));
         }
 
         _ = futures::future::join_all(download_futures).await;
 
         Ok(())
-    }
-
-    async fn download_and_replace_image(&self, request: ImageRequest, prop_name: &str) {
-        let ImageRequest {
-            mut node,
-            http_response,
-            content_lenght,
-            content_type,
-        } = request;
-
-        _ = self
-            .download_image_base64(http_response, content_lenght, content_type)
-            .await
-            .map(|image| {
-                _ = node.set_property(prop_name, &image);
-            })
-            .map_err(|error| log::error!("Failed to download image: {error}"));
     }
 
     async fn harvest_image_urls(
@@ -128,71 +103,58 @@ impl ImageDownloader {
         };
 
         let url = Url::parse(&src).map_err(ImageDownloadError::InvalidUrl)?;
-        let parent_request = Self::check_image_parent(&node, client).await.ok();
+        let parent_url = Self::check_image_parent(&node).await.ok();
 
-        println!("url: {url}");
-
-        let response = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|_| ImageDownloadError::Http)?;
-        let content_type = ImageDownloader::get_content_type(&response);
-        let content_lenght = Self::get_content_lenght(&response).unwrap_or(0);
-
-        let request = ImageRequest {
-            node,
-            http_response: response,
-            content_lenght,
-            content_type,
+        let request = ImageRequest::new(node.clone(), &url, client).await?;
+        let parent_request = match parent_url {
+            Some(parent_url) => Some(ImageRequest::new(node, &parent_url, client).await?),
+            None => None,
         };
 
         Ok((request, parent_request))
     }
 
-    async fn download_image_base64(
+    async fn download_and_replace_image(
         &self,
-        http_response: Response,
-        content_length: u64,
-        content_type: Option<HeaderValue>,
-    ) -> Result<String, ImageDownloadError> {
-        if content_length == 0 {
-            return Err(ImageDownloadError::ContentLenght);
+        mut request: ImageRequest,
+        mut parent_request: Option<ImageRequest>,
+    ) -> Result<(), ImageDownloadError> {
+        let mut image = request.download().await?;
+        let mut parent_image: Option<Vec<u8>> = None;
+
+        if let Some(parent_request) = parent_request.as_mut() {
+            if parent_request.content_length() > request.content_length() {
+                parent_image = parent_request.download().await.ok();
+            }
         }
 
-        let content_type = content_type
-            .as_ref()
-            .and_then(|content_type| content_type.to_str().ok())
-            .ok_or(ImageDownloadError::ContentType)?;
-
-        if !content_type.contains("image") {
-            return Err(ImageDownloadError::ContentType);
-        }
-
-        let mut image = http_response
-            .bytes()
-            .await
-            .map_err(|_| ImageDownloadError::Http)?
-            .as_ref()
-            .to_vec();
-
-        if content_type != "image/svg+xml" && content_type != "image/gif" {
+        if request.content_type() != "image/svg+xml" && request.content_type() != "image/gif" {
             if let Some(resized_image) = Self::scale_image(&image, self.max_size) {
+                if parent_image.is_none() {
+                    parent_image = Some(image);
+                }
                 image = resized_image;
             }
         }
 
         let image_base64 = base64::engine::general_purpose::STANDARD.encode(&image);
-        let image_string = format!("data:{};base64,{}", content_type, image_base64);
-        Ok(image_string)
-    }
+        let image_string = format!("data:{};base64,{}", request.content_type(), image_base64);
+        request.write_image_to_property("src", &image_string);
 
-    fn get_content_type(response: &Response) -> Option<HeaderValue> {
-        if response.status().is_success() {
-            response.headers().get(CONTENT_TYPE).cloned()
-        } else {
-            None
+        if let Some(parent_image) = parent_image {
+            let parent_image_base64 =
+                base64::engine::general_purpose::STANDARD.encode(parent_image);
+
+            let content_type = parent_request
+                .map(|pr| pr.content_type().to_string())
+                .unwrap_or(request.content_type().to_string());
+            let parent_image_string =
+                format!("data:{};base64,{}", content_type, parent_image_base64);
+
+            request.write_image_to_property("big-src", &parent_image_string);
         }
+
+        Ok(())
     }
 
     fn scale_image(image_buffer: &[u8], max_dimensions: (u32, u32)) -> Option<Vec<u8>> {
@@ -225,10 +187,7 @@ impl ImageDownloader {
         }
     }
 
-    async fn check_image_parent(
-        node: &Node,
-        client: &Client,
-    ) -> Result<ImageRequest, ImageDownloadError> {
+    async fn check_image_parent(node: &Node) -> Result<Url, ImageDownloadError> {
         let parent = match node.get_parent() {
             Some(parent) => parent,
             None => {
@@ -255,38 +214,7 @@ impl ImageDownloader {
             ImageDownloadError::InvalidUrl(err)
         })?;
 
-        println!("parent url: {parent_url}");
-
-        let response = client
-            .get(parent_url.clone())
-            .send()
-            .await
-            .map_err(|_| ImageDownloadError::Http)?;
-        let content_type = ImageDownloader::get_content_type(&response);
-        let content_lenght = Self::get_content_lenght(&response).unwrap_or(0);
-
-        Ok(ImageRequest {
-            node: parent,
-            http_response: response,
-            content_lenght,
-            content_type,
-        })
-    }
-
-    fn get_content_lenght(response: &Response) -> Result<u64, ImageDownloadError> {
-        let status_code = response.status();
-
-        if !status_code.is_success() {
-            log::warn!("response: {status_code}");
-            return Err(ImageDownloadError::Http);
-        }
-
-        response
-            .headers()
-            .get(reqwest::header::CONTENT_LENGTH)
-            .and_then(|content_length| content_length.to_str().ok())
-            .and_then(|content_length| content_length.parse::<u64>().ok())
-            .ok_or(ImageDownloadError::ContentLenght)
+        Ok(parent_url)
     }
 }
 

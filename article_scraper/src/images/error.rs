@@ -11,7 +11,7 @@ pub enum ImageDownloadError {
     #[error("Generating image name failed")]
     ImageName,
     #[error("Getting the content-length property failed")]
-    ContentLenght,
+    ContentLength,
     #[error("Content-type suggest no image")]
     ContentType,
     #[error("Http error")]
