@@ -163,7 +163,7 @@ impl ImageDownloader {
         let content_type = content_type
             .as_ref()
             .and_then(|content_type| content_type.to_str().ok())
-            .ok_or_else(|| ImageDownloadError::ContentType)?;
+            .ok_or(ImageDownloadError::ContentType)?;
 
         if !content_type.contains("image") {
             return Err(ImageDownloadError::ContentType);
