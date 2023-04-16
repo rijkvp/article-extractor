@@ -1,4 +1,5 @@
 mod article;
+pub mod clean;
 mod constants;
 mod error;
 mod full_text_parser;
