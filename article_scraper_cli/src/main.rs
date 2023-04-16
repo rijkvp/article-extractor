@@ -2,11 +2,14 @@ use std::path::Path;
 use std::{path::PathBuf, process::exit};
 
 use crate::args::{Args, Commands};
+use article_scraper::images::Progress;
 use article_scraper::{ArticleScraper, FtrConfigEntry, FullTextParser, Readability};
 use clap::Parser;
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use reqwest::header::HeaderMap;
 use reqwest::Client;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
+use tokio::sync::mpsc::{self, Sender};
 use url::Url;
 
 mod args;
@@ -58,8 +61,10 @@ async fn extract_full(source_url: String, download_images: bool, output: Option<
         }
     };
 
+    let tx = monitor_progress();
+
     let res = scraper
-        .parse(&source_url, download_images, &Client::new())
+        .parse(&source_url, download_images, &Client::new(), Some(tx))
         .await;
     let article = match res {
         Ok(article) => article,
@@ -204,4 +209,43 @@ async fn get_html(html_file: Option<PathBuf>, source_url: Option<String>) -> Str
     } else {
         unreachable!()
     }
+}
+
+fn monitor_progress() -> Sender<Progress> {
+    let (tx, mut rx) = mpsc::channel::<Progress>(2);
+
+    tokio::spawn(async move {
+        let mut progress_bar: Option<ProgressBar> = None;
+
+        while let Some(progress) = rx.recv().await {
+            if let Some(progress_bar) = progress_bar.as_ref() {
+                if progress.downloaded >= progress.total_size {
+                    progress_bar.finish_with_message("done");
+                } else {
+                    progress_bar.set_position(progress.downloaded as u64);
+                }
+            } else {
+                let pb = ProgressBar::new(progress.total_size as u64);
+                pb.set_style(
+                    ProgressStyle::with_template(
+                        "[{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})",
+                    )
+                    .unwrap()
+                    .with_key(
+                        "eta",
+                        |state: &ProgressState, w: &mut dyn std::fmt::Write| {
+                            write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+                        },
+                    )
+                    .progress_chars("#>-"),
+                );
+
+                pb.set_position(progress.downloaded as u64);
+
+                progress_bar = Some(pb);
+            }
+        }
+    });
+
+    tx
 }

@@ -959,10 +959,6 @@ impl FullTextParser {
             }
         }
 
-        if !found_something {
-            log::error!("no body found");
-        }
-
         Ok(found_something)
     }
 

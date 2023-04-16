@@ -5,6 +5,7 @@ mod full_text_parser;
 pub mod images;
 mod util;
 
+use crate::images::Progress;
 use article::Article;
 use error::ScraperError;
 pub use full_text_parser::config::ConfigEntry as FtrConfigEntry;
@@ -13,6 +14,7 @@ pub use full_text_parser::Readability;
 use images::ImageDownloader;
 use reqwest::Client;
 use std::path::Path;
+use tokio::sync::mpsc::Sender;
 
 pub struct ArticleScraper {
     full_text_parser: FullTextParser,
@@ -32,6 +34,7 @@ impl ArticleScraper {
         url: &url::Url,
         download_images: bool,
         client: &Client,
+        progress: Option<Sender<Progress>>,
     ) -> Result<Article, ScraperError> {
         let res = self.full_text_parser.parse(url, client).await?;
 
@@ -39,7 +42,7 @@ impl ArticleScraper {
             if let Some(document) = res.document.as_ref() {
                 let _image_res = self
                     .image_downloader
-                    .download_images_from_document(document, client)
+                    .download_images_from_document(document, client, progress)
                     .await;
             }
         }

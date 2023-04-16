@@ -2,16 +2,17 @@ pub use self::error::ImageDownloadError;
 use self::request::ImageRequest;
 use crate::util::Util;
 use base64::Engine;
-use byte_unit::Byte;
 use image::ImageOutputFormat;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
+pub use progress::Progress;
 use reqwest::{Client, Url};
 use std::io::Cursor;
 use tokio::sync::mpsc::{self, Sender};
 
 mod error;
+mod progress;
 mod request;
 
 pub struct ImageDownloader {
@@ -27,13 +28,15 @@ impl ImageDownloader {
         &self,
         html: &str,
         client: &Client,
+        progress: Option<Sender<Progress>>,
     ) -> Result<String, ImageDownloadError> {
         let parser = Parser::default_html();
         let doc = parser
             .parse_string(html)
             .map_err(|_| ImageDownloadError::HtmlParse)?;
 
-        self.download_images_from_document(&doc, client).await?;
+        self.download_images_from_document(&doc, client, progress)
+            .await?;
 
         let options = SaveOptions {
             format: false,
@@ -52,6 +55,7 @@ impl ImageDownloader {
         &self,
         doc: &Document,
         client: &Client,
+        progress: Option<Sender<Progress>>,
     ) -> Result<(), ImageDownloadError> {
         let xpath_ctx = Context::new(doc).map_err(|()| {
             log::error!("Failed to create xpath context for document");
@@ -74,7 +78,7 @@ impl ImageDownloader {
             .filter_map(|r| r.ok())
             .collect::<Vec<_>>();
 
-        let size = res
+        let total_size = res
             .iter()
             .map(|(req, parent_req)| {
                 req.content_length() + parent_req.as_ref().map(|r| r.content_length()).unwrap_or(0)
@@ -95,16 +99,18 @@ impl ImageDownloader {
 
         tokio::spawn(async move {
             let mut received = 0_usize;
-            let size = Byte::from_bytes(size as u128);
-            let adjusted_size = size.get_appropriate_unit(true);
-            println!("downloading {adjusted_size}");
 
             while let Some(i) = rx.recv().await {
                 received += i;
 
-                let received_bytes = Byte::from_bytes(received as u128);
-                let received_adjusted = received_bytes.get_appropriate_unit(true);
-                println!("received {received_adjusted} / {adjusted_size}");
+                if let Some(progress) = progress.as_ref() {
+                    _ = progress
+                        .send(Progress {
+                            total_size,
+                            downloaded: received,
+                        })
+                        .await;
+                }
             }
         });
 
@@ -262,7 +268,7 @@ mod tests {
         let html = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
             .expect("Failed to read HTML");
         let result = image_dowloader
-            .download_images_from_string(&html, &Client::new())
+            .download_images_from_string(&html, &Client::new(), None)
             .await
             .expect("Failed to downalod images");
         let mut file = fs::File::create(r"./test_output/fedora31_images_downloaded.html")
