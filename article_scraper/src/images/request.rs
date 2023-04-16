@@ -1,12 +1,14 @@
+use futures::StreamExt;
 use libxml::tree::Node;
 use reqwest::{header::CONTENT_TYPE, Client, Response, Url};
+use tokio::sync::mpsc::Sender;
 
 use super::ImageDownloadError;
 
 pub struct ImageRequest {
     node: Node,
     http_response: Option<Response>,
-    content_length: u64,
+    content_length: usize,
     content_type: String,
 }
 
@@ -33,14 +35,19 @@ impl ImageRequest {
         })
     }
 
-    pub async fn download(&mut self) -> Result<Vec<u8>, ImageDownloadError> {
+    pub async fn download(&mut self, tx: &Sender<usize>) -> Result<Vec<u8>, ImageDownloadError> {
         if let Some(http_response) = self.http_response.take() {
-            let result = http_response
-                .bytes()
-                .await
-                .map_err(|_| ImageDownloadError::Http)?
-                .as_ref()
-                .to_vec();
+            let mut stream = http_response.bytes_stream();
+
+            let mut result = Vec::with_capacity(self.content_length);
+            while let Some(item) = stream.next().await {
+                let chunk = item.map_err(|_| ImageDownloadError::Http)?;
+                _ = tx.send(chunk.len()).await;
+                for byte in chunk {
+                    result.push(byte);
+                }
+            }
+
             Ok(result)
         } else {
             log::warn!("imagerequest already consumed");
@@ -52,7 +59,7 @@ impl ImageRequest {
         &self.content_type
     }
 
-    pub fn content_length(&self) -> u64 {
+    pub fn content_length(&self) -> usize {
         self.content_length
     }
 
@@ -60,7 +67,7 @@ impl ImageRequest {
         _ = self.node.set_property(prop_name, data);
     }
 
-    fn get_content_length(response: &Response) -> Result<u64, ImageDownloadError> {
+    fn get_content_length(response: &Response) -> Result<usize, ImageDownloadError> {
         let status_code = response.status();
 
         if !status_code.is_success() {
@@ -72,7 +79,7 @@ impl ImageRequest {
             .headers()
             .get(reqwest::header::CONTENT_LENGTH)
             .and_then(|content_length| content_length.to_str().ok())
-            .and_then(|content_length| content_length.parse::<u64>().ok())
+            .and_then(|content_length| content_length.parse::<usize>().ok())
             .ok_or(ImageDownloadError::ContentLength)
     }
 

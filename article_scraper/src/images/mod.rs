@@ -2,12 +2,14 @@ pub use self::error::ImageDownloadError;
 use self::request::ImageRequest;
 use crate::util::Util;
 use base64::Engine;
+use byte_unit::Byte;
 use image::ImageOutputFormat;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, SaveOptions};
 use libxml::xpath::Context;
 use reqwest::{Client, Url};
 use std::io::Cursor;
+use tokio::sync::mpsc::{self, Sender};
 
 mod error;
 mod request;
@@ -72,11 +74,39 @@ impl ImageDownloader {
             .filter_map(|r| r.ok())
             .collect::<Vec<_>>();
 
+        let size = res
+            .iter()
+            .map(|(req, parent_req)| {
+                req.content_length() + parent_req.as_ref().map(|r| r.content_length()).unwrap_or(0)
+            })
+            .sum::<usize>();
+
+        let (tx, mut rx) = mpsc::channel::<usize>(2);
+
         let mut download_futures = Vec::new();
 
         for (request, parent_request) in res {
-            download_futures.push(self.download_and_replace_image(request, parent_request));
+            download_futures.push(self.download_and_replace_image(
+                request,
+                parent_request,
+                tx.clone(),
+            ));
         }
+
+        tokio::spawn(async move {
+            let mut received = 0_usize;
+            let size = Byte::from_bytes(size as u128);
+            let adjusted_size = size.get_appropriate_unit(true);
+            println!("downloading {adjusted_size}");
+
+            while let Some(i) = rx.recv().await {
+                received += i;
+
+                let received_bytes = Byte::from_bytes(received as u128);
+                let received_adjusted = received_bytes.get_appropriate_unit(true);
+                println!("received {received_adjusted} / {adjusted_size}");
+            }
+        });
 
         _ = futures::future::join_all(download_futures).await;
 
@@ -118,13 +148,14 @@ impl ImageDownloader {
         &self,
         mut request: ImageRequest,
         mut parent_request: Option<ImageRequest>,
+        tx: Sender<usize>,
     ) -> Result<(), ImageDownloadError> {
-        let mut image = request.download().await?;
+        let mut image = request.download(&tx).await?;
         let mut parent_image: Option<Vec<u8>> = None;
 
         if let Some(parent_request) = parent_request.as_mut() {
             if parent_request.content_length() > request.content_length() {
-                parent_image = parent_request.download().await.ok();
+                parent_image = parent_request.download(&tx).await.ok();
             }
         }
 
