@@ -267,7 +267,7 @@ impl FullTextParser {
         Ok(())
     }
 
-    fn parse_html(
+    pub(crate) fn parse_html(
         html: &str,
         config: Option<&ConfigEntry>,
         global_config: &ConfigEntry,
@@ -293,7 +293,7 @@ impl FullTextParser {
         })
     }
 
-    fn get_xpath_ctx(doc: &Document) -> Result<Context, FullTextParserError> {
+    pub(crate) fn get_xpath_ctx(doc: &Document) -> Result<Context, FullTextParserError> {
         Context::new(doc).map_err(|()| {
             log::error!("Creating xpath context failed for downloaded HTML");
             FullTextParserError::Xml
@@ -727,7 +727,7 @@ impl FullTextParser {
         _ = Self::repair_urls(context, "//iframe", "src", url, document);
     }
 
-    fn prep_content(
+    pub(crate) fn prep_content(
         context: &Context,
         config: Option<&ConfigEntry>,
         global_config: &ConfigEntry,
