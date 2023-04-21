@@ -58,23 +58,30 @@ impl FullTextParser {
             date: None,
             thumbnail_url: None,
             document: None,
+            root_node: None,
         };
 
-        let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
+        let mut new_document = Document::new().map_err(|()| FullTextParserError::Xml)?;
         let mut root =
-            Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
-        document.set_root_element(&root);
+            Node::new("article", None, &new_document).map_err(|()| FullTextParserError::Xml)?;
+        new_document.set_root_element(&root);
 
-        Self::generate_head(&mut root, &document)?;
+        Self::generate_head(&mut root, &new_document)?;
 
-        let document = Self::parse_html(html, config, global_config)?;
-        let xpath_ctx = Self::get_xpath_ctx(&document)?;
+        let old_document = Self::parse_html(html, config, global_config)?;
+        let xpath_ctx = Self::get_xpath_ctx(&old_document)?;
 
         metadata::extract(&xpath_ctx, config, Some(global_config), &mut article);
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, &mut article);
         }
-        Self::prep_content(&xpath_ctx, config, global_config, &article.url, &document);
+        Self::prep_content(
+            &xpath_ctx,
+            config,
+            global_config,
+            &article.url,
+            &old_document,
+        );
         let found_body = Self::extract_body(&xpath_ctx, &mut root, config, global_config)?;
         if !found_body {
             log::error!("Ftr failed to find content");
@@ -90,9 +97,10 @@ impl FullTextParser {
             return Err(error);
         }
 
-        Self::post_process_document(&document)?;
+        Self::post_process_document(&new_document)?;
 
-        article.document = Some(document);
+        article.document = Some(new_document);
+        article.root_node = Some(root);
         let html = article.get_content().ok_or(FullTextParserError::Scrape)?;
         Ok(html)
     }
@@ -136,6 +144,7 @@ impl FullTextParser {
             date: None,
             thumbnail_url: None,
             document: None,
+            root_node: None,
         };
 
         let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
@@ -181,6 +190,7 @@ impl FullTextParser {
         Self::post_process_document(&document)?;
 
         article.document = Some(document);
+        article.root_node = Some(root);
 
         Ok(article)
     }

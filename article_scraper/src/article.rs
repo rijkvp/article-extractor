@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use libxml::tree::{Document, SaveOptions};
+use libxml::tree::{Document, SaveOptions, Node};
 use std::fs::File;
 use std::io::{Error, ErrorKind, Write};
 use std::path::PathBuf;
@@ -12,10 +12,11 @@ pub struct Article {
     pub date: Option<DateTime<Utc>>,
     pub thumbnail_url: Option<String>,
     pub document: Option<Document>,
+    pub root_node: Option<Node>,
 }
 
 impl Article {
-    pub fn get_content(&self) -> Option<String> {
+    pub fn get_doc_content(&self) -> Option<String> {
         // serialize content
         let options = SaveOptions {
             format: true,
@@ -30,6 +31,14 @@ impl Article {
         self.document
             .as_ref()
             .map(|doc| doc.to_string_with_options(options))
+    }
+
+    pub fn get_content(&self) -> Option<String> {
+        if let (Some(document), Some(root)) = (self.document.as_ref(), self.root_node.as_ref()) {
+            Some(document.node_to_string(root))
+        } else {
+            None
+        }
     }
 
     pub fn save_html(&self, path: &PathBuf) -> Result<(), Error> {

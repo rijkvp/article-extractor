@@ -34,6 +34,7 @@ impl Readability {
             date: None,
             thumbnail_url: None,
             document: None,
+            root_node: None,
         };
 
         let mut article_document = Document::new().map_err(|()| FullTextParserError::Xml)?;
@@ -46,6 +47,7 @@ impl Readability {
         crate::FullTextParser::post_process_document(&article_document)?;
 
         article.document = Some(article_document);
+        article.root_node = Some(root);
         let html = article
             .get_content()
             .ok_or(FullTextParserError::Readability)?;

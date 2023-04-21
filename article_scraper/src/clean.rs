@@ -1,7 +1,8 @@
-use libxml::tree::SaveOptions;
+use libxml::tree::Node;
 use reqwest::Url;
 
 use crate::full_text_parser::error::FullTextParserError;
+use crate::util::Util;
 use crate::{FtrConfigEntry, FullTextParser};
 
 pub fn clean_html(html: &str, base_url: &Url) -> Result<String, FullTextParserError> {
@@ -12,34 +13,26 @@ pub fn clean_html(html: &str, base_url: &Url) -> Result<String, FullTextParserEr
     let xpath_ctx = FullTextParser::get_xpath_ctx(&document)?;
     FullTextParser::prep_content(&xpath_ctx, None, &empty_config, base_url, &document);
     if let Some(mut root) = document.get_root_element() {
-       FullTextParser::post_process_page(&mut root)?;
+        FullTextParser::post_process_page(&mut root)?;
     }
     FullTextParser::post_process_document(&document)?;
 
-    // serialize content
-    let options = SaveOptions {
-        format: true,
-        no_declaration: false,
-        no_empty_tags: true,
-        no_xhtml: false,
-        xhtml: false,
-        as_xml: false,
-        as_html: true,
-        non_significant_whitespace: false,
-    };
+    let mut article_node =
+        Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
+    let content_nodes = Util::evaluate_xpath(&xpath_ctx, "//body/*", true)?;
 
-    if let Some(root) = document.get_root_element() {
-        Ok(document.node_to_string(&root))
-    } else {
-        Ok(document.to_string_with_options(options))
+    for mut node in content_nodes {
+        node.unlink();
+        article_node.add_child(&mut node).unwrap();
     }
+
+    Ok(document.node_to_string(&article_node))
 }
 
 #[cfg(test)]
 mod tests {
-    use reqwest::Url;
     use super::clean_html;
-
+    use reqwest::Url;
 
     #[test]
     fn clean() {
@@ -47,7 +40,6 @@ mod tests {
         let url = Url::parse("https://finshots.in").unwrap();
         let res = clean_html(&html, &url).unwrap();
 
-        println!("{res}");
-        assert_eq!(res.len(), 12118);
+        assert_eq!(res.len(), 11965);
     }
 }

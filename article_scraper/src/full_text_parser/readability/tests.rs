@@ -30,6 +30,7 @@ async fn run_test(name: &str) {
         date: None,
         thumbnail_url: None,
         document: None,
+        root_node: None,
     };
 
     let mut article_document = Document::new().unwrap();
@@ -41,6 +42,7 @@ async fn run_test(name: &str) {
     crate::FullTextParser::post_process_document(&article_document).unwrap();
 
     article.document = Some(article_document);
+    article.root_node = Some(root);
     let html = article.get_content().unwrap();
 
     let expected = std::fs::read_to_string(format!(
