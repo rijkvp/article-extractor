@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use libxml::tree::{Document, SaveOptions, Node};
+use libxml::tree::{Document, Node, SaveOptions};
 use std::fs::File;
 use std::io::{Error, ErrorKind, Write};
 use std::path::PathBuf;
