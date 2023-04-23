@@ -4,8 +4,10 @@ version = "2.0.0-alpha.0"
 authors = ["Jan Lukas Gernert <jangernert@gmail.com>"]
 edition = "2018"
 license = "GPL-3.0-or-later"
-description = "Scrap article contents from the web. Powered by fivefilters full text feed configurations."
+description = "Scrap article contents from the web. Powered by fivefilters full text feed configurations & mozilla readability."
 repository = "https://gitlab.com/news-flash/article_scraper"
+readme = "../Readme.md"
+keywords = ["article", "scrape", "full-text", "readability"]
 
 [dependencies]
 thiserror = "1.0"
