@@ -11,10 +11,32 @@ use self::state::State;
 use super::error::FullTextParserError;
 use crate::{constants, util::Util};
 
+/// Rust port of mozilla readability algorithm
+/// 
+/// Used as fallback for `ArticleScraper` if no fitting config can be found
 pub struct Readability;
 
 impl Readability {
-    pub async fn extract_from_str(
+    /// Parse HTML and extract meaningful content
+    ///
+    /// # Arguments
+    ///
+    /// * `html` - HTML of a website containing an article or similar content
+    /// * `base_url` - URL used to complete relative URLs
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let html = reqwest::get("https://www.nytimes.com/interactive/2023/04/21/science/parrots-video-chat-facetime.html")
+    ///     .await
+    ///     .unwrap()
+    ///     .text()
+    ///     .await
+    ///     .unwrap();
+    /// let base_url = Url::parse("https://www.nytimes.com").unwrap();
+    /// let extracted_content = Readability::extract(&html, Some(base_url)).unwrap();
+    /// ```
+    pub async fn extract(
         html: &str,
         base_url: Option<url::Url>,
     ) -> Result<String, FullTextParserError> {
@@ -55,7 +77,7 @@ impl Readability {
         Ok(html)
     }
 
-    pub fn extract_body(
+    pub(crate) fn extract_body(
         document: Document,
         root: &mut Node,
         title: Option<&str>,

@@ -154,7 +154,7 @@ async fn extract_readability(
 ) {
     let base_url = base_url.map(|url| Url::parse(&url).expect("invalid base url"));
     let html = get_html(html_file, source_url).await;
-    let result = match Readability::extract_from_str(&html, base_url).await {
+    let result = match Readability::extract(&html, base_url).await {
         Ok(res) => res,
         Err(err) => {
             log::error!("Failed to extract content with readability: {err}");
