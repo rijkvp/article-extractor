@@ -5,7 +5,7 @@ use crate::full_text_parser::error::FullTextParserError;
 use crate::util::Util;
 use crate::{FtrConfigEntry, FullTextParser};
 
-/// Re-use crate internals to clean HTML of articles before 
+/// Re-use crate internals to clean HTML of articles before
 /// further processing:
 /// - replace H1 with H2
 /// - rename all font nodes to span

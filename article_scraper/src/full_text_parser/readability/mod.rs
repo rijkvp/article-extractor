@@ -12,7 +12,7 @@ use super::error::FullTextParserError;
 use crate::{constants, util::Util};
 
 /// Rust port of mozilla readability algorithm
-/// 
+///
 /// Used as fallback for `ArticleScraper` if no fitting config can be found
 pub struct Readability;
 
