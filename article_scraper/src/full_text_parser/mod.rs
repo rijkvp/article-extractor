@@ -71,7 +71,8 @@ impl FullTextParser {
         let old_document = Self::parse_html(html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&old_document)?;
 
-        if let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config, &article.url) {
+        if let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config, &article.url)
+        {
             log::info!("Next page url: {url}");
         }
 
@@ -240,7 +241,8 @@ impl FullTextParser {
         }
 
         metadata::extract(&xpath_ctx, config, Some(global_config), article);
-        let mut next_page_url = self.check_for_next_page(&xpath_ctx, config, global_config, &article.url);
+        let mut next_page_url =
+            self.check_for_next_page(&xpath_ctx, config, global_config, &article.url);
 
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
@@ -263,7 +265,9 @@ impl FullTextParser {
             let html = Self::download(&url, client, headers).await?;
             document = Self::parse_html(&html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
-            if let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config, &article.url) {
+            if let Some(url) =
+                self.check_for_next_page(&xpath_ctx, config, global_config, &article.url)
+            {
                 next_page_url.replace(url);
             }
             Self::prep_content(&xpath_ctx, config, global_config, &article.url, &document);
@@ -1034,7 +1038,7 @@ impl FullTextParser {
     }
 
     fn parse_url(url: &str, article_url: &url::Url) -> Option<url::Url> {
-        let is_relative_url = url::Url::parse(&url)
+        let is_relative_url = url::Url::parse(url)
             .err()
             .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
             .unwrap_or(false);
@@ -1042,7 +1046,7 @@ impl FullTextParser {
         if is_relative_url {
             article_url.join(url.trim()).ok()
         } else {
-            url::Url::parse(&url).ok()
+            url::Url::parse(url).ok()
         }
     }
 

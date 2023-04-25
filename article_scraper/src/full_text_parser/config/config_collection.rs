@@ -71,8 +71,8 @@ impl ConfigCollection {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
     use super::ConfigCollection;
+    use std::path::Path;
 
     #[tokio::test]
     async fn read_dir() {
