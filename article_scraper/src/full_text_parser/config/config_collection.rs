@@ -43,13 +43,11 @@ impl ConfigCollection {
             }
 
             if let Ok(mut dir) = tokio::fs::read_dir(directory).await {
-                while let Ok(entry) = dir.next_entry().await {
-                    if let Some(entry) = entry {
-                        if Util::check_extension(&entry, "txt") {
-                            if let Ok(config) = ConfigEntry::parse_path(&entry.path()).await {
-                                let file_name = entry.file_name().to_string_lossy().into_owned();
-                                user_entries.insert(file_name, config);
-                            }
+                while let Ok(Some(entry)) = dir.next_entry().await {
+                    if Util::check_extension(&entry, "txt") {
+                        if let Ok(config) = ConfigEntry::parse_path(&entry.path()).await {
+                            let file_name = entry.file_name().to_string_lossy().into_owned();
+                            user_entries.insert(file_name, config);
                         }
                     }
                 }
@@ -68,5 +66,17 @@ impl ConfigCollection {
         } else {
             self.embedded_entries.get(key)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+    use super::ConfigCollection;
+
+    #[tokio::test]
+    async fn read_dir() {
+        let path = Path::new("~/.local/share/news-flash/ftr-site-config");
+        let _collection = ConfigCollection::parse(Some(path)).await;
     }
 }
