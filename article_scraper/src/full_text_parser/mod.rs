@@ -71,6 +71,10 @@ impl FullTextParser {
         let old_document = Self::parse_html(html, config, global_config)?;
         let xpath_ctx = Self::get_xpath_ctx(&old_document)?;
 
+        if let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config, &article.url) {
+            log::info!("Next page url: {url}");
+        }
+
         metadata::extract(&xpath_ctx, config, Some(global_config), &mut article);
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, &mut article);
@@ -86,10 +90,6 @@ impl FullTextParser {
         if !found_body {
             log::error!("Ftr failed to find content");
             return Err(FullTextParserError::Scrape);
-        }
-
-        while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
-            log::info!("Next page url: {url}");
         }
 
         if let Err(error) = Self::prevent_self_closing_tags(&xpath_ctx) {
@@ -240,6 +240,8 @@ impl FullTextParser {
         }
 
         metadata::extract(&xpath_ctx, config, Some(global_config), article);
+        let mut next_page_url = self.check_for_next_page(&xpath_ctx, config, global_config, &article.url);
+
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
         }
@@ -254,14 +256,17 @@ impl FullTextParser {
             }
         }
 
-        while let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config) {
+        while let Some(url) = next_page_url.take() {
             log::debug!("next page");
 
             let headers = Util::generate_headers(config, global_config)?;
             let html = Self::download(&url, client, headers).await?;
             document = Self::parse_html(&html, config, global_config)?;
             xpath_ctx = Self::get_xpath_ctx(&document)?;
-            Self::prep_content(&xpath_ctx, config, global_config, &url, &document);
+            if let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config, &article.url) {
+                next_page_url.replace(url);
+            }
+            Self::prep_content(&xpath_ctx, config, global_config, &article.url, &document);
             let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
             if !found_body {
@@ -1005,19 +1010,20 @@ impl FullTextParser {
         context: &Context,
         config: Option<&ConfigEntry>,
         global_config: &ConfigEntry,
+        article_url: &url::Url,
     ) -> Option<url::Url> {
         if let Some(config) = config {
             if let Some(next_page_xpath) = config.next_page_link.as_deref() {
                 if let Ok(next_page_string) = Util::get_attribute(context, next_page_xpath, "href")
                 {
-                    if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
+                    if let Some(next_page_url) = Self::parse_url(&next_page_string, article_url) {
                         return Some(next_page_url);
                     }
                 }
             }
         } else if let Some(next_page_xpath) = global_config.next_page_link.as_deref() {
             if let Ok(next_page_string) = Util::get_attribute(context, next_page_xpath, "href") {
-                if let Ok(next_page_url) = url::Url::parse(&next_page_string) {
+                if let Some(next_page_url) = Self::parse_url(&next_page_string, article_url) {
                     return Some(next_page_url);
                 }
             }
@@ -1025,6 +1031,19 @@ impl FullTextParser {
 
         // last page reached
         None
+    }
+
+    fn parse_url(url: &str, article_url: &url::Url) -> Option<url::Url> {
+        let is_relative_url = url::Url::parse(&url)
+            .err()
+            .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
+            .unwrap_or(false);
+
+        if is_relative_url {
+            article_url.join(url.trim()).ok()
+        } else {
+            url::Url::parse(&url).ok()
+        }
     }
 
     fn generate_head(root: &mut Node, document: &Document) -> Result<(), FullTextParserError> {
