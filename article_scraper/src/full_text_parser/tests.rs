@@ -69,6 +69,17 @@ async fn youtube() {
 }
 
 #[tokio::test]
+async fn hardwareluxx() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let out_path = PathBuf::from(r"./test_output");
+    let url = url::Url::parse("https://www.hardwareluxx.de/index.php/news/software/spiele/60882-half-life-mit-ray-tracing-mod-gibt-dem-25-jahr-alten-shooter-neuen-glanz.html").unwrap();
+
+    let grabber = FullTextParser::new(None).await;
+    let article = grabber.parse(&url, &Client::new()).await.unwrap();
+    article.save_html(&out_path).unwrap();
+}
+
+#[tokio::test]
 async fn encoding_windows_1252() {
     let _ = env_logger::builder().is_test(true).try_init();
     let url = url::Url::parse("https://www.aerzteblatt.de/nachrichten/139511/Scholz-zuversichtlich-mit-Blick-auf-Coronasituation-im-Winter").unwrap();

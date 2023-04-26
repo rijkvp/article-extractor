@@ -45,6 +45,8 @@ async fn run_test(name: &str) {
     article.root_node = Some(root);
     let html = article.get_content().unwrap();
 
+    //std::fs::write(format!("./resources/tests/readability/{name}/expected.html"), &html).unwrap();
+
     let expected = std::fs::read_to_string(format!(
         "./resources/tests/readability/{name}/expected.html"
     ))
