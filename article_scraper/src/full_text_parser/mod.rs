@@ -381,7 +381,11 @@ impl FullTextParser {
                     if let Some(encoding) = Self::get_encoding_from_html(&lossy_string) {
                         log::debug!("Encoding extracted from HTML: '{}'", encoding);
                         if let Some(decoded_html) = Self::decode_html(&bytes, encoding) {
-                            let decoded_html = decoded_html.replacen(&format!("charset=\"{encoding}\""), "charset=\"utf-8\"", 1);
+                            let decoded_html = decoded_html.replacen(
+                                &format!("charset=\"{encoding}\""),
+                                "charset=\"utf-8\"",
+                                1,
+                            );
                             return Ok(decoded_html);
                         }
                     }
@@ -389,7 +393,11 @@ impl FullTextParser {
                     if let Some(encoding) = Self::get_encoding_from_http_header(&headers) {
                         log::debug!("Encoding extracted from headers: '{}'", encoding);
                         if let Some(decoded_html) = Self::decode_html(&bytes, encoding) {
-                            let decoded_html = decoded_html.replacen(&format!("charset=\"{encoding}\""), "charset=\"utf-8\"", 1);
+                            let decoded_html = decoded_html.replacen(
+                                &format!("charset=\"{encoding}\""),
+                                "charset=\"utf-8\"",
+                                1,
+                            );
                             return Ok(decoded_html);
                         }
                     }
