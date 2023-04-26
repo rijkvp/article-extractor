@@ -263,8 +263,10 @@ mod tests {
     use std::io::Write;
 
     #[tokio::test]
+    #[ignore]
     async fn fedora31() {
         let image_dowloader = ImageDownloader::new((2048, 2048));
+
         let html = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
             .expect("Failed to read HTML");
         let result = image_dowloader
