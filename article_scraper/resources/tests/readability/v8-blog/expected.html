@@ -8,7 +8,7 @@
                     <p>
                         First, let's see what you can do with this new feature! Similar to <a href="https://hacks.mozilla.org/2018/01/shrinking-webassembly-and-javascript-code-sizes-in-emscripten/" target="_blank">this post</a> let's start with a "hello world" type program that exports a single function that adds two numbers:
                     </p>
-                    <pre><code><span>// add.c</span><br><span><span>#</span><span>include</span> <span>&lt;emscripten.h&gt;</span></span><br><br>EMSCRIPTEN_KEEPALIVE<br><span>int</span> <span>add</span><span>(</span><span>int</span> x<span>,</span> <span>int</span> y<span>)</span> <span>{</span><br>  <span>return</span> x <span>+</span> y<span>;</span><br><span>}</span></code></pre>
+                    <pre><code><span>// add.c</span><br/><span><span>#</span><span>include</span> <span>&lt;emscripten.h&gt;</span></span><br/><br/>EMSCRIPTEN_KEEPALIVE<br/><span>int</span> <span>add</span><span>(</span><span>int</span> x<span>,</span> <span>int</span> y<span>)</span> <span>{</span><br/>  <span>return</span> x <span>+</span> y<span>;</span><br/><span>}</span></code></pre>
                     <p>
                         We'd normally build this with something like <code>emcc -O3 add.c -o add.js</code> which would emit <code>add.js</code> and <code>add.wasm</code>. Instead, let's ask <code>emcc</code> to only emit Wasm:
                     </p>
@@ -20,11 +20,11 @@
                     <p>
                         Disassembling it, it's very minimal - just 87 bytes! It contains the obvious <code>add</code> function
                     </p>
-                    <pre><code><span>(</span><span>func</span> $add <span>(</span><span>param</span> $0 i32<span>)</span> <span>(</span><span>param</span> $1 i32<span>)</span> <span>(</span><span>result</span> i32<span>)</span><br> <span>(</span><span>i32</span>.add<br>  <span>(</span><span>local</span>.get $0<span>)</span><br>  <span>(</span><span>local</span>.get $1<span>)</span><br> <span>)</span><br><span>)</span></code></pre>
+                    <pre><code><span>(</span><span>func</span> $add <span>(</span><span>param</span> $0 i32<span>)</span> <span>(</span><span>param</span> $1 i32<span>)</span> <span>(</span><span>result</span> i32<span>)</span><br/> <span>(</span><span>i32</span>.add<br/>  <span>(</span><span>local</span>.get $0<span>)</span><br/>  <span>(</span><span>local</span>.get $1<span>)</span><br/> <span>)</span><br/><span>)</span></code></pre>
                     <p>
                         and one more function, <code>_start</code>,
                     </p>
-                    <pre><code><span>(</span><span>func</span> $_start<br> <span>(</span><span>nop</span><span>)</span><br><span>)</span></code></pre>
+                    <pre><code><span>(</span><span>func</span> $_start<br/> <span>(</span><span>nop</span><span>)</span><br/><span>)</span></code></pre>
                     <p>
                         <code>_start</code> is part of the <a href="https://github.com/WebAssembly/WASI" target="_blank">WASI</a> spec, and Emscripten's standalone mode emits it so that we can run in WASI runtimes. (Normally <code>_start</code> would do global initialization, but here we just don't need any so it's empty.)
                     </p>
@@ -34,7 +34,7 @@
                     <p>
                         One nice thing about a standalone Wasm file like this is that you can write custom JavaScript to load and run it, which can be very minimal depending on your use case. For example, we can do this in Node.js:
                     </p>
-                    <pre><code><span>// load-add.js</span><br><span>const</span> binary <span>=</span> <span>require</span><span>(</span><span>'fs'</span><span>)</span><span>.</span><span>readFileSync</span><span>(</span><span>'add.wasm'</span><span>)</span><span>;</span><br><br>WebAssembly<span>.</span><span>instantiate</span><span>(</span>binary<span>)</span><span>.</span><span>then</span><span>(</span><span>(</span><span><span>{</span> instance <span>}</span></span><span>)</span> <span>=&gt;</span> <span>{</span><br>  console<span>.</span><span>log</span><span>(</span>instance<span>.</span>exports<span>.</span><span>add</span><span>(</span><span>40</span><span>,</span> <span>2</span><span>)</span><span>)</span><span>;</span><br><span>}</span><span>)</span><span>;</span></code></pre>
+                    <pre><code><span>// load-add.js</span><br/><span>const</span> binary <span>=</span> <span>require</span><span>(</span><span>'fs'</span><span>)</span><span>.</span><span>readFileSync</span><span>(</span><span>'add.wasm'</span><span>)</span><span>;</span><br/><br/>WebAssembly<span>.</span><span>instantiate</span><span>(</span>binary<span>)</span><span>.</span><span>then</span><span>(</span><span>(</span><span><span>{</span> instance <span>}</span></span><span>)</span> <span>=&gt;</span> <span>{</span><br/>  console<span>.</span><span>log</span><span>(</span>instance<span>.</span>exports<span>.</span><span>add</span><span>(</span><span>40</span><span>,</span> <span>2</span><span>)</span><span>)</span><span>;</span><br/><span>}</span><span>)</span><span>;</span></code></pre>
                     <p>
                         Just 4 lines! Running that prints <code>42</code> as expected. Note that while this example is very simplistic, there are cases where you simply don't need much JavaScript, and may be able to do better than Emscripten's default JavaScript runtime (which supports a bunch of environments and options). A real-world example of that is in <a href="https://github.com/zeux/meshoptimizer/blob/bdc3006532dd29b03d83dc819e5fa7683815b88e/js/meshopt_decoder.js" target="_blank">zeux's meshoptimizer</a> - just 57 lines, including memory management, growth, etc.!
                     </p>
@@ -44,11 +44,11 @@
                     <p>
                         Another nice thing about standalone Wasm files is that you can run them in Wasm runtimes like <a href="https://wasmer.io/" target="_blank">wasmer</a>, <a href="https://github.com/bytecodealliance/wasmtime" target="_blank">wasmtime</a>, or <a href="https://github.com/WAVM/WAVM" target="_blank">WAVM</a>. For example, consider this hello world:
                     </p>
-                    <pre><code><span>// hello.cpp</span><br><span><span>#</span><span>include</span> <span>&lt;stdio.h&gt;</span></span><br><br><span>int</span> <span>main</span><span>(</span><span>)</span> <span>{</span><br>  <span>printf</span><span>(</span><span>"hello, world!\n"</span><span>)</span><span>;</span><br>  <span>return</span> <span>0</span><span>;</span><br><span>}</span></code></pre>
+                    <pre><code><span>// hello.cpp</span><br/><span><span>#</span><span>include</span> <span>&lt;stdio.h&gt;</span></span><br/><br/><span>int</span> <span>main</span><span>(</span><span>)</span> <span>{</span><br/>  <span>printf</span><span>(</span><span>"hello, world!\n"</span><span>)</span><span>;</span><br/>  <span>return</span> <span>0</span><span>;</span><br/><span>}</span></code></pre>
                     <p>
                         We can build and run that in any of those runtimes:
                     </p>
-                    <pre><code>$ emcc hello.cpp -O3 -o hello.wasm<br>$ wasmer run hello.wasm<br>hello, world<span>!</span><br>$ wasmtime hello.wasm<br>hello, world<span>!</span><br>$ wavm run hello.wasm<br>hello, world<span>!</span></code></pre>
+                    <pre><code>$ emcc hello.cpp -O3 -o hello.wasm<br/>$ wasmer run hello.wasm<br/>hello, world<span>!</span><br/>$ wasmtime hello.wasm<br/>hello, world<span>!</span><br/>$ wavm run hello.wasm<br/>hello, world<span>!</span></code></pre>
                     <p>
                         Emscripten uses WASI APIs as much as possible, so programs like this end up using 100% WASI and can run in WASI-supporting runtimes (see notes later on what programs require more than WASI).
                     </p>

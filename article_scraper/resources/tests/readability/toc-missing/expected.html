@@ -1,5 +1,5 @@
 <article><DIV id="readability-page-1"><article data-progress-indicator="">
-                    <hr>
+                    <hr/>
                     <p>
                         Many developers think that having a critical bug in their code is the worst thing that can happen. Well, there is something much worse than that: Having a critical bug in your code and <strong>not knowing about it!</strong>
                     </p>
@@ -10,9 +10,9 @@
                         I'm not a statistician and not a data scientist, I'm just a developer. Before I introduce dependencies into my system I make sure I really can't do without them. So, <strong>using some high school level statistics and a fair knowledge of SQL, I implemented a simple anomaly detection system <em>that works</em>.</strong>
                     </p>
                     <figure>
-                        <img alt='Can you spot the anomaly?&lt;br&gt;&lt;small&gt;Photo by &lt;a href="https://unsplash.com/photos/KmKZV8pso-s"&gt;Ricardo Gomez Angel&lt;/a&gt;&lt;/small&gt;' src="https://hakibenita.com/images/00-sql-anomaly-detection.png">
+                        <img alt="Can you spot the anomaly?&lt;br&gt;&lt;small&gt;Photo by &lt;a href=&quot;https://unsplash.com/photos/KmKZV8pso-s&quot;&gt;Ricardo Gomez Angel&lt;/a&gt;&lt;/small&gt;" src="https://hakibenita.com/images/00-sql-anomaly-detection.png"/>
                         <figcaption>
-                            Can you spot the anomaly?<br>
+                            Can you spot the anomaly?<br/>
                             <small>Photo by <a href="https://unsplash.com/photos/KmKZV8pso-s" target="_blank">Ricardo Gomez Angel</a></small>
                         </figcaption>
                     </figure>
@@ -87,9 +87,9 @@
                             </ul>
                         </div>
                     </details>
-                    <hr>
+                    <hr/>
                     
-                    <hr>
+                    <hr/>
                     <h2 id="detecting-anomalies">
                         <a href="#detecting-anomalies">Detecting Anomalies</a>
                     </h2>
@@ -104,7 +104,7 @@
                         The number that stands out in this series is 12.
                     </p>
                     <figure>
-                        <img alt="Scatter plot" src="https://hakibenita.com/images/00-sql-anomaly-detection-scatter-plot.png">
+                        <img alt="Scatter plot" src="https://hakibenita.com/images/00-sql-anomaly-detection-scatter-plot.png"/>
                         <figcaption>
                             Scatter plot
                         </figcaption>
@@ -337,7 +337,7 @@
                     <p>
                         The quality of our results are directly related to the parameters we set for the query. Later we'll see how using backtesting can help us identify ideal values.
                     </p>
-                    <hr>
+                    <hr/>
                     <h2 id="analyzing-a-server-log">
                         <a href="#analyzing-a-server-log">Analyzing a Server Log</a>
                     </h2>
@@ -464,7 +464,7 @@
                         To get a sense of the data, let's draw a stacked bar chart by status:
                     </p>
                     <figure>
-                        <img alt="stacked bar chart by status, over time" src="https://hakibenita.com/images/00-sql-anomaly-detection-chart-by-status-over-time.png">
+                        <img alt="stacked bar chart by status, over time" src="https://hakibenita.com/images/00-sql-anomaly-detection-chart-by-status-over-time.png"/>
                         <figcaption>
                             stacked bar chart by status, over time
                         </figcaption>
@@ -593,7 +593,7 @@
                         It does look like in the last couple of minutes we are getting more errors than expected.
                     </p>
                     <figure>
-                        <img alt="Status 400 in the past hour" src="https://hakibenita.com/images/00-sql-anomaly-detection-400.png">
+                        <img alt="Status 400 in the past hour" src="https://hakibenita.com/images/00-sql-anomaly-detection-400.png"/>
                         <figcaption>
                             Status 400 in the past hour
                         </figcaption>
@@ -601,7 +601,7 @@
                     <p>
                         What our naked eye missed in the chart and in the raw data, was found by the query, and was classified as an anomaly. We are off to a great start!
                     </p>
-                    <hr>
+                    <hr/>
                     <h2 id="backtesting">
                         <a href="#backtesting">Backtesting</a>
                     </h2>
@@ -984,7 +984,7 @@
                         </li>
                     </ul>
                     <figure>
-                        <img alt="Anomaly in status code 400" src="https://hakibenita.com/images/00-sql-anomaly-detection-400.png">
+                        <img alt="Anomaly in status code 400" src="https://hakibenita.com/images/00-sql-anomaly-detection-400.png"/>
                         <figcaption>
                             Anomaly in status code 400
                         </figcaption>
@@ -994,7 +994,7 @@
                         </li>
                     </ul>
                     <figure>
-                        <img alt="Anomaly in status code 500" src="https://hakibenita.com/images/00-sql-anomaly-detection-500.png">
+                        <img alt="Anomaly in status code 500" src="https://hakibenita.com/images/00-sql-anomaly-detection-500.png"/>
                         <figcaption>
                             Anomaly in status code 500
                         </figcaption>
@@ -1004,7 +1004,7 @@
                         </li>
                     </ul>
                     <figure>
-                        <img alt="A hidden anomaly in status code 404" src="https://hakibenita.com/images/00-sql-anomaly-detection-404.png">
+                        <img alt="A hidden anomaly in status code 404" src="https://hakibenita.com/images/00-sql-anomaly-detection-404.png"/>
                         <figcaption>
                             A hidden anomaly in status code 404
                         </figcaption>
@@ -1033,7 +1033,7 @@
                         Now that we have a working query to backtest, we can experiment with different values.
                     </p>
                     <figure>
-                        <img alt="Experimenting with parameter values" src="https://hakibenita.com/images/00-sql-anomaly-detection-parameters.png">
+                        <img alt="Experimenting with parameter values" src="https://hakibenita.com/images/00-sql-anomaly-detection-parameters.png"/>
                         <figcaption>
                             Experimenting with parameter values
                         </figcaption>
@@ -1042,7 +1042,7 @@
                         This is a chart showing the alerts our system identified in the past 12 hours:
                     </p>
                     <figure>
-                        <img alt='Backtesting with default parameters. &lt;a href="https://popsql.com/queries/-MECQV6GiKr04WdCWM0K/simple-anomaly-detection-with-sql?access_token=2d2c0729f9a1cfa7b6a2dbb5b0adb45c"&gt;View in editor&lt;/a&gt;' src="https://hakibenita.com/images/00-sql-anomaly-detection-backtest-10-3-60.png">
+                        <img alt="Backtesting with default parameters. &lt;a href=&quot;https://popsql.com/queries/-MECQV6GiKr04WdCWM0K/simple-anomaly-detection-with-sql?access_token=2d2c0729f9a1cfa7b6a2dbb5b0adb45c&quot;&gt;View in editor&lt;/a&gt;" src="https://hakibenita.com/images/00-sql-anomaly-detection-backtest-10-3-60.png"/>
                         <figcaption>
                             Backtesting with default parameters. <a href="https://popsql.com/queries/-MECQV6GiKr04WdCWM0K/simple-anomaly-detection-with-sql?access_token=2d2c0729f9a1cfa7b6a2dbb5b0adb45c" target="_blank">View in editor</a>
                         </figcaption>
@@ -1054,7 +1054,7 @@
                         If we decrease the value of the z-score threshold from 3 to 1, we should get more alerts. With a lower threshold, more values are likely to be considered an anomaly:
                     </p>
                     <figure>
-                        <img alt="Backtesting with lower z-score threshold" src="https://hakibenita.com/images/00-sql-anomaly-detection-backtest-10-1-60.png">
+                        <img alt="Backtesting with lower z-score threshold" src="https://hakibenita.com/images/00-sql-anomaly-detection-backtest-10-1-60.png"/>
                         <figcaption>
                             Backtesting with lower z-score threshold
                         </figcaption>
@@ -1063,7 +1063,7 @@
                         If we increase the entries threshold from 10 to 30, we should get less alerts:
                     </p>
                     <figure>
-                        <img alt="Backtesting with higher entries threshold" src="https://hakibenita.com/images/00-sql-anomaly-detection-backtest-30-3-60.png">
+                        <img alt="Backtesting with higher entries threshold" src="https://hakibenita.com/images/00-sql-anomaly-detection-backtest-30-3-60.png"/>
                         <figcaption>
                             Backtesting with higher entries threshold
                         </figcaption>
@@ -1072,7 +1072,7 @@
                         If we increase the backtest period from 60 minutes to 360 minutes, we get more alerts:
                     </p>
                     <figure>
-                        <img alt="Backtesting with higher entries threshold" src="https://hakibenita.com/images/00-sql-anomaly-detection-backtest-30-3-360.png">
+                        <img alt="Backtesting with higher entries threshold" src="https://hakibenita.com/images/00-sql-anomaly-detection-backtest-30-3-360.png"/>
                         <figcaption>
                             Backtesting with higher entries threshold
                         </figcaption>
@@ -1080,7 +1080,7 @@
                     <p>
                         A good alerting system is a system that produces true alerts, at a reasonable time. Using the backtesting query you can experiment with different values that produces quality alerts you can act on.
                     </p>
-                    <hr>
+                    <hr/>
                     <h2 id="improving-accuracy">
                         <a href="#improving-accuracy">Improving Accuracy</a>
                     </h2>
@@ -1200,14 +1200,14 @@
                         <li>To reduce the amount of false positives, you can normalize the number of responses to the proportion of the total responses. This way, for example, if you're using a flaky remote service that fails once after every certain amount of requests, using the proportion may not trigger an alert when the increase in errors correlates with an increase in overall traffic.
                         </li>
                     </ul>
-                    <hr>
+                    <hr/>
                     <h2 id="conclusion">
                         <a href="#conclusion">Conclusion</a>
                     </h2>
                     <p>
                         The method presented above is a very simple method to detect anomalies and produce actionable alerts that can potentially save you a lot of grief. There are many tools out there that provide similar functionally, but they require either tight integration or $$$. The main appeal of this approach is that you can get started with tools you probably already have, some SQL and a scheduled task!
                     </p>
-                    <hr>
+                    <hr/>
                     <p>
                         <strong>UPDATE:</strong> many readers asked me how I created the charts in this article... well, I used <a href="https://popsql.com/" rel="noopener" target="_blank">PopSQL</a>. It’s a new modern SQL editor focused on collaborative editing. If you're in the market for one, go check it out...
                     </p>
