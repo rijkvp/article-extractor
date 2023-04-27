@@ -1115,6 +1115,7 @@ impl FullTextParser {
 
     pub(crate) fn post_process_page(node: &mut Node) -> Result<(), FullTextParserError> {
         Util::clean_headers(node);
+        Util::replace_schema_org_orbjects(node);
         Util::clean_conditionally(node, "fieldset");
         Util::clean_conditionally(node, "table");
         Util::clean_conditionally(node, "ul");

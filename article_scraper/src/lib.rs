@@ -42,6 +42,7 @@ mod full_text_parser;
 #[doc(hidden)]
 pub mod images;
 mod util;
+mod video_object;
 
 use crate::images::Progress;
 use article::Article;

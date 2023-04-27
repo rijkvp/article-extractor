@@ -13,6 +13,7 @@ use tokio::fs::DirEntry;
 use crate::{
     constants,
     full_text_parser::{config::ConfigEntry, error::FullTextParserError},
+    video_object::VideoObject,
 };
 
 pub struct Util;
@@ -566,6 +567,16 @@ impl Util {
                     node.get_attribute("class").unwrap_or_default()
                 );
                 node.unlink();
+            }
+        }
+    }
+
+    pub fn replace_schema_org_orbjects(root: &mut Node) {
+        let nodes = Util::get_elements_by_tag_name(root, "div");
+
+        for mut node in nodes.into_iter().rev() {
+            if let Some(video_object) = VideoObject::parse_node(&node) {
+                _ = video_object.replace(&mut node);
             }
         }
     }
