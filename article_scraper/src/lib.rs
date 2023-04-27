@@ -25,11 +25,13 @@
 //! use url::Url;
 //! use reqwest::Client;
 //!
-//! let scraper = ArticleScraper::new(None);
-//! let url = Url::parse("https://www.nytimes.com/interactive/2023/04/21/science/parrots-video-chat-facetime.html");
-//! let client = Client::new();
-//! let article = scraper.parse(&url, false, &client, None).await.unwrap();
-//! let html = article.get_doc_content();
+//! async fn demo() {
+//!     let scraper = ArticleScraper::new(None).await;
+//!     let url = Url::parse("https://www.nytimes.com/interactive/2023/04/21/science/parrots-video-chat-facetime.html").unwrap();
+//!     let client = Client::new();
+//!     let article = scraper.parse(&url, false, &client, None).await.unwrap();
+//!     let html = article.get_doc_content();
+//! }
 //! ```
 
 mod article;
@@ -92,11 +94,17 @@ impl ArticleScraper {
     /// # Examples
     ///
     /// ```
-    /// let scraper = ArticleScraper::new(None);
-    /// let url = Url::parse("https://www.nytimes.com/interactive/2023/04/21/science/parrots-video-chat-facetime.html");
-    /// let client = Client::new();
-    /// let article = scraper.parse(&url, false, &client, None).await.unwrap();
-    /// let html = article.get_doc_content();
+    /// use article_scraper::ArticleScraper;
+    /// use url::Url;
+    /// use reqwest::Client;
+    ///
+    /// async fn demo() {
+    ///     let scraper = ArticleScraper::new(None).await;
+    ///     let url = Url::parse("https://www.nytimes.com/interactive/2023/04/21/science/parrots-video-chat-facetime.html").unwrap();
+    ///     let client = Client::new();
+    ///     let article = scraper.parse(&url, false, &client, None).await.unwrap();
+    ///     let html = article.get_doc_content();
+    /// }
     /// ```
     pub async fn parse(
         &self,

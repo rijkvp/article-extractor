@@ -40,8 +40,13 @@ impl FullTextParser {
         html: &str,
         config: Option<&ConfigEntry>,
         base_url: Option<Url>,
-    ) -> Result<String, FullTextParserError> {
+    ) -> Result<Article, FullTextParserError> {
         libxml::tree::node::set_node_rc_guard(10);
+
+        if config.is_none() && base_url.is_none() {
+            log::error!("need either a config or the base_url to look for a config");
+            return Err(FullTextParserError::Config);
+        }
 
         let global_config = self
             .config_files
@@ -50,6 +55,12 @@ impl FullTextParser {
 
         let url =
             base_url.unwrap_or_else(|| url::Url::parse("http://fakehost/test/base/").unwrap());
+
+        let config = if config.is_none() {
+            self.get_grabber_config(&url)
+        } else {
+            config
+        };
 
         let mut article = Article {
             title: None,
@@ -102,8 +113,8 @@ impl FullTextParser {
 
         article.document = Some(new_document);
         article.root_node = Some(root);
-        let html = article.get_content().ok_or(FullTextParserError::Scrape)?;
-        Ok(html)
+
+        Ok(article)
     }
 
     pub(crate) async fn parse(

@@ -263,7 +263,7 @@ mod tests {
     use std::io::Write;
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "downloads content from the web"]
     async fn fedora31() {
         let image_dowloader = ImageDownloader::new((2048, 2048));
 
