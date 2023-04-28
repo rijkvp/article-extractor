@@ -13,6 +13,7 @@ use tokio::fs::DirEntry;
 use crate::{
     constants,
     full_text_parser::{config::ConfigEntry, error::FullTextParserError},
+    image_object::ImageObject,
     video_object::VideoObject,
 };
 
@@ -577,6 +578,8 @@ impl Util {
         for mut node in nodes.into_iter().rev() {
             if let Some(video_object) = VideoObject::parse_node(&node) {
                 _ = video_object.replace(&mut node);
+            } else if let Some(image_object) = ImageObject::parse_node(&node) {
+                _ = image_object.replace(&mut node);
             }
         }
     }
@@ -669,6 +672,13 @@ impl Util {
             let content_length = content.len();
             let has_figure_ancestor =
                 Self::has_ancestor_tag(node, "figure", None, None::<fn(&Node) -> bool>);
+
+            let image_obj_count = Util::get_elements_by_tag_name(node, "imageobject").len();
+            let video_obj_count = Util::get_elements_by_tag_name(node, "videoobject").len();
+
+            if image_obj_count > 0 || video_obj_count > 0 {
+                return false;
+            }
 
             let have_to_remove = (img > 1 && (p as f64 / img as f64) < 0.5 && !has_figure_ancestor)
                 || (!is_list && li > p as i64)

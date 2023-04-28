@@ -90,7 +90,27 @@ impl VideoObject {
         let mut parent = node.get_parent().ok_or(FullTextParserError::Xml)?;
         node.unlink();
 
-        let mut a = parent
+        let mut root = parent
+            .new_child(None, "videoobject")
+            .map_err(|_| FullTextParserError::Xml)?;
+
+        if let Some(name) = self.name.as_deref() {
+            let mut title = root
+                .new_child(None, "h3")
+                .map_err(|_| FullTextParserError::Xml)?;
+            _ = title.set_content(name);
+        }
+
+        if self.name != self.description {
+            if let Some(description) = self.description.as_deref() {
+                let mut desc = root
+                    .new_child(None, "p")
+                    .map_err(|_| FullTextParserError::Xml)?;
+                _ = desc.set_content(description);
+            }
+        }
+
+        let mut a = root
             .new_child(None, "a")
             .map_err(|_| FullTextParserError::Xml)?;
         if let Some(embed_url) = self.embed_url.as_ref() {

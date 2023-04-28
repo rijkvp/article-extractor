@@ -39,6 +39,7 @@ pub mod clean;
 mod constants;
 mod error;
 mod full_text_parser;
+mod image_object;
 #[doc(hidden)]
 pub mod images;
 mod util;
