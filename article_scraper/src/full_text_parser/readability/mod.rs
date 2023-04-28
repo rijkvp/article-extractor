@@ -27,14 +27,19 @@ impl Readability {
     /// # Examples
     ///
     /// ```
-    /// let html = reqwest::get("https://www.nytimes.com/interactive/2023/04/21/science/parrots-video-chat-facetime.html")
-    ///     .await
-    ///     .unwrap()
-    ///     .text()
-    ///     .await
-    ///     .unwrap();
-    /// let base_url = Url::parse("https://www.nytimes.com").unwrap();
-    /// let extracted_content = Readability::extract(&html, Some(base_url)).unwrap();
+    /// use url::Url;
+    /// use article_scraper::Readability;
+    ///
+    /// async fn demo() {
+    ///     let html = reqwest::get("https://www.nytimes.com/interactive/2023/04/21/science/parrots-video-chat-facetime.html")
+    ///         .await
+    ///         .unwrap()
+    ///         .text()
+    ///         .await
+    ///         .unwrap();
+    ///     let base_url = Url::parse("https://www.nytimes.com").unwrap();
+    ///     let extracted_content = Readability::extract(&html, Some(base_url)).await.unwrap();
+    /// }
     /// ```
     pub async fn extract(
         html: &str,

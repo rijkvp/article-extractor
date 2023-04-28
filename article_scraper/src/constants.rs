@@ -137,6 +137,12 @@ pub static DIV_TO_P_ELEMS: Lazy<HashSet<&str>> = Lazy::new(|| {
     ])
 });
 
+pub static VALID_EMPTY_TAGS: Lazy<HashSet<&str>> = Lazy::new(|| {
+    HashSet::from([
+        "AREA", "BASE", "BR", "COL", "EMBED", "HR", "IMG", "LINK", "META", "SOURCE", "TRACK",
+    ])
+});
+
 pub static ALTER_TO_DIV_EXCEPTIONS: Lazy<HashSet<&str>> =
     Lazy::new(|| HashSet::from(["DIV", "ARTICLE", "SECTION", "P"]));
 

@@ -7,19 +7,19 @@ use std::path::Path;
 use tokio::fs;
 use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Replace {
     pub to_replace: String,
     pub replace_with: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Header {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ConfigEntry {
     pub xpath_title: Vec<String>,
     pub xpath_author: Vec<String>,

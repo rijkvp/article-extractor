@@ -1,74 +1,80 @@
 use super::{config::ConfigEntry, FullTextParser};
 use libxml::tree::SaveOptions;
-use reqwest::Client;
-use std::path::PathBuf;
+use reqwest::{Client, Url};
+
+async fn run_test(name: &str, url: &str, title: Option<&str>, author: Option<&str>) {
+    libxml::tree::node::set_node_rc_guard(10);
+    let _ = env_logger::builder()
+        .filter_level(log::LevelFilter::Debug)
+        .is_test(true)
+        .try_init();
+
+    let url = Url::parse(url).unwrap();
+    let html = std::fs::read_to_string(format!("./resources/tests/ftr/{name}/source.html"))
+        .expect("Failed to read source HTML");
+
+    let parser = FullTextParser::new(None).await;
+    let article = parser.parse_offline(&html, None, Some(url)).await.unwrap();
+
+    let content = article.get_content().unwrap();
+
+    // abuse line below to update all test results after whitespace or similar change
+    // std::fs::write(format!("./resources/tests/ftr/{name}/expected.html"), &content).unwrap();
+
+    let expected = std::fs::read_to_string(format!("./resources/tests/ftr/{name}/expected.html"))
+        .expect("Failed to read expected HTML");
+
+    assert_eq!(expected, content);
+
+    if let Some(expected_title) = title {
+        assert_eq!(expected_title, article.title.unwrap().as_str());
+    }
+
+    if let Some(expected_author) = author {
+        assert_eq!(expected_author, article.author.unwrap().as_str());
+    }
+}
 
 #[tokio::test]
 async fn golem() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    let out_path = PathBuf::from(r"./test_output");
-    let url = url::Url::parse("https://www.golem.de/news/http-error-418-fehlercode-ich-bin-eine-teekanne-darf-bleiben-1708-129460.html").unwrap();
-
-    let grabber = FullTextParser::new(None).await;
-    let article = grabber.parse(&url, &Client::new()).await.unwrap();
-    article.save_html(&out_path).unwrap();
-
-    assert_eq!(
-        article.title,
-        Some(String::from(
-            "HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben"
-        ))
-    );
-    assert_eq!(
-        article.thumbnail_url,
-        Some(String::from(
-            "https://www.golem.de/1708/129460-144318-i_rc.jpg"
-        ))
-    );
-    assert_eq!(article.author, Some(String::from("Hauke Gierow")));
+    run_test(
+        "golem",
+        "https://www.golem.de/",
+        Some("HTTP Error 418: Fehlercode \"Ich bin eine Teekanne\" darf bleiben"),
+        Some("Hauke Gierow"),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn phoronix() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    let out_path = PathBuf::from(r"./test_output");
-    let url =
-        url::Url::parse("http://www.phoronix.com/scan.php?page=article&item=amazon_ec2_bare&num=1")
-            .unwrap();
-
-    let grabber = FullTextParser::new(None).await;
-    let article = grabber.parse(&url, &Client::new()).await.unwrap();
-    article.save_html(&out_path).unwrap();
-
-    assert_eq!(
-        article.title,
-        Some(String::from(
-            "Amazon EC2 Cloud Benchmarks Against Bare Metal Systems"
-        ))
-    );
+    run_test(
+        "phoronix",
+        "https://www.phoronix.com/",
+        Some("GNOME 44.1 Released With Many Fixes"),
+        Some("Michael Larabel"),
+    )
+    .await
 }
 
 #[tokio::test]
 async fn youtube() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    let out_path = PathBuf::from(r"./test_output");
-    let url = url::Url::parse("https://www.youtube.com/watch?v=8KjaIumu-jI").unwrap();
-
-    let grabber = FullTextParser::new(None).await;
-    let article = grabber.parse(&url, &Client::new()).await.unwrap();
-    article.save_html(&out_path).unwrap();
-
-    assert_eq!(
-        article.title.as_deref(),
-        Some("RIGGED! Arena Shuffler is BROKEN")
-    );
-    assert!(article
-        .get_content()
-        .map(|html| html.contains("https://www.youtube.com/embed/8KjaIumu-jI?feature=oembed"))
-        .unwrap_or(false));
+    run_test(
+        "youtube",
+        "https://www.youtube.com/",
+        Some("RIGGED! Arena Shuffler is BROKEN"),
+        None,
+    )
+    .await
 }
 
 #[tokio::test]
+async fn hardwareluxx() {
+    run_test("hardwareluxx", "https://www.hardwareluxx.de/", None, None).await
+}
+
+#[tokio::test]
+#[ignore = "downloads content from the web"]
 async fn encoding_windows_1252() {
     let _ = env_logger::builder().is_test(true).try_init();
     let url = url::Url::parse("https://www.aerzteblatt.de/nachrichten/139511/Scholz-zuversichtlich-mit-Blick-auf-Coronasituation-im-Winter").unwrap();

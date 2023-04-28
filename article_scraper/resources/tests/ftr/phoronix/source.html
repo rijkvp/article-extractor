@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html xmlns="https://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+	<head>
+		<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-1978569-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-1978569-1');
+</script>
+
+<script data-cfasync="false" type="text/javascript">
+  var freestar = freestar || {};
+  freestar.hitTime = Date.now();
+  freestar.queue = freestar.queue || [];
+  freestar.config = freestar.config || {};
+  freestar.debug = window.location.search.indexOf('fsdebug') === -1 ? false : true;
+  freestar.config.enabled_slots = [];
+  !function(a,b){var c=b.getElementsByTagName("script")[0],d=b.createElement("script"),e="https://a.pub.network/phoronix-com";e+=freestar.debug?"/qa/pubfig.min.js":"/pubfig.min.js",d.async=!0,d.src=e,c.parentNode.insertBefore(d,c)}(window,document);
+  freestar.initCallback = function () { (freestar.config.enabled_slots.length === 0) ? freestar.initCallbackCalled = false : freestar.newAdSlots(freestar.config.enabled_slots) }
+</script>
+
+<script>
+freestar.config.disabledProducts = {
+    googleInterstitial: true
+};
+</script>
+		<title>GNOME 44.1 Released With Many Fixes - Phoronix</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<link rel="stylesheet" href="/phxcms-css/phoronix-10.css?2030">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="keywords" content="Phoronix, Linux Hardware Reviews, Linux hardware benchmarks, Linux server benchmarks, Linux benchmarking, Desktop Linux, Linux performance, Open Source graphics, Linux How To, Ubuntu benchmarks, Ubuntu hardware, Phoronix Test Suite" />
+		<meta name="Description" content="It&#039;s been one month already since the debut of GNOME 44 and out today is the first point release." />
+		<link rel="alternate" type="application/rss+xml" title="Phoronix" href="rss.php" />
+		<link rel="shortcut icon" href="favicon.ico" />
+		<link rel="apple-touch-icon" sizes="57x57" href="/apple-touch-icon-57x57.png" />
+		<link rel="apple-touch-icon" sizes="60x60" href="/apple-touch-icon-60x60.png" />
+		<link rel="apple-touch-icon" sizes="72x72" href="/apple-touch-icon-72x72.png" />
+		<link rel="apple-touch-icon" sizes="76x76" href="/apple-touch-icon-76x76.png" />
+		<link rel="apple-touch-icon" sizes="114x114" href="/apple-touch-icon-114x114.png" />
+		<link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon-120x120.png" />
+		<link rel="apple-touch-icon" sizes="144x144" href="/apple-touch-icon-144x144.png" />
+		<link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152x152.png" />
+		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
+		<link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+		<link rel="icon" type="image/png" href="/android-chrome-192x192.png" sizes="192x192" />
+		<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+		<link rel="icon" type="image/png" href="/favicon-16x16.png" sizes="16x16" />
+		<meta name="msapplication-TileImage" content="/mstile-144x144.png" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:site" content="@phoronix" />
+		<meta name="twitter:creator" content="@michaellarabel" />
+		<meta name="twitter:title" content="GNOME 44.1 Released With Many Fixes" />
+		<meta name="og:title" content="GNOME 44.1 Released With Many Fixes" />
+		<meta name="twitter:image" content="https://www.phoronix.net/image.php?id=2023&image=fedora38_beta_2" />
+		<meta name="og:image" content="https://www.phoronix.net/image.php?id=2023&image=fedora38_beta_2" />
+		<meta name="twitter:description" content="It&#039;s been one month already since the debut of GNOME 44 and out today is the first point release." />
+		<!-- PHORONIX (phoronix.com) -->
+<!-- Quantcast Choice. Consent Manager Tag v2.0 (for TCF 2.0) -->
+<script type="text/javascript" async=true>
+(function() {
+  var host = 'phoronix.com';
+  var element = document.createElement('script');
+  var firstScript = document.getElementsByTagName('script')[0];
+  var url = 'https://cmp.quantcast.com'
+    .concat('/choice/', 'UEFjU_w924fg3', '/', host, '/choice.js');
+  var uspTries = 0;
+  var uspTriesLimit = 3;
+  element.async = true;
+  element.type = 'text/javascript';
+  element.src = url;
+
+  firstScript.parentNode.insertBefore(element, firstScript);
+
+  function makeStub() {
+    var TCF_LOCATOR_NAME = '__tcfapiLocator';
+    var queue = [];
+    var win = window;
+    var cmpFrame;
+
+    function addFrame() {
+      var doc = win.document;
+      var otherCMP = !!(win.frames[TCF_LOCATOR_NAME]);
+
+      if (!otherCMP) {
+        if (doc.body) {
+          var iframe = doc.createElement('iframe');
+
+          iframe.style.cssText = 'display:none';
+          iframe.name = TCF_LOCATOR_NAME;
+          doc.body.appendChild(iframe);
+        } else {
+          setTimeout(addFrame, 5);
+        }
+      }
+      return !otherCMP;
+    }
+
+    function tcfAPIHandler() {
+      var gdprApplies;
+      var args = arguments;
+
+      if (!args.length) {
+        return queue;
+      } else if (args[0] === 'setGdprApplies') {
+        if (
+          args.length > 3 &&
+          args[2] === 2 &&
+          typeof args[3] === 'boolean'
+        ) {
+          gdprApplies = args[3];
+          if (typeof args[2] === 'function') {
+            args[2]('set', true);
+          }
+        }
+      } else if (args[0] === 'ping') {
+        var retr = {
+          gdprApplies: gdprApplies,
+          cmpLoaded: false,
+          cmpStatus: 'stub'
+        };
+
+        if (typeof args[2] === 'function') {
+          args[2](retr);
+        }
+      } else {
+        if(args[0] === 'init' && typeof args[3] === 'object') {
+          args[3] = { ...args[3], tag_version: 'V2' };
+        }
+        queue.push(args);
+      }
+    }
+
+    function postMessageEventHandler(event) {
+      var msgIsString = typeof event.data === 'string';
+      var json = {};
+
+      try {
+        if (msgIsString) {
+          json = JSON.parse(event.data);
+        } else {
+          json = event.data;
+        }
+      } catch (ignore) {}
+
+      var payload = json.__tcfapiCall;
+
+      if (payload) {
+        window.__tcfapi(
+          payload.command,
+          payload.version,
+          function(retValue, success) {
+            var returnMsg = {
+              __tcfapiReturn: {
+                returnValue: retValue,
+                success: success,
+                callId: payload.callId
+              }
+            };
+            if (msgIsString) {
+              returnMsg = JSON.stringify(returnMsg);
+            }
+            if (event && event.source && event.source.postMessage) {
+              event.source.postMessage(returnMsg, '*');
+            }
+          },
+          payload.parameter
+        );
+      }
+    }
+
+    while (win) {
+      try {
+        if (win.frames[TCF_LOCATOR_NAME]) {
+          cmpFrame = win;
+          break;
+        }
+      } catch (ignore) {}
+
+      if (win === window.top) {
+        break;
+      }
+      win = win.parent;
+    }
+    if (!cmpFrame) {
+      addFrame();
+      win.__tcfapi = tcfAPIHandler;
+      win.addEventListener('message', postMessageEventHandler, false);
+    }
+  };
+
+  makeStub();
+
+  var uspStubFunction = function() {
+    var arg = arguments;
+    if (typeof window.__uspapi !== uspStubFunction) {
+      setTimeout(function() {
+        if (typeof window.__uspapi !== 'undefined') {
+          window.__uspapi.apply(window.__uspapi, arg);
+        }
+      }, 500);
+    }
+  };
+
+  var checkIfUspIsReady = function() {
+    uspTries++;
+    if (window.__uspapi === uspStubFunction && uspTries < uspTriesLimit) {
+      console.warn('USP is not accessible');
+    } else {
+      clearInterval(uspInterval);
+    }
+  };
+
+  if (typeof window.__uspapi === 'undefined') {
+    window.__uspapi = uspStubFunction;
+    var uspInterval = setInterval(checkIfUspIsReady, 6000);
+  }
+})();
+</script>
+<!-- End Quantcast Choice. Consent Manager Tag v2.0 (for TCF 2.0) -->
+    		
+	</head>
+	<body style="overflow: initial !important;">
+		<div style="text-align: center; overflow: hidden; background: #222;"><div align="center" id="phoronix_desktop_leaderboard_header">
+  <script data-cfasync="false" type="text/javascript">
+      freestar.config.enabled_slots.push({ placementName: "phoronix_desktop_leaderboard_header", slotId: "phoronix_desktop_leaderboard_header" });
+  </script>
+</div>
+</div>		<div id="headerwrap">
+			<div class="wcontainer defpadding">
+				<a href="/"><img id="logo" alt="Phoronix" src="/phxcms7-css/phoronix.png" style="height: 40px; margin-top: 5px;margin-left: 5px;" /></a>
+				<div id="headerright">
+					<div id="social">
+					    <a href="https://www.phoronix.com/rss.php" class="icon-rss"></a>
+					    <a href="https://twitter.com/Phoronix" rel="me" class="icon-twitter"></a>
+					    <a href="https://www.facebook.com/Phoronix" rel="me" class="icon-facebook"></a>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="litemenu">
+		    <ul>
+		        <li><a href="/reviews">Articles &amp; Reviews</a></li>
+		        <li><a href="/news">News Archive</a></li>
+		        <li><a href="/forums/">Forums</a></li>
+		        <li><a href="/phoronix-premium">Premium</a></li>		        <li class="categ icon-angle-circled-down"><span> Categories</span></li>
+		         <li><a href="/reviews/Computers">Computers</a></li> <li><a href="/reviews/Display+Drivers">Display Drivers</a></li> <li><a href="/reviews/Graphics+Cards">Graphics Cards</a></li> <li><a href="/reviews/Linux+Gaming">Linux Gaming</a></li> <li><a href="/reviews/Memory">Memory</a></li> <li><a href="/reviews/Motherboards">Motherboards</a></li> <li><a href="/reviews/Processors">Processors</a></li> <li><a href="/reviews/Software">Software</a></li> <li><a href="/reviews/Storage">Storage</a></li> <li><a href="/reviews/Operating+Systems">Operating Systems</a></li> <li><a href="/reviews/Peripherals">Peripherals</a></li>				<li id="closelid">Close</li>
+		    </ul>		    
+		</div>
+		<div id="menuwrap">
+			<div class="wcontainer">
+				<ul id="linklist">
+					<li id="menubutton"><span class="icon-menu"></span>
+					</li>
+					<li class="menulink">
+						<a class="linknode" href="/reviews">Articles &amp; Reviews</a>
+					</li>
+					<li class="menulink">
+						<a class="linknode" href="/news">News Archive</a>
+					</li>
+					<li class="menulink">
+						<a class="linknode" href="/forums/">Forums</a>
+					</li>
+					<li class="menulink">
+						<a class="linknode" href="/phoronix-premium">Premium</a>
+					</li>					<li class="menulink">
+						<a class="linknode" href="/contact">Contact</a>
+					</li>
+					<li id="categories-link" class="menulink">
+						<span class="menunolink icon-angle-circled-down"> Categories</span>
+						<div id="categories-list">
+							<div id="categories-content">
+		         <a href="/reviews/Computers">Computers</a> <a href="/reviews/Display+Drivers">Display Drivers</a> <a href="/reviews/Graphics+Cards">Graphics Cards</a> <a href="/reviews/Linux+Gaming">Linux Gaming</a> <a href="/reviews/Memory">Memory</a> <a href="/reviews/Motherboards">Motherboards</a> <a href="/reviews/Processors">Processors</a> <a href="/reviews/Software">Software</a> <a href="/reviews/Storage">Storage</a> <a href="/reviews/Operating+Systems">Operating Systems</a> <a href="/reviews/Peripherals">Peripherals</a>							</div>
+						</div>
+					</li>
+					<li id="searchbox">
+						<div id="search">
+							<form action="https://www.google.com" id="cse-search-box" target="_blank">
+							  <div>
+							    <input type="hidden" name="cx" value="partner-pub-0253814508491313:1305299758" />
+							    <input type="hidden" name="ie" value="UTF-8" />
+							    <input type="text" name="q" />
+							    <input type="submit" name="sa" value="Search" />
+							  </div>
+							</form>
+
+							<script type="text/javascript" src="https://www.google.com/coop/cse/brand?form=cse-search-box&amp;lang=en"></script>
+						</div>
+					</li>
+				</ul>
+			</div>
+		</div>
+		<div id="content-bg">
+			<div id="content">
+				<div id="main-wrap">
+					<div id="main">
+						<div style="text-align: center; overflow: hidden; margin-bottom: 30px;">
+							<div align="center" id="phoronix_desktop_leaderboard_atf">
+  <script data-cfasync="false" type="text/javascript">
+      freestar.config.enabled_slots.push({ placementName: "phoronix_desktop_leaderboard_atf", slotId: "phoronix_desktop_leaderboard_atf" });
+  </script>
+</div>
+
+						</div>
+						<!-- google_ad_section_start -->
+<article class="full">
+<h1>GNOME 44.1 Released With Many Fixes</h1>
+<div class="author">Written by <a href="https://www.michaellarabel.com/">Michael Larabel</a> in <a href="/linux/GNOME">GNOME</a> on 26 April 2023 at 12:00 PM EDT. <a href="/forums/node/1384710">6 Comments</a></div>
+<div class="content">
+<div style="float: left; padding: 0 10px 10px;"><img alt="GNOME" src="/assets/categories/gnome.webp" width="100" height="100" /></div>
+It's been one month already since the debut of <a href="https://www.phoronix.com/search/GNOME+44">GNOME 44</a> and out today is the first point release.
+<br />
+<br />GNOME 44.1 brings many fixes to this updated Linux desktop, including many crash fixes and addressing newly uncovered memory leaks. Some of the GNOME 44.1 highlights include:
+<br />
+<br />- Many fixes to GNOME Shell, including crash fixes, memory leak fixes, and other items addressed.
+<br />
+<br />- GNOME's Mutter has also seen numerous fixes, including improved screencast support, fixing support for resizing windows via the keyboard, enabling modifiers by default for non-native backends, and various other fixes.
+<br />
+<br />- The GNOME Settings Daemon will now connect to light sensors asynchronously.
+<br />
+<br />- Crash fixes for GNOME Software and the Nautilus file manager.
+<br />
+<br />- Nautilus now allows extraction of .tar.zst and .zstd archives.
+<br />
+<br />- GNOME Control Center's display area now allows configuring all monitors and applying those settings at once.
+<br />
+<br />- GNOME Calls will no longer crash on empty/null call ID.
+<br />
+<br />- GNOME Web (Epiphany) has seen some crash fixes.
+<br />
+<br />- GNOME Boxes for virtualization has a fix to always enable the boot menu option and fixing 3D acceleration not sticking at startup.
+<br />
+<br />- GNOME Calendar has stability and performance improvements to its search.
+<br /><p align="center"><img src="//www.phoronix.net/image.php?id=2023&image=fedora38_beta_2_med" alt="Fedora 38 with GNOME 44" /></p>
+<br />More details on the GNOME 44.1 changes via the <a href="https://discourse.gnome.org/t/gnome-44-1-released/15092">release announcement</a>.</div>
+							<div style="text-align: center; overflow: hidden; margin-bottom: 30px;">
+								<div align="center" id="phoronix_leaderboard_btf">
+  <script data-cfasync="false" type="text/javascript">
+      freestar.config.enabled_slots.push({ placementName: "phoronix_leaderboard_btf", slotId: "phoronix_leaderboard_btf" });
+  </script>
+</div>
+							</div>
+							<div class="foot">
+								<div class="pagination">
+								</div>
+								<div class="comments-label">
+									<a href="/forums/node/1384710">6 Comments</a>								</div>
+							</div>
+						</article>
+<div id="sharebar">
+<div style="margin: 0 10px 10px; overflow: hidden;">
+
+<div style="float: left; overflow: hidden;"><a href="https://twitter.com/share" class="twitter-share-button" data-text="GNOME 44.1 Released With Many Fixes" data-url="https://www.phoronix.com/news/GNOME-44.1-Released" data-via="phoronix" data-related="michaellarabel">Tweet</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script></div>
+
+<div style="float: left; overflow: hidden;"><iframe src="//www.facebook.com/plugins/like.php?href=https://www.phoronix.com/news/GNOME-44.1-Released&amp;width=200&amp;height=46&amp;colorscheme=light&amp;layout=button_count&amp;action=like&amp;show_faces=false&amp;send=true" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:200px; height:46px;" allowTransparency="true"></iframe></div>
+</div></div>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-format="autorelaxed"
+     data-ad-client="ca-pub-0253814508491313"
+     data-ad-slot="7279734770"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+<div class="article-box">
+								<header>Related News</header>
+								<div class="node"><a href="/news/GTK-4.11.1">GTK 4.11.1 Released With Better Textures, Wayland Fractional Scaling</a></div><div class="node"><a href="/news/WebKitGTK-DMA-BUF-Rendering">WebKitGTK Working On Accelerated Composited Rendering With DMA-BUF</a></div><div class="node"><a href="/news/GNOME-44-Released">GNOME 44 Released With Many Desktop Enhancements</a></div><div class="node"><a href="/news/GNOME-44-Release-Candidate">GNOME 44 Release Candidate Arrives With Many Last Minute Changes</a></div><div class="node"><a href="/news/GNOME-Shell-Mutter-44-RC">GNOME Shell &amp; Mutter 44 Release Candidates Bring Last Minute Changes</a></div><div class="node"><a href="/news/GNOME-44-fractional_scale_v1">GNOME 44 Mutter Adds fractional_scale_v1 Wayland Support</a></div>
+	                             
+							</div>						<div class="after-article">
+							<div style="text-align: center; overflow: hidden; margin: 5px;">
+								<div align="center" id="phoronix_leaderboard_incontent_3">
+  <script data-cfasync="false" type="text/javascript">
+      freestar.config.enabled_slots.push({ placementName: "phoronix_leaderboard_incontent_3", slotId: "phoronix_leaderboard_incontent_3" });
+  </script>
+</div>
+</div>
+							<div id="about-author">
+								<header>About The Author</header>
+								<img class="pic" src="/assets/categories/michaellarabel.jpg" alt="Michael Larabel"/>
+								<div class="text"><p>Michael Larabel is the principal author of Phoronix.com and founded the site in 2004 with a focus on enriching the Linux hardware experience. Michael has written more than 20,000 articles covering the state of Linux hardware support, Linux performance, graphics drivers, and other topics. Michael is also the lead developer of the Phoronix Test Suite, Phoromatic, and OpenBenchmarking.org automated benchmarking software. He can be followed via <a href="https://twitter.com/MichaelLarabel">Twitter</a>, <a href="https://www.linkedin.com/in/michaellarabel/">LinkedIn</a>, or contacted via <a href="https://www.michaellarabel.com/">MichaelLarabel.com</a>.</p></div>
+							</div>
+<div class="article-box">
+								<header>Popular News This Week</header>
+								<div class="node"><a href="/news/Intel-i219-LM-Linux-60p-Fix">Intel i219-LM Had Only Been Running At ~60% Of Maximum Speed Due To Linux Driver Bug</a></div><div class="node"><a href="/news/Red-Hat-Layoffs">Red Hat Begins Cutting &quot;Hundreds Of Jobs&quot;</a></div><div class="node"><a href="/news/GIMP-GTK3-Finished">GTK3 Port Of GIMP Is &quot;Officially Finished&quot;</a></div><div class="node"><a href="/news/Linux-Kernel-Rust-1.68">The Linux Kernel Preparing For An Upgrade To Its Rust Toolchain</a></div><div class="node"><a href="/news/AMD-Linux-Dynamic-Boost-Control">AMD Posts New Linux Patches Enabling Dynamic Boost Control</a></div><div class="node"><a href="/news/Linux-6.3-Released">Linux 6.3 Released With More Meteor Lake Enablement, Zen 4 Auto IBRS &amp; Much More</a></div><div class="node"><a href="/news/Linux-6.3-Feature-Recap">Linux 6.3 Features Have A Lot For AMD &amp; Intel, Steam Deck, ASUS Motherboards &amp; More</a></div><div class="node"><a href="/news/QEMU-8.0-Released">QEMU 8.0 Released With 32-bit x86 Host Support Deprecated</a></div>
+							</div>		</div>
+<!-- google_ad_section_end -->
+					</div>
+				</div>
+				<div id="sidebar-wrap">
+					<div id="sidebar">
+					    <aside>
+						<div style="text-align: center;">
+                           				<div align="center" id="phoronix_right_rail_1">
+  <script data-cfasync="false" type="text/javascript">
+      freestar.config.enabled_slots.push({ placementName: "phoronix_right_rail_1", slotId: "phoronix_right_rail_1" });
+  </script>
+</div>
+                        </div>
+                        </aside>
+                        <aside class="widget">
+			<header>Latest Linux News</header><div class="popular-list">
+                                <a href="/news/Dragora-3.0-Beta-2">Dragora 3.0 Beta 2 OS Released: 10+ Years In Development, FSF Backed &amp; Using SysV Init</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/Linux-6.4-x86-Platform-Drivers">Linux 6.4 Brings Improved MSI Laptop Support, Apple GMUX Support For T2 Macs</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/GNOME-44.1-Released">GNOME 44.1 Released With Many Fixes</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/Wayland-Weston-12.0-Alpha">Wayland&#039;s Weston 12 Alpha Brings Multi-GPU Support, PipeWire Backend, Tearing Control</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/Linux-6.4-Hardware-Monitoring">100+ More ASUS Motherboards Enabled For Sensor Monitoring With Linux 6.4</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/Linux-AMD-Spectral-Chicken">Linux Kernel Drama: AMD&#039;s Spectral Chicken</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/GCC-13.1-Released">GCC 13.1 Released With Modula-2 Language Support, More C23/C++23 Features</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/xf86-video-ati-22.0">xf86-video-ati 22.0 Released For Older ATI/AMD GPUs</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/Btrfs-F2FS-Linux-6.4">F2FS &amp; Btrfs Enjoy Some Nice Improvements With Linux 6.4</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/news/System76-Scheduler-2.0">System76-Scheduler 2.0 Released With PipeWire Integration, Performance Optimizations</a>
+                            </div>
+                        </aside>
+			<aside>
+			<div style="text-align: center;">
+                          <div align="center" id="phoronix_right_rail_2">
+  <script data-cfasync="false" type="text/javascript">
+      freestar.config.enabled_slots.push({ placementName: "phoronix_right_rail_2", slotId: "phoronix_right_rail_2" });
+  </script>
+</div>
+
+                        </div>
+                        </aside>
+			                        <aside class="widget">
+                       <header>Show Your Support, Go Premium</header>
+                       <p><a href="/phoronix-premium">Phoronix Premium</a> allows ad-free access to the site, multi-page articles on a single page, and other features while supporting this site's continued operations.</p>
+                        </aside>
+			                        <aside class="widget">
+			<header>Latest Featured Articles</header><div class="popular-list">
+                                <a href="/review/windows11-wsl2-zen4">Windows 11 WSL2 Performance vs. Ubuntu Linux With The AMD Ryzen 7 7800X3D</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/review/corsair-48gb-ddr5-7000">Corsair 2 x 24GB DDR5-7000 Memory Linux Performance</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/review/ubuntu-2304-laptops">Ubuntu 23.04 Laptop Performance Mixed Against Ubuntu 22.10</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/review/nvidia-windows11-ubuntu2304">NVIDIA GeForce RTX 4080/4090: Windows 11 vs. Ubuntu 23.04 Performance</a>
+                            </div>
+<div class="popular-list">
+                                <a href="/review/amd-7800x3d-windows11-ubuntu">AMD Ryzen 7 7800X3D: Windows 11 vs. Ubuntu 23.04 Linux Performance</a>
+                            </div>
+                        </aside>
+			<aside>
+						<div style="text-align: center;">
+                           				<div style="position: sticky; top: 0; position: -webkit-sticky;"><div align="center" id="phoronix_right_rail_3">
+  <script data-cfasync="false" type="text/javascript">
+      freestar.config.enabled_slots.push({ placementName: "phoronix_right_rail_3", slotId: "phoronix_right_rail_3" });
+  </script>
+</div>
+
+</div>                       				 </div>
+                        </aside>
+                        <aside class="widget">
+                            <header>Support Phoronix</header>
+                            <p>The mission at Phoronix since 2004 has centered around enriching the Linux hardware experience. In addition to supporting our site through advertisements, you can help by <a href="/phoronix-premium">subscribing to Phoronix Premium</a>. You can also contribute to Phoronix through a <a href="https://www.paypal.com/donate/?hosted_button_id=EA79CCDLNFJNW">PayPal tip</a> or <a href="https://buy.stripe.com/28o02d1yG1Lp8H67ss">tip via Stripe</a>.</p>
+                        </aside>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="footer">
+		    <div id="footer-content">
+			<p align="center"></p>
+		        <div id="footer-left">
+		        <div id="footer-left-content">
+		            <div class="extra-info">
+		                <header>Phoronix Media</header>
+		                <hr/>
+		                <ul>
+		                    <li><a href="/contact">Contact</a></li>
+		                    <li><a href="/michaellarabel">Michael Larabel</a></li>
+		                    <li><a href="https://openbenchmarking.org/">OpenBenchmarking.org</a></li>
+		                </ul>
+		            </div>
+		            <div class="extra-info">
+		                <header>Phoronix Premium</header>
+		                <hr/>
+		                <a href="/phoronix-premium"><ul>
+                            <li>Support Phoronix</li>
+		                    <li>While Having Ad-Free Browsing,</li>
+                            <li>Single-Page Article Viewing</li>
+                        </ul></a>
+		            </div>
+		            <div class="extra-info">
+		                <header>Share</header>
+		                <hr/>
+		                <ul>
+		                    <li><a href="https://facebook.com/Phoronix" rel="me">Facebook</a></li>
+		                    <li><a href="https://twitter.com/Phoronix" rel="me">Twitter</a></li>
+		                </ul>
+		            </div>
+		       </div>
+		       </div>
+		       <div id="footer-right">
+		            <div class="extra-info">
+		                <ul>
+		                <li><p><a href="/legal">Legal Disclaimer, Privacy Policy, Cookies</a> | <a href="https://www.phoronix-media.com/?k=contact">Contact</a></p></li>
+                        <li><p>Copyright &copy; 2004 - 2023 by <a href="https://www.phoronix-media.com/">Phoronix Media</a>.</p></li>
+                        <li><p>All trademarks used are properties of their respective owners. All rights reserved.</p></li>
+				</ul>
+		            </div>
+		        </div>
+		     </div>		   
+		</div>
+	</body>
+</html>

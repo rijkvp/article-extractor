@@ -13,6 +13,8 @@ use tokio::fs::DirEntry;
 use crate::{
     constants,
     full_text_parser::{config::ConfigEntry, error::FullTextParserError},
+    image_object::ImageObject,
+    video_object::VideoObject,
 };
 
 pub struct Util;
@@ -439,6 +441,33 @@ impl Util {
         }
     }
 
+    pub fn is_element_without_children(node: &Node) -> bool {
+        if let Some(node_type) = node.get_type() {
+            let len = node.get_child_nodes().len();
+            node_type == NodeType::ElementNode
+                && (len == 0 || node.get_content().trim().is_empty())
+                && Self::get_elements_by_tag_names(node, &constants::VALID_EMPTY_TAGS).is_empty()
+        } else {
+            false
+        }
+    }
+
+    pub fn get_elements_by_tag_names(node: &Node, tags: &HashSet<&str>) -> Vec<Node> {
+        let mut vec = Vec::new();
+
+        fn get_elems(node: &Node, tags: &HashSet<&str>, vec: &mut Vec<Node>) {
+            for child in node.get_child_elements() {
+                if tags.contains(child.get_name().to_uppercase().as_str()) {
+                    vec.push(child.clone());
+                }
+                get_elems(&child, tags, vec);
+            }
+        }
+
+        get_elems(node, tags, &mut vec);
+        vec
+    }
+
     pub fn get_elements_by_tag_name(node: &Node, tag: &str) -> Vec<Node> {
         let tag = tag.to_uppercase();
         let all_tags = tag == "*";
@@ -543,6 +572,18 @@ impl Util {
         }
     }
 
+    pub fn replace_schema_org_orbjects(root: &mut Node) {
+        let nodes = Util::get_elements_by_tag_name(root, "div");
+
+        for mut node in nodes.into_iter().rev() {
+            if let Some(video_object) = VideoObject::parse_node(&node) {
+                _ = video_object.replace(&mut node);
+            } else if let Some(image_object) = ImageObject::parse_node(&node) {
+                _ = image_object.replace(&mut node);
+            }
+        }
+    }
+
     // Clean an element of all tags of type "tag" if they look fishy.
     // "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
     pub fn clean_conditionally(root: &mut Node, tag: &str) {
@@ -629,17 +670,24 @@ impl Util {
             let link_density = Self::get_link_density(node);
             let content = Self::get_inner_text(node, true);
             let content_length = content.len();
+            let has_figure_ancestor =
+                Self::has_ancestor_tag(node, "figure", None, None::<fn(&Node) -> bool>);
 
-            let have_to_remove = (img > 1
-                && (p as f64 / img as f64) < 0.5
-                && !Self::has_ancestor_tag(node, "figure", None, None::<fn(&Node) -> bool>))
+            let image_obj_count = Util::get_elements_by_tag_name(node, "imageobject").len();
+            let video_obj_count = Util::get_elements_by_tag_name(node, "videoobject").len();
+
+            if image_obj_count > 0 || video_obj_count > 0 {
+                return false;
+            }
+
+            let have_to_remove = (img > 1 && (p as f64 / img as f64) < 0.5 && !has_figure_ancestor)
                 || (!is_list && li > p as i64)
                 || (input as f64 > f64::floor(p as f64 / 3.0))
                 || (!is_list
                     && heading_density < 0.9
                     && content_length < 25
                     && (img == 0 || img > 2)
-                    && !Self::has_ancestor_tag(node, "figure", None, None::<fn(&Node) -> bool>))
+                    && !has_figure_ancestor)
                 || (!is_list && weight < 25 && link_density > 0.2)
                 || (weight >= 25 && link_density > 0.5)
                 || ((embed_count == 1 && content_length < 75) || embed_count > 1);

@@ -120,13 +120,21 @@ async fn extract_ftr(
     };
 
     let full_text_parser = FullTextParser::new(None).await;
-    let result = match full_text_parser
+    let article = match full_text_parser
         .parse_offline(&html, config.as_ref(), base_url)
         .await
     {
         Ok(res) => res,
         Err(err) => {
             log::error!("Failed to extract content with ftr: {err}");
+            exit(0);
+        }
+    };
+
+    let result = match article.get_content() {
+        Some(res) => res,
+        None => {
+            log::error!("Failed to serialize document");
             exit(0);
         }
     };

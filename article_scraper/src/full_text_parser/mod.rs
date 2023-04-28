@@ -40,8 +40,13 @@ impl FullTextParser {
         html: &str,
         config: Option<&ConfigEntry>,
         base_url: Option<Url>,
-    ) -> Result<String, FullTextParserError> {
+    ) -> Result<Article, FullTextParserError> {
         libxml::tree::node::set_node_rc_guard(10);
+
+        if config.is_none() && base_url.is_none() {
+            log::error!("need either a config or the base_url to look for a config");
+            return Err(FullTextParserError::Config);
+        }
 
         let global_config = self
             .config_files
@@ -50,6 +55,12 @@ impl FullTextParser {
 
         let url =
             base_url.unwrap_or_else(|| url::Url::parse("http://fakehost/test/base/").unwrap());
+
+        let config = if config.is_none() {
+            self.get_grabber_config(&url)
+        } else {
+            config
+        };
 
         let mut article = Article {
             title: None,
@@ -102,8 +113,8 @@ impl FullTextParser {
 
         article.document = Some(new_document);
         article.root_node = Some(root);
-        let html = article.get_content().ok_or(FullTextParserError::Scrape)?;
-        Ok(html)
+
+        Ok(article)
     }
 
     pub(crate) async fn parse(
@@ -1104,6 +1115,7 @@ impl FullTextParser {
 
     pub(crate) fn post_process_page(node: &mut Node) -> Result<(), FullTextParserError> {
         Util::clean_headers(node);
+        Util::replace_schema_org_orbjects(node);
         Util::clean_conditionally(node, "fieldset");
         Util::clean_conditionally(node, "table");
         Util::clean_conditionally(node, "ul");
@@ -1113,6 +1125,7 @@ impl FullTextParser {
         Self::clean_attributes(node)?;
         Self::remove_single_cell_tables(node);
         Self::remove_extra_p_and_div(node);
+        Self::remove_empty_nodes(node);
 
         Ok(())
     }
@@ -1243,34 +1256,40 @@ impl FullTextParser {
 
         while let Some(mut node) = node_iter {
             let tag_name = node.get_name().to_uppercase();
-            if tag_name != "ARTICLE"
-                && node.get_parent().is_some()
-                && (tag_name == "DIV" || tag_name == "SECTION")
-            {
-                if Util::is_element_without_content(&node) {
-                    node_iter = Util::remove_and_next(&mut node);
-                    continue;
-                } else if Util::has_single_tag_inside_element(&node, "DIV")
-                    || Util::has_single_tag_inside_element(&node, "SECTION")
-                {
-                    if let Some(mut parent) = node.get_parent() {
-                        if let Some(mut child) = node.get_child_elements().into_iter().next() {
-                            for (k, v) in node.get_attributes().into_iter() {
-                                child.set_attribute(&k, &v).map_err(|e| {
-                                    log::error!("{e}");
-                                    FullTextParserError::Xml
-                                })?;
-                            }
-                            parent
-                                .replace_child_node(child, node.clone())
-                                .map_err(|e| {
-                                    log::error!("{e}");
-                                    FullTextParserError::Xml
-                                })?;
 
-                            node_iter = Util::next_node(&parent, false);
-                            continue;
+            if tag_name == "ARTICLE" || node.get_parent().is_none() {
+                node_iter = Util::next_node(&node, false);
+                continue;
+            }
+
+            if tag_name != "DIV" && tag_name != "SECTION" {
+                node_iter = Util::next_node(&node, false);
+                continue;
+            }
+
+            if Util::is_element_without_content(&node) {
+                node_iter = Util::remove_and_next(&mut node);
+                continue;
+            } else if Util::has_single_tag_inside_element(&node, "DIV")
+                || Util::has_single_tag_inside_element(&node, "SECTION")
+            {
+                if let Some(mut parent) = node.get_parent() {
+                    if let Some(mut child) = node.get_child_elements().into_iter().next() {
+                        for (k, v) in node.get_attributes().into_iter() {
+                            child.set_attribute(&k, &v).map_err(|e| {
+                                log::error!("{e}");
+                                FullTextParserError::Xml
+                            })?;
                         }
+                        parent
+                            .replace_child_node(child, node.clone())
+                            .map_err(|e| {
+                                log::error!("{e}");
+                                FullTextParserError::Xml
+                            })?;
+
+                        node_iter = Util::next_node(&parent, false);
+                        continue;
                     }
                 }
             }
@@ -1278,5 +1297,25 @@ impl FullTextParser {
             node_iter = Util::next_node(&node, false);
         }
         Ok(())
+    }
+
+    fn remove_empty_nodes(root: &mut Node) {
+        let mut node_iter = Some(root.clone());
+
+        while let Some(mut node) = node_iter {
+            let tag_name = node.get_name().to_uppercase();
+
+            if constants::VALID_EMPTY_TAGS.contains(tag_name.as_str()) {
+                node_iter = Util::next_node(&node, false);
+                continue;
+            }
+
+            if Util::is_element_without_children(&node) {
+                node_iter = Util::remove_and_next(&mut node);
+                continue;
+            }
+
+            node_iter = Util::next_node(&node, false);
+        }
     }
 }
