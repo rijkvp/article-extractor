@@ -989,13 +989,17 @@ impl FullTextParser {
 
         if let Some(config) = config {
             for xpath_body in &config.xpath_body {
-                found_something = Self::extract_body_single(context, root, xpath_body)?;
+                if Self::extract_body_single(context, root, xpath_body)? {
+                    found_something = true;
+                }
             }
         }
 
         if !found_something {
             for xpath_body in &global_config.xpath_body {
-                found_something = Self::extract_body_single(context, root, xpath_body)?;
+                if Self::extract_body_single(context, root, xpath_body)? {
+                    found_something = true;
+                }
             }
         }
 

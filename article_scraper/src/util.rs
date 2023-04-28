@@ -196,13 +196,8 @@ impl Util {
     }
 
     pub fn strip_node(context: &Context, xpath: &str) -> Result<(), FullTextParserError> {
-        let mut ancestor = xpath.to_string();
-        if ancestor.starts_with("//") {
-            ancestor = ancestor.chars().skip(2).collect();
-        }
-
-        let query = &format!("{}[not(ancestor::{})]", xpath, ancestor);
-        let node_vec = Util::evaluate_xpath(context, query, false)?;
+        let node_vec = Util::evaluate_xpath(context, xpath, false)?;
+        let node_vec_clone = node_vec.clone();
 
         for mut node in node_vec {
             let tag_name = node.get_name();
@@ -214,9 +209,28 @@ impl Util {
             {
                 continue;
             }
+
+            if Self::parent_part_of_result(&node, &node_vec_clone) {
+                continue;
+            }
+
             node.unlink();
         }
         Ok(())
+    }
+
+    fn parent_part_of_result(node: &Node, xpath_result: &[Node]) -> bool {
+        if let Some(parent) = node.get_parent() {
+            for n in xpath_result {
+                if n == &parent {
+                    return true;
+                }
+            }
+
+            return Self::parent_part_of_result(&parent, xpath_result);
+        }
+
+        false
     }
 
     pub fn strip_id_or_class(

@@ -74,6 +74,12 @@ async fn hardwareluxx() {
 }
 
 #[tokio::test]
+#[ignore = "waiting on clarification for https://github.com/fivefilters/ftr-site-config/pull/1081"]
+async fn heise_1() {
+    run_test("heise-1", "https://www.heise.de/", None, None).await
+}
+
+#[tokio::test]
 #[ignore = "downloads content from the web"]
 async fn encoding_windows_1252() {
     let _ = env_logger::builder().is_test(true).try_init();
