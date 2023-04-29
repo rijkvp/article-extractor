@@ -879,6 +879,10 @@ impl FullTextParser {
         _ = Util::strip_node(context, "//link");
         _ = Util::strip_node(context, "//aside");
 
+        if let Some(root) = document.get_root_element() {
+            Util::replace_brs(&root, document);
+        }
+
         Self::fix_urls(context, url, document);
     }
 

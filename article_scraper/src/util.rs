@@ -921,4 +921,161 @@ impl Util {
         });
         std::fs::write(filename, html).unwrap();
     }
+
+    // Replaces 2 or more successive <br> elements with a single <p>.
+    // Whitespace between <br> elements are ignored.
+    // For example:
+    //   <div>foo<br>bar<br> <br><br>abc</div>
+    // will become:
+    //   <div>foo<br>bar<p>abc</p></div>
+    pub fn replace_brs(node: &Node, document: &Document) {
+        let br_nodes = Self::get_elements_by_tag_name(node, "br");
+
+        for br_node in br_nodes {
+            let mut next = br_node.get_next_sibling();
+
+            // Whether 2 or more <br> elements have been found and replaced with a
+            // <p> block.
+            let mut replaced = false;
+
+            // If we find a <br> chain, remove the <br>s until we hit another node
+            // or non-whitespace. This leaves behind the first <br> in the chain
+            // (which will be replaced with a <p> later).
+            while let Some(mut n) = next {
+                let is_text_whitespace = n
+                    .get_type()
+                    .map(|t| t == NodeType::TextNode)
+                    .unwrap_or(false)
+                    && n.get_content().trim().is_empty();
+                let is_br_node = n.get_name().to_uppercase() == "BR";
+                let next_is_br_node = n
+                    .get_next_sibling()
+                    .map(|n| n.get_name().to_uppercase() == "BR")
+                    .unwrap_or(false);
+
+                if !is_text_whitespace && !is_br_node {
+                    break;
+                }
+
+                next = n.get_next_sibling();
+
+                if is_br_node || (is_text_whitespace && next_is_br_node) {
+                    replaced = true;
+                    n.unlink();
+                }
+            }
+
+            if !replaced {
+                continue;
+            }
+
+            // If we removed a <br> chain, replace the remaining <br> with a <p>. Add
+            // all sibling nodes as children of the <p> until we hit another <br>
+            // chain.
+            let mut parent = match br_node.get_parent() {
+                Some(parent) => parent,
+                None => continue,
+            };
+            let mut p = Node::new("p", None, document).unwrap();
+            _ = parent.replace_child_node(p.clone(), br_node).unwrap();
+
+            next = p.get_next_sibling();
+
+            while let Some(mut next_node) = next {
+                // If we've hit another <br><br>, we're done adding children to this <p>.
+                if next_node.get_name().to_uppercase() == "BR" {
+                    if let Some(next_elem) = next_node.get_next_element_sibling() {
+                        if next_elem.get_name().to_uppercase() == "BR" {
+                            break;
+                        }
+                    }
+                }
+
+                if !Self::is_phrasing_content(&next_node) {
+                    break;
+                }
+
+                // Otherwise, make this node a child of the new <p>.
+                let sibling = next_node.get_next_sibling();
+                next_node.unlink();
+                _ = p.add_child(&mut next_node);
+
+                next = sibling;
+            }
+
+            if p.get_child_elements().is_empty() && p.get_content().trim().is_empty() {
+                p.unlink();
+                continue;
+            }
+
+            while let Some(mut last_child) = p.get_last_child() {
+                let is_text_node = last_child
+                    .get_type()
+                    .map(|t| t == NodeType::TextNode)
+                    .unwrap_or(false);
+                let is_empty = last_child.get_content().trim().is_empty();
+
+                if is_text_node && is_empty {
+                    last_child.unlink();
+                } else {
+                    break;
+                }
+            }
+
+            if let Some(mut parent) = p.get_parent() {
+                if parent.get_name().to_uppercase() == "P" {
+                    _ = parent.set_name("DIV");
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use libxml::parser::Parser;
+
+    use super::Util;
+
+    fn replace_brs(source: &str, expected: &str) {
+        libxml::tree::node::set_node_rc_guard(10);
+
+        let parser = Parser::default_html();
+        let document = parser.parse_string(source).unwrap();
+        let root = document.get_root_element().unwrap();
+        let body = root.get_first_child().unwrap();
+        let div = body.get_first_child().unwrap();
+
+        Util::replace_brs(&root, &document);
+
+        let result = document.node_to_string(&div);
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn replace_brs_1() {
+        replace_brs(
+            "<div>foo<br>bar<br> <br><br>abc</div>",
+            "<div>foo<br/>bar<p>abc</p></div>",
+        )
+    }
+
+    #[test]
+    fn replace_brs_2() {
+        let source = r#"
+        <div>
+            <p>
+                It might have been curiosity or it might have been the nagging sensation that chewed at his brain for the three weeks that he researched the subject of the conversation. All For One was a cryptid. Mystical in more ways than one, he was only a rumour on a network that was two-hundred years old. There were whispers of a shadowy figure who once ruled Japan, intermingled with a string of conspiracies and fragmented events.
+            </p>
+            <p>
+                Izuku had even braved the dark web, poking and prodding at some of the seedier elements of the world wide web. The internet had rumours, but the dark web had stories.<br/>
+            </p>
+            <p>
+                An implied yakuza wrote about his grandfather who lost a fire manipulation Quirk and his sanity without any reason. His grandfather had been institutionalised, crying and repeating “he took it, he took it” until his dying days. No one could console him.
+            </p>
+        </div>
+        "#;
+        replace_brs(source, source.trim())
+    }
 }
