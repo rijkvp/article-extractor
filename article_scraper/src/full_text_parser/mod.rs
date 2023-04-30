@@ -97,6 +97,7 @@ impl FullTextParser {
             global_config,
             &article.url,
             &old_document,
+            article.title.as_deref(),
         );
         let found_body = Self::extract_body(&xpath_ctx, &mut root, config, global_config)?;
         if !found_body {
@@ -258,7 +259,14 @@ impl FullTextParser {
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
         }
-        Self::prep_content(&xpath_ctx, config, global_config, &article.url, &document);
+        Self::prep_content(
+            &xpath_ctx,
+            config,
+            global_config,
+            &article.url,
+            &document,
+            article.title.as_deref(),
+        );
         let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         if !found_body {
@@ -281,7 +289,14 @@ impl FullTextParser {
             {
                 next_page_url.replace(url);
             }
-            Self::prep_content(&xpath_ctx, config, global_config, &article.url, &document);
+            Self::prep_content(
+                &xpath_ctx,
+                config,
+                global_config,
+                &article.url,
+                &document,
+                article.title.as_deref(),
+            );
             let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
             if !found_body {
@@ -345,7 +360,14 @@ impl FullTextParser {
         let xpath_ctx = Self::get_xpath_ctx(&document)?;
         metadata::extract(&xpath_ctx, config, Some(global_config), article);
         Self::check_for_thumbnail(&xpath_ctx, article);
-        Self::prep_content(&xpath_ctx, config, global_config, url, &document);
+        Self::prep_content(
+            &xpath_ctx,
+            config,
+            global_config,
+            url,
+            &document,
+            article.title.as_deref(),
+        );
         Self::extract_body(&xpath_ctx, root, config, global_config)?;
 
         Ok(())
@@ -773,11 +795,20 @@ impl FullTextParser {
         global_config: &ConfigEntry,
         url: &Url,
         document: &Document,
+        title: Option<&str>,
     ) {
         // replace H1 with H2 as H1 should be only title that is displayed separately
         if let Ok(h1_nodes) = Util::evaluate_xpath(context, "//h1", false) {
             for mut h1_node in h1_nodes {
                 _ = h1_node.set_name("h2");
+            }
+        }
+
+        if let Ok(h2_nodes) = Util::evaluate_xpath(context, "//h2", false) {
+            for mut h2_node in h2_nodes {
+                if Util::header_duplicates_title(&h2_node, title) {
+                    h2_node.unlink();
+                }
             }
         }
 

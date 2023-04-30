@@ -361,6 +361,22 @@ impl Util {
         1.0 - distance_b
     }
 
+    // Check if this node is an H1 or H2 element whose content is mostly
+    // the same as the article title.
+    pub fn header_duplicates_title(node: &Node, title: Option<&str>) -> bool {
+        let name = node.get_name().to_lowercase();
+        if name != "h1" && name != "h2" {
+            return false;
+        }
+        let heading = Util::get_inner_text(node, false);
+
+        if let Some(title) = title {
+            Util::text_similarity(title, &heading) > 0.75
+        } else {
+            false
+        }
+    }
+
     pub fn has_any_descendent_tag(node: &Node, tag_names: &HashSet<&str>) -> bool {
         let children = node.get_child_elements();
         let is_direct_child = children

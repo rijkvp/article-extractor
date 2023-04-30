@@ -53,7 +53,7 @@ impl Readability {
         let document = crate::FullTextParser::parse_html(html, None, &empty_config)?;
         let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document)?;
 
-        crate::FullTextParser::prep_content(&xpath_ctx, None, &empty_config, &url, &document);
+        crate::FullTextParser::prep_content(&xpath_ctx, None, &empty_config, &url, &document, None);
         let mut article = crate::article::Article {
             title: None,
             author: None,
@@ -127,7 +127,7 @@ impl Readability {
                 }
 
                 if state.should_remove_title_header
-                    && Self::header_duplicates_title(node_ref, title)
+                    && Util::header_duplicates_title(node_ref, title)
                 {
                     state.should_remove_title_header = false;
                     node = Util::remove_and_next(node_ref);
@@ -740,22 +740,6 @@ impl Readability {
     fn is_valid_byline(line: &str) -> bool {
         let len = line.trim().len();
         len > 0 && len < 100
-    }
-
-    // Check if this node is an H1 or H2 element whose content is mostly
-    // the same as the article title.
-    fn header_duplicates_title(node: &Node, title: Option<&str>) -> bool {
-        let name = node.get_name().to_lowercase();
-        if name != "h1" && name != "h2" {
-            return false;
-        }
-        let heading = Util::get_inner_text(node, false);
-
-        if let Some(title) = title {
-            Util::text_similarity(title, &heading) > 0.75
-        } else {
-            false
-        }
     }
 
     // Initialize a node with the readability object. Also checks the

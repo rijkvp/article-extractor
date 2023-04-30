@@ -22,7 +22,7 @@ async fn run_test(name: &str) {
     let document = crate::FullTextParser::parse_html(&html, None, &empty_config).unwrap();
     let xpath_ctx = crate::FullTextParser::get_xpath_ctx(&document).unwrap();
 
-    crate::FullTextParser::prep_content(&xpath_ctx, None, &empty_config, &url, &document);
+    crate::FullTextParser::prep_content(&xpath_ctx, None, &empty_config, &url, &document, None);
     let mut article = Article {
         title: None,
         author: None,

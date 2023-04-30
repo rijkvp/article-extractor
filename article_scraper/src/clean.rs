@@ -35,7 +35,7 @@ pub fn clean_html(html: &str, base_url: &Url) -> Result<String, FullTextParserEr
     let empty_config = FtrConfigEntry::default();
     let document = FullTextParser::parse_html(html, None, &empty_config)?;
     let xpath_ctx = FullTextParser::get_xpath_ctx(&document)?;
-    FullTextParser::prep_content(&xpath_ctx, None, &empty_config, base_url, &document);
+    FullTextParser::prep_content(&xpath_ctx, None, &empty_config, base_url, &document, None);
     if let Some(mut root) = document.get_root_element() {
         FullTextParser::post_process_page(&mut root)?;
     }
