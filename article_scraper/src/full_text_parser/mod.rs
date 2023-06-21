@@ -84,17 +84,27 @@ impl FullTextParser {
             .download_all_pages(html, client, config, global_config, &url)
             .await?;
 
-        self.parse_offline(pages, config, global_config, Some(url))
+        self.parse_offline(pages, config, Some(url))
     }
 
     pub fn parse_offline(
         &self,
         pages: Vec<String>,
         config: Option<&ConfigEntry>,
-        global_config: &ConfigEntry,
         url: Option<Url>,
     ) -> Result<Article, FullTextParserError> {
         let url = url.unwrap_or_else(|| url::Url::parse("http://fakehost/test/base/").unwrap());
+
+        let config = if config.is_none() {
+            self.get_grabber_config(&url)
+        } else {
+            config
+        };
+
+        let global_config = self
+            .config_files
+            .get("global.txt")
+            .ok_or(FullTextParserError::Config)?;
 
         let mut article = Article {
             title: None,
@@ -1033,7 +1043,8 @@ impl FullTextParser {
         let xpath = "//*[not(node())]";
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            if node.get_name() == "meta" {
+            let name = node.get_name().to_lowercase();
+            if name == "meta" || name == "img" || name == "br" {
                 continue;
             }
 

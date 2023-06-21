@@ -29,7 +29,6 @@ let scraper = ArticleScraper::new(None);
 let url = Url::parse("https://www.nytimes.com/interactive/2023/04/21/science/parrots-video-chat-facetime.html");
 let client = Client::new();
 let article = scraper.parse(&url, false, &client, None).await.unwrap();
-let html = article.get_doc_content();
 ```
 
 # CLI

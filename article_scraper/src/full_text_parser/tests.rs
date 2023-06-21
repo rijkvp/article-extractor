@@ -14,9 +14,7 @@ async fn run_test(name: &str, url: &str, title: Option<&str>, author: Option<&st
         .expect("Failed to read source HTML");
 
     let parser = FullTextParser::new(None).await;
-    let article = parser
-        .parse_offline(vec![html], None, &ConfigEntry::default(), Some(url))
-        .unwrap();
+    let article = parser.parse_offline(vec![html], None, Some(url)).unwrap();
 
     let content = article.html.unwrap();
 

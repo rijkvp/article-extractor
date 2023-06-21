@@ -119,12 +119,7 @@ async fn extract_ftr(
     };
 
     let full_text_parser = FullTextParser::new(None).await;
-    let article = match full_text_parser.parse_offline(
-        vec![html],
-        config.as_ref(),
-        &FtrConfigEntry::default(),
-        base_url,
-    ) {
+    let article = match full_text_parser.parse_offline(vec![html], config.as_ref(), base_url) {
         Ok(res) => res,
         Err(err) => {
             log::error!("Failed to extract content with ftr: {err}");
