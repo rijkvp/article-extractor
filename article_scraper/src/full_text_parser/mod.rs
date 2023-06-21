@@ -157,12 +157,9 @@ impl FullTextParser {
 
         while let Ok(page_result) = self.evlauate_page(&html, config, global_config, article_url) {
             if let Page::Single(single_page_url) = page_result {
-                if pages.is_empty() {
-                    pages.push(
-                        Self::download(&single_page_url, client, config, global_config).await?,
-                    );
-                    return Ok(pages);
-                }
+                let single_page_html =
+                    Self::download(&single_page_url, client, config, global_config).await?;
+                return Ok(vec![single_page_html]);
             } else if let Page::Multi(next_page_url) = page_result {
                 if let Some(next_page_url) = next_page_url {
                     let next_page_html =
