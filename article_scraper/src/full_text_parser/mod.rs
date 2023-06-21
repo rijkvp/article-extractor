@@ -2,6 +2,7 @@ pub mod config;
 pub mod error;
 mod fingerprints;
 mod metadata;
+mod page;
 mod readability;
 
 #[cfg(test)]
@@ -9,6 +10,7 @@ mod tests;
 
 use self::config::{ConfigCollection, ConfigEntry};
 use self::error::FullTextParserError;
+use self::page::Page;
 pub use self::readability::Readability;
 use crate::article::Article;
 use crate::constants;
@@ -35,96 +37,11 @@ impl FullTextParser {
         Self { config_files }
     }
 
-    pub async fn parse_offline(
-        &self,
-        html: &str,
-        config: Option<&ConfigEntry>,
-        base_url: Option<Url>,
-    ) -> Result<Article, FullTextParserError> {
-        libxml::tree::node::set_node_rc_guard(10);
-
-        if config.is_none() && base_url.is_none() {
-            log::error!("need either a config or the base_url to look for a config");
-            return Err(FullTextParserError::Config);
-        }
-
-        let global_config = self
-            .config_files
-            .get("global.txt")
-            .ok_or(FullTextParserError::Config)?;
-
-        let url =
-            base_url.unwrap_or_else(|| url::Url::parse("http://fakehost/test/base/").unwrap());
-
-        let config = if config.is_none() {
-            self.get_grabber_config(&url)
-        } else {
-            config
-        };
-
-        let mut article = Article {
-            title: None,
-            author: None,
-            url,
-            date: None,
-            thumbnail_url: None,
-            document: None,
-            root_node: None,
-        };
-
-        let mut new_document = Document::new().map_err(|()| FullTextParserError::Xml)?;
-        let mut root =
-            Node::new("article", None, &new_document).map_err(|()| FullTextParserError::Xml)?;
-        new_document.set_root_element(&root);
-
-        Self::generate_head(&mut root, &new_document)?;
-
-        let old_document = Self::parse_html(html, config, global_config)?;
-        let xpath_ctx = Self::get_xpath_ctx(&old_document)?;
-
-        if let Some(url) = self.check_for_next_page(&xpath_ctx, config, global_config, &article.url)
-        {
-            log::info!("Next page url: {url}");
-        }
-
-        metadata::extract(&xpath_ctx, config, Some(global_config), &mut article);
-        if article.thumbnail_url.is_none() {
-            Self::check_for_thumbnail(&xpath_ctx, &mut article);
-        }
-        Self::prep_content(
-            &xpath_ctx,
-            config,
-            global_config,
-            &article.url,
-            &old_document,
-            article.title.as_deref(),
-        );
-        let found_body = Self::extract_body(&xpath_ctx, &mut root, config, global_config)?;
-        if !found_body {
-            log::error!("Ftr failed to find content");
-            return Err(FullTextParserError::Scrape);
-        }
-
-        if let Err(error) = Self::prevent_self_closing_tags(&xpath_ctx) {
-            log::error!("Preventing self closing tags failed - '{error}'");
-            return Err(error);
-        }
-
-        Self::post_process_document(&new_document)?;
-
-        article.document = Some(new_document);
-        article.root_node = Some(root);
-
-        Ok(article)
-    }
-
     pub(crate) async fn parse(
         &self,
         url: &url::Url,
         client: &Client,
     ) -> Result<Article, FullTextParserError> {
-        libxml::tree::node::set_node_rc_guard(10);
-
         log::debug!("Scraping article: '{url}'");
 
         // check if we have a config for the url
@@ -150,23 +67,6 @@ impl FullTextParser {
             return Err(FullTextParserError::ContentType);
         }
 
-        let mut article = Article {
-            title: None,
-            author: None,
-            url: url.clone(),
-            date: None,
-            thumbnail_url: None,
-            document: None,
-            root_node: None,
-        };
-
-        let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
-        let mut root =
-            Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
-        document.set_root_element(&root);
-
-        Self::generate_head(&mut root, &document)?;
-
         let html = Self::get_body(response).await?;
 
         // check for fingerprints
@@ -180,15 +80,43 @@ impl FullTextParser {
             config
         };
 
-        self.parse_pages(
-            &mut article,
-            &html,
-            &mut root,
-            config,
-            global_config,
-            client,
-        )
-        .await?;
+        let pages = self
+            .download_all_pages(html, client, config, global_config, &url)
+            .await?;
+
+        self.parse_offline(pages, config, global_config, Some(url))
+    }
+
+    pub fn parse_offline(
+        &self,
+        pages: Vec<String>,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
+        url: Option<Url>,
+    ) -> Result<Article, FullTextParserError> {
+        let url = url.unwrap_or_else(|| url::Url::parse("http://fakehost/test/base/").unwrap());
+
+        let mut article = Article {
+            title: None,
+            author: None,
+            url: url.clone(),
+            date: None,
+            thumbnail_url: None,
+            html: None,
+        };
+
+        libxml::tree::node::set_node_rc_guard(10);
+
+        let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
+        let mut root =
+            Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
+        document.set_root_element(&root);
+
+        Self::generate_head(&mut root, &document)?;
+
+        for page_html in pages {
+            self.parse_page(&mut article, &page_html, &mut root, config, global_config)?;
+        }
 
         let context = Context::new(&document).map_err(|()| {
             log::error!("Failed to create xpath context for extracted article");
@@ -201,24 +129,55 @@ impl FullTextParser {
         }
 
         Self::post_process_document(&document)?;
-
-        article.document = Some(document);
-        article.root_node = Some(root);
+        article.html = Some(Util::serialize_node(&document, &root));
 
         Ok(article)
     }
 
-    async fn parse_pages(
+    async fn download_all_pages(
         &self,
-        article: &mut Article,
-        html: &str,
-        root: &mut Node,
+        html: String,
+        client: &Client,
         config: Option<&ConfigEntry>,
         global_config: &ConfigEntry,
-        client: &Client,
-    ) -> Result<(), FullTextParserError> {
-        let mut document = Self::parse_html(html, config, global_config)?;
-        let mut xpath_ctx = Self::get_xpath_ctx(&document)?;
+        article_url: &Url,
+    ) -> Result<Vec<String>, FullTextParserError> {
+        let mut html = html;
+        let mut pages = vec![html.clone()];
+
+        while let Ok(page_result) = self.evlauate_page(&html, config, global_config, article_url) {
+            if let Page::Single(single_page_url) = page_result {
+                if pages.is_empty() {
+                    pages.push(
+                        Self::download(&single_page_url, client, config, global_config).await?,
+                    );
+                    return Ok(pages);
+                }
+            } else if let Page::Multi(next_page_url) = page_result {
+                if let Some(next_page_url) = next_page_url {
+                    let next_page_html =
+                        Self::download(&next_page_url, client, config, global_config).await?;
+                    pages.push(next_page_html.clone());
+                    html = next_page_html;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        Ok(pages)
+    }
+
+    fn evlauate_page(
+        &self,
+        html: &str,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
+        article_url: &Url,
+    ) -> Result<Page, FullTextParserError> {
+        let document = Self::parse_html(html, config, global_config)?;
+        let xpath_ctx = Self::get_xpath_ctx(&document)?;
 
         // check for single page link
         let rule = Util::select_rule(
@@ -235,26 +194,27 @@ impl FullTextParser {
                 // parse again with single page url
                 log::debug!("Single page link found '{}'", single_page_url);
 
-                if let Err(error) = self
-                    .parse_single_page(
-                        article,
-                        &single_page_url,
-                        root,
-                        config,
-                        global_config,
-                        client,
-                    )
-                    .await
-                {
-                    log::warn!("Single Page parsing: {error}");
-                    log::info!("Continuing with regular parser.");
-                }
+                return Ok(Page::Single(single_page_url));
             }
         }
 
+        let next_page_url =
+            self.check_for_next_page(&xpath_ctx, config, global_config, article_url);
+        Ok(Page::Multi(next_page_url))
+    }
+
+    fn parse_page(
+        &self,
+        article: &mut Article,
+        html: &str,
+        root: &mut Node,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
+    ) -> Result<(), FullTextParserError> {
+        let document = Self::parse_html(html, config, global_config)?;
+        let xpath_ctx = Self::get_xpath_ctx(&document)?;
+
         metadata::extract(&xpath_ctx, config, Some(global_config), article);
-        let mut next_page_url =
-            self.check_for_next_page(&xpath_ctx, config, global_config, &article.url);
 
         if article.thumbnail_url.is_none() {
             Self::check_for_thumbnail(&xpath_ctx, article);
@@ -274,38 +234,6 @@ impl FullTextParser {
             {
                 log::error!("Both ftr and readability failed to find content: {error}");
                 return Err(error);
-            }
-        }
-
-        while let Some(url) = next_page_url.take() {
-            log::debug!("next page");
-
-            let headers = Util::generate_headers(config, global_config)?;
-            let html = Self::download(&url, client, headers).await?;
-            document = Self::parse_html(&html, config, global_config)?;
-            xpath_ctx = Self::get_xpath_ctx(&document)?;
-            if let Some(url) =
-                self.check_for_next_page(&xpath_ctx, config, global_config, &article.url)
-            {
-                next_page_url.replace(url);
-            }
-            Self::prep_content(
-                &xpath_ctx,
-                config,
-                global_config,
-                &article.url,
-                &document,
-                article.title.as_deref(),
-            );
-            let found_body = Self::extract_body(&xpath_ctx, root, config, global_config)?;
-
-            if !found_body {
-                if let Err(error) =
-                    Readability::extract_body(document, root, article.title.as_deref())
-                {
-                    log::error!("Both ftr and readability failed to find content: {error}");
-                    return Err(error);
-                }
             }
         }
 
@@ -343,34 +271,6 @@ impl FullTextParser {
             log::error!("Creating xpath context failed for downloaded HTML");
             FullTextParserError::Xml
         })
-    }
-
-    async fn parse_single_page(
-        &self,
-        article: &mut Article,
-        url: &url::Url,
-        root: &mut Node,
-        config: Option<&ConfigEntry>,
-        global_config: &ConfigEntry,
-        client: &Client,
-    ) -> Result<(), FullTextParserError> {
-        let headers = Util::generate_headers(config, global_config)?;
-        let html = Self::download(url, client, headers).await?;
-        let document = Self::parse_html(&html, config, global_config)?;
-        let xpath_ctx = Self::get_xpath_ctx(&document)?;
-        metadata::extract(&xpath_ctx, config, Some(global_config), article);
-        Self::check_for_thumbnail(&xpath_ctx, article);
-        Self::prep_content(
-            &xpath_ctx,
-            config,
-            global_config,
-            url,
-            &document,
-            article.title.as_deref(),
-        );
-        Self::extract_body(&xpath_ctx, root, config, global_config)?;
-
-        Ok(())
     }
 
     async fn get_response(
@@ -446,8 +346,10 @@ impl FullTextParser {
     pub async fn download(
         url: &url::Url,
         client: &Client,
-        headers: HeaderMap,
+        config: Option<&ConfigEntry>,
+        global_config: &ConfigEntry,
     ) -> Result<String, FullTextParserError> {
+        let headers = Util::generate_headers(config, global_config)?;
         let response = Self::get_response(url, client, headers).await?;
         let body = Self::get_body(response).await?;
         Ok(body)

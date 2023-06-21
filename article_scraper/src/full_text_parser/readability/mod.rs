@@ -60,8 +60,7 @@ impl Readability {
             url,
             date: None,
             thumbnail_url: None,
-            document: None,
-            root_node: None,
+            html: None,
         };
 
         let mut article_document = Document::new().map_err(|()| FullTextParserError::Xml)?;
@@ -73,11 +72,8 @@ impl Readability {
         super::Readability::extract_body(document, &mut root, article.title.as_deref())?;
         crate::FullTextParser::post_process_document(&article_document)?;
 
-        article.document = Some(article_document);
-        article.root_node = Some(root);
-        let html = article
-            .get_content()
-            .ok_or(FullTextParserError::Readability)?;
+        let html = Util::serialize_node(&article_document, &root);
+        article.html.replace(html.clone());
 
         Ok(html)
     }

@@ -115,14 +115,17 @@ impl ArticleScraper {
         client: &Client,
         progress: Option<Sender<Progress>>,
     ) -> Result<Article, ScraperError> {
-        let res = self.full_text_parser.parse(url, client).await?;
+        let mut res = self.full_text_parser.parse(url, client).await?;
 
         if download_images {
-            if let Some(document) = res.document.as_ref() {
-                let _image_res = self
+            if let Some(html) = res.html.as_deref() {
+                if let Ok(downloaded_html) = self
                     .image_downloader
-                    .download_images_from_document(document, client, progress)
-                    .await;
+                    .download_images_from_string(html, client, progress)
+                    .await
+                {
+                    res.html.replace(downloaded_html);
+                }
             }
         }
 

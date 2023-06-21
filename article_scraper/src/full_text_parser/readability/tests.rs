@@ -4,6 +4,7 @@ use reqwest::Url;
 use crate::{
     article::Article,
     full_text_parser::{config::ConfigEntry, metadata},
+    util::Util,
 };
 
 async fn run_test(name: &str) {
@@ -29,8 +30,7 @@ async fn run_test(name: &str) {
         url,
         date: None,
         thumbnail_url: None,
-        document: None,
-        root_node: None,
+        html: None,
     };
 
     let mut article_document = Document::new().unwrap();
@@ -41,9 +41,7 @@ async fn run_test(name: &str) {
     super::Readability::extract_body(document, &mut root, article.title.as_deref()).unwrap();
     crate::FullTextParser::post_process_document(&article_document).unwrap();
 
-    article.document = Some(article_document);
-    article.root_node = Some(root);
-    let html = article.get_content().unwrap();
+    let html = Util::serialize_node(&article_document, &root);
 
     // abuse line below to update all test results after whitespace or similar change
     // std::fs::write(format!("./resources/tests/readability/{name}/expected.html"), &html).unwrap();

@@ -1,17 +1,21 @@
 pub use self::error::ImageDownloadError;
+use self::image_data::ImageDataBase64;
+use self::pair::Pair;
 use self::request::ImageRequest;
 use crate::util::Util;
 use base64::Engine;
 use image::ImageOutputFormat;
 use libxml::parser::Parser;
-use libxml::tree::{Document, Node, SaveOptions};
+use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
 pub use progress::Progress;
-use reqwest::{Client, Url};
+use reqwest::Client;
 use std::io::Cursor;
 use tokio::sync::mpsc::{self, Sender};
 
 mod error;
+mod image_data;
+mod pair;
 mod progress;
 mod request;
 
@@ -30,58 +34,46 @@ impl ImageDownloader {
         client: &Client,
         progress: Option<Sender<Progress>>,
     ) -> Result<String, ImageDownloadError> {
-        let parser = Parser::default_html();
-        let doc = parser
-            .parse_string(html)
-            .map_err(|_| ImageDownloadError::HtmlParse)?;
+        let image_urls = Self::harvest_image_urls_from_html(html)?;
 
-        self.download_images_from_document(&doc, client, progress)
-            .await?;
+        let mut image_requests = Vec::new();
+        for image_url in image_urls {
+            let client = client.clone();
+            let future = async move {
+                let request = ImageRequest::new(image_url.value, &client).await;
+                let parent_request = if let Some(parent_url) = image_url.parent_value {
+                    ImageRequest::new(parent_url, &client).await.ok()
+                } else {
+                    None
+                };
 
-        let options = SaveOptions {
-            format: false,
-            no_declaration: false,
-            no_empty_tags: true,
-            no_xhtml: false,
-            xhtml: false,
-            as_xml: false,
-            as_html: true,
-            non_significant_whitespace: false,
-        };
-        Ok(doc.to_string_with_options(options))
-    }
-
-    pub async fn download_images_from_document(
-        &self,
-        doc: &Document,
-        client: &Client,
-        progress: Option<Sender<Progress>>,
-    ) -> Result<(), ImageDownloadError> {
-        let xpath_ctx = Context::new(doc).map_err(|()| {
-            log::error!("Failed to create xpath context for document");
-            ImageDownloadError::HtmlParse
-        })?;
-
-        let xpath = "//img";
-        let node_vec = Util::evaluate_xpath(&xpath_ctx, xpath, false)
-            .map_err(|_| ImageDownloadError::HtmlParse)?;
-
-        let mut image_urls = Vec::new();
-
-        for node in node_vec {
-            image_urls.push(Self::harvest_image_urls(node, client));
+                if let Ok(request) = request {
+                    Some(Pair {
+                        value: request,
+                        parent_value: parent_request,
+                    })
+                } else {
+                    None
+                }
+            };
+            image_requests.push(future);
         }
 
-        let res = futures::future::join_all(image_urls)
+        let res = futures::future::join_all(image_requests)
             .await
             .into_iter()
-            .filter_map(|r| r.ok())
+            .flatten()
             .collect::<Vec<_>>();
 
         let total_size = res
             .iter()
-            .map(|(req, parent_req)| {
-                req.content_length() + parent_req.as_ref().map(|r| r.content_length()).unwrap_or(0)
+            .map(|req_pair| {
+                req_pair.value.content_length()
+                    + req_pair
+                        .parent_value
+                        .as_ref()
+                        .map(|p| p.content_length())
+                        .unwrap_or(0)
             })
             .sum::<usize>();
 
@@ -89,12 +81,8 @@ impl ImageDownloader {
 
         let mut download_futures = Vec::new();
 
-        for (request, parent_request) in res {
-            download_futures.push(self.download_and_replace_image(
-                request,
-                parent_request,
-                tx.clone(),
-            ));
+        for request in res {
+            download_futures.push(self.download_image(request, tx.clone()));
         }
 
         tokio::spawn(async move {
@@ -114,15 +102,88 @@ impl ImageDownloader {
             }
         });
 
-        _ = futures::future::join_all(download_futures).await;
+        let downloaded_images = futures::future::join_all(download_futures)
+            .await
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
 
-        Ok(())
+        Self::replace_downloaded_images(html, downloaded_images)
     }
 
-    async fn harvest_image_urls(
-        node: Node,
-        client: &Client,
-    ) -> Result<(ImageRequest, Option<ImageRequest>), ImageDownloadError> {
+    fn replace_downloaded_images(
+        html: &str,
+        downloaded_images: Vec<Pair<ImageDataBase64>>,
+    ) -> Result<String, ImageDownloadError> {
+        let parser = Parser::default_html();
+        let doc = parser
+            .parse_string(html)
+            .map_err(|_| ImageDownloadError::HtmlParse)?;
+
+        let xpath_ctx = Context::new(&doc).map_err(|()| {
+            log::error!("Failed to create xpath context for document");
+            ImageDownloadError::HtmlParse
+        })?;
+
+        for downloaded_image_pair in downloaded_images {
+            let xpath = format!("//img[@src='{}']", &downloaded_image_pair.value.url);
+            let node = Util::evaluate_xpath(&xpath_ctx, &xpath, false)
+                .expect("doesn't throw")
+                .into_iter()
+                .next();
+
+            if let Some(mut node) = node {
+                if node
+                    .set_property("src", &downloaded_image_pair.value.data)
+                    .is_err()
+                {
+                    continue;
+                }
+
+                if let Some(parent_data) = downloaded_image_pair.parent_value {
+                    _ = node.set_property("big-src", &parent_data.data)
+                }
+            }
+        }
+
+        let options = SaveOptions {
+            format: false,
+            no_declaration: false,
+            no_empty_tags: true,
+            no_xhtml: false,
+            xhtml: false,
+            as_xml: false,
+            as_html: true,
+            non_significant_whitespace: false,
+        };
+        Ok(doc.to_string_with_options(options))
+    }
+
+    fn harvest_image_urls_from_html(html: &str) -> Result<Vec<Pair<String>>, ImageDownloadError> {
+        let parser = Parser::default_html();
+        let doc = parser
+            .parse_string(html)
+            .map_err(|_| ImageDownloadError::HtmlParse)?;
+
+        let xpath_ctx = Context::new(&doc).map_err(|()| {
+            log::error!("Failed to create xpath context for document");
+            ImageDownloadError::HtmlParse
+        })?;
+
+        let xpath = "//img";
+        let node_vec = Util::evaluate_xpath(&xpath_ctx, xpath, false)
+            .map_err(|_| ImageDownloadError::HtmlParse)?;
+
+        let mut image_urls = Vec::new();
+
+        for node in node_vec {
+            image_urls.push(Self::harvest_image_urls_from_node(node)?);
+        }
+
+        Ok(image_urls)
+    }
+
+    fn harvest_image_urls_from_node(node: Node) -> Result<Pair<String>, ImageDownloadError> {
         let src = match node.get_property("src") {
             Some(src) => {
                 if src.starts_with("data:") {
@@ -138,60 +199,65 @@ impl ImageDownloader {
             }
         };
 
-        let url = Url::parse(&src).map_err(ImageDownloadError::InvalidUrl)?;
-        let parent_url = Self::check_image_parent(&node).await.ok();
+        let parent_url = Self::check_image_parent(&node).ok();
 
-        let request = ImageRequest::new(node.clone(), &url, client).await?;
-        let parent_request = match parent_url {
-            Some(parent_url) => Some(ImageRequest::new(node, &parent_url, client).await?),
-            None => None,
+        let image_url = Pair {
+            value: src,
+            parent_value: parent_url,
         };
 
-        Ok((request, parent_request))
+        Ok(image_url)
     }
 
-    async fn download_and_replace_image(
+    async fn download_image(
         &self,
-        mut request: ImageRequest,
-        mut parent_request: Option<ImageRequest>,
+        request: Pair<ImageRequest>,
         tx: Sender<usize>,
-    ) -> Result<(), ImageDownloadError> {
-        let mut image = request.download(&tx).await?;
-        let mut parent_image: Option<Vec<u8>> = None;
-
-        if let Some(parent_request) = parent_request.as_mut() {
-            if parent_request.content_length() > request.content_length() {
-                parent_image = parent_request.download(&tx).await.ok();
-            }
+    ) -> Result<Pair<ImageDataBase64>, ImageDownloadError> {
+        let content_type = request.value.content_type().to_owned();
+        let scale_image = content_type != "image/svg+xml" && content_type != "image/gif";
+        let mut image = request.value.download(&tx).await?;
+        let mut parent_image = None;
+        if let Some(parent_request) = request.parent_value {
+            parent_image = parent_request.download(&tx).await.ok();
         }
 
-        if request.content_type() != "image/svg+xml" && request.content_type() != "image/gif" {
-            if let Some(resized_image) = Self::scale_image(&image, self.max_size) {
+        if scale_image {
+            if let Some(resized_image) = Self::scale_image(&image.data, self.max_size) {
                 if parent_image.is_none() {
-                    parent_image = Some(image);
+                    parent_image = Some(image.clone());
                 }
-                image = resized_image;
+                image.data = resized_image;
             }
         }
 
-        let image_base64 = base64::engine::general_purpose::STANDARD.encode(&image);
-        let image_string = format!("data:{};base64,{}", request.content_type(), image_base64);
-        request.write_image_to_property("src", &image_string);
+        let image_base64 = base64::engine::general_purpose::STANDARD.encode(&image.data);
+        let image_string = format!("data:{};base64,{}", content_type, image_base64);
+        let image_data_base64 = ImageDataBase64 {
+            url: image.url,
+            data: image_string,
+        };
 
-        if let Some(parent_image) = parent_image {
+        let parent_image_data_base64 = if let Some(parent_image) = parent_image {
             let parent_image_base64 =
-                base64::engine::general_purpose::STANDARD.encode(parent_image);
+                base64::engine::general_purpose::STANDARD.encode(&parent_image.data);
+            let parent_image_string = format!(
+                "data:{};base64,{}",
+                parent_image.content_type, parent_image_base64
+            );
 
-            let content_type = parent_request
-                .map(|pr| pr.content_type().to_string())
-                .unwrap_or(request.content_type().to_string());
-            let parent_image_string =
-                format!("data:{};base64,{}", content_type, parent_image_base64);
+            Some(ImageDataBase64 {
+                url: parent_image.url,
+                data: parent_image_string,
+            })
+        } else {
+            None
+        };
 
-            request.write_image_to_property("big-src", &parent_image_string);
-        }
-
-        Ok(())
+        Ok(Pair {
+            value: image_data_base64,
+            parent_value: parent_image_data_base64,
+        })
     }
 
     fn scale_image(image_buffer: &[u8], max_dimensions: (u32, u32)) -> Option<Vec<u8>> {
@@ -224,7 +290,7 @@ impl ImageDownloader {
         }
     }
 
-    async fn check_image_parent(node: &Node) -> Result<Url, ImageDownloadError> {
+    fn check_image_parent(node: &Node) -> Result<String, ImageDownloadError> {
         let parent = match node.get_parent() {
             Some(parent) => parent,
             None => {
@@ -246,12 +312,7 @@ impl ImageDownloader {
             }
         };
 
-        let parent_url = Url::parse(&href).map_err(|err| {
-            log::debug!("Failed to parse parent image url: {}", err);
-            ImageDownloadError::InvalidUrl(err)
-        })?;
-
-        Ok(parent_url)
+        Ok(href)
     }
 }
 
@@ -260,22 +321,20 @@ mod tests {
     use super::*;
     use reqwest::Client;
     use std::fs;
-    use std::io::Write;
 
     #[tokio::test]
     #[ignore = "downloads content from the web"]
     async fn fedora31() {
         let image_dowloader = ImageDownloader::new((2048, 2048));
 
-        let html = fs::read_to_string(r"./resources/tests/planetGnome/fedora31.html")
+        let html = fs::read_to_string(r"./resources/tests/images/planet_gnome/source.html")
             .expect("Failed to read HTML");
         let result = image_dowloader
             .download_images_from_string(&html, &Client::new(), None)
             .await
             .expect("Failed to downalod images");
-        let mut file = fs::File::create(r"./test_output/fedora31_images_downloaded.html")
+        let expected = fs::read_to_string(r"./resources/tests/images/planet_gnome/expected.html")
             .expect("Failed to create output file");
-        file.write_all(result.as_bytes())
-            .expect("Failed to write result to file");
+        assert_eq!(expected, result);
     }
 }

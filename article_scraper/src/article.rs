@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use libxml::tree::{Document, Node, SaveOptions};
 use std::fs::File;
 use std::io::{Error, ErrorKind, Write};
 use std::path::PathBuf;
@@ -11,38 +10,12 @@ pub struct Article {
     pub url: Url,
     pub date: Option<DateTime<Utc>>,
     pub thumbnail_url: Option<String>,
-    pub document: Option<Document>,
-    pub root_node: Option<Node>,
+    pub html: Option<String>,
 }
 
 impl Article {
-    pub fn get_doc_content(&self) -> Option<String> {
-        // serialize content
-        let options = SaveOptions {
-            format: true,
-            no_declaration: false,
-            no_empty_tags: true,
-            no_xhtml: false,
-            xhtml: false,
-            as_xml: false,
-            as_html: true,
-            non_significant_whitespace: false,
-        };
-        self.document
-            .as_ref()
-            .map(|doc| doc.to_string_with_options(options))
-    }
-
-    pub fn get_content(&self) -> Option<String> {
-        if let (Some(document), Some(root)) = (self.document.as_ref(), self.root_node.as_ref()) {
-            Some(document.node_to_string(root))
-        } else {
-            None
-        }
-    }
-
     pub fn save_html(&self, path: &PathBuf) -> Result<(), Error> {
-        if let Some(ref html) = self.get_content() {
+        if let Some(html) = self.html.as_deref() {
             if let Ok(()) = std::fs::create_dir_all(path) {
                 let mut file_name = match self.title.clone() {
                     Some(file_name) => file_name.replace('/', "_"),

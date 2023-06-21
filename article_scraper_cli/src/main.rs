@@ -6,7 +6,6 @@ use article_scraper::images::Progress;
 use article_scraper::{ArticleScraper, FtrConfigEntry, FullTextParser, Readability};
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
-use reqwest::header::HeaderMap;
 use reqwest::Client;
 use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 use tokio::sync::mpsc::{self, Sender};
@@ -80,7 +79,7 @@ async fn extract_full(source_url: String, download_images: bool, output: Option<
         PathBuf::from("result.html")
     };
 
-    let content = match article.get_content() {
+    let content = match article.html {
         Some(content) => content,
         None => {
             log::error!("No Content");
@@ -120,10 +119,12 @@ async fn extract_ftr(
     };
 
     let full_text_parser = FullTextParser::new(None).await;
-    let article = match full_text_parser
-        .parse_offline(&html, config.as_ref(), base_url)
-        .await
-    {
+    let article = match full_text_parser.parse_offline(
+        vec![html],
+        config.as_ref(),
+        &FtrConfigEntry::default(),
+        base_url,
+    ) {
         Ok(res) => res,
         Err(err) => {
             log::error!("Failed to extract content with ftr: {err}");
@@ -131,7 +132,7 @@ async fn extract_ftr(
         }
     };
 
-    let result = match article.get_content() {
+    let result = match article.html {
         Some(res) => res,
         None => {
             log::error!("Failed to serialize document");
@@ -199,7 +200,14 @@ async fn get_html(html_file: Option<PathBuf>, source_url: Option<String>) -> Str
     let source_url = source_url.map(|url| Url::parse(&url).expect("invalid source url"));
 
     if let Some(source_url) = source_url {
-        match FullTextParser::download(&source_url, &Client::new(), HeaderMap::new()).await {
+        match FullTextParser::download(
+            &source_url,
+            &Client::new(),
+            None,
+            &FtrConfigEntry::default(),
+        )
+        .await
+        {
             Ok(html) => html,
             Err(err) => {
                 log::error!("Failed to download html from url: {err}");

@@ -14,9 +14,11 @@ async fn run_test(name: &str, url: &str, title: Option<&str>, author: Option<&st
         .expect("Failed to read source HTML");
 
     let parser = FullTextParser::new(None).await;
-    let article = parser.parse_offline(&html, None, Some(url)).await.unwrap();
+    let article = parser
+        .parse_offline(vec![html], None, &ConfigEntry::default(), Some(url))
+        .unwrap();
 
-    let content = article.get_content().unwrap();
+    let content = article.html.unwrap();
 
     // abuse line below to update all test results after whitespace or similar change
     // std::fs::write(format!("./resources/tests/ftr/{name}/expected.html"), &content).unwrap();
@@ -84,7 +86,7 @@ async fn heise_1() {
 async fn encoding_windows_1252() {
     let _ = env_logger::builder().is_test(true).try_init();
     let url = url::Url::parse("https://www.aerzteblatt.de/nachrichten/139511/Scholz-zuversichtlich-mit-Blick-auf-Coronasituation-im-Winter").unwrap();
-    let html = FullTextParser::download(&url, &Client::new(), reqwest::header::HeaderMap::new())
+    let html = FullTextParser::download(&url, &Client::new(), None, &ConfigEntry::default())
         .await
         .unwrap();
     assert!(html.contains("Bund-Länder-Konferenz"));

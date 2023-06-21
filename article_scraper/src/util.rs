@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use libxml::{
-    tree::{Document, Node, NodeType},
+    tree::{Document, Node, NodeType, SaveOptions},
     xpath::Context,
 };
 use reqwest::{
@@ -20,6 +20,26 @@ use crate::{
 pub struct Util;
 
 impl Util {
+    #[allow(dead_code)]
+    pub fn serialize_document(doc: &Document) -> String {
+        let options = SaveOptions {
+            format: true,
+            no_declaration: false,
+            no_empty_tags: true,
+            no_xhtml: false,
+            xhtml: false,
+            as_xml: false,
+            as_html: true,
+            non_significant_whitespace: false,
+        };
+
+        doc.to_string_with_options(options)
+    }
+
+    pub fn serialize_node(doc: &Document, node: &Node) -> String {
+        doc.node_to_string(node)
+    }
+
     pub fn check_extension(path: &DirEntry, extension: &str) -> bool {
         if let Some(ext) = path.path().extension() {
             ext.to_str() == Some(extension)
@@ -904,38 +924,6 @@ impl Util {
             || constants::PHRASING_ELEMS.contains(&tag_name.as_str())
             || ((tag_name == "A" || tag_name == "DEL" || tag_name == "INS")
                 && node.get_child_nodes().iter().all(Self::is_phrasing_content))
-    }
-
-    #[allow(dead_code)]
-    pub fn serialize_node(node: &Node, filename: &str) {
-        let mut doc = libxml::tree::Document::new().unwrap();
-        doc.set_root_element(node);
-        let html = doc.to_string_with_options(libxml::tree::SaveOptions {
-            format: true,
-            no_declaration: false,
-            no_empty_tags: true,
-            no_xhtml: false,
-            xhtml: false,
-            as_xml: false,
-            as_html: true,
-            non_significant_whitespace: false,
-        });
-        std::fs::write(filename, html).unwrap();
-    }
-
-    #[allow(dead_code)]
-    pub fn serialize_document(doc: &Document, filename: &str) {
-        let html = doc.to_string_with_options(libxml::tree::SaveOptions {
-            format: true,
-            no_declaration: false,
-            no_empty_tags: true,
-            no_xhtml: false,
-            xhtml: false,
-            as_xml: false,
-            as_html: true,
-            non_significant_whitespace: false,
-        });
-        std::fs::write(filename, html).unwrap();
     }
 
     // Replaces 2 or more successive <br> elements with a single <p>.

@@ -1,21 +1,21 @@
 use futures::StreamExt;
-use libxml::tree::Node;
-use reqwest::{header::CONTENT_TYPE, Client, Response, Url};
+use reqwest::{header::CONTENT_TYPE, Client, Response};
 use tokio::sync::mpsc::Sender;
 
-use super::ImageDownloadError;
+use super::{image_data::ImageData, ImageDownloadError};
 
+#[derive(Debug)]
 pub struct ImageRequest {
-    node: Node,
-    http_response: Option<Response>,
+    url: String,
+    response: Response,
     content_length: usize,
     content_type: String,
 }
 
 impl ImageRequest {
-    pub async fn new(node: Node, url: &Url, client: &Client) -> Result<Self, ImageDownloadError> {
+    pub async fn new(url: String, client: &Client) -> Result<Self, ImageDownloadError> {
         let response = client
-            .get(url.clone())
+            .get(&url)
             .send()
             .await
             .map_err(|_| ImageDownloadError::Http)?;
@@ -28,31 +28,31 @@ impl ImageRequest {
         }
 
         Ok(Self {
-            node,
-            http_response: Some(response),
+            url,
+            response,
             content_length,
             content_type,
         })
     }
 
-    pub async fn download(&mut self, tx: &Sender<usize>) -> Result<Vec<u8>, ImageDownloadError> {
-        if let Some(http_response) = self.http_response.take() {
-            let mut stream = http_response.bytes_stream();
+    pub async fn download(self, tx: &Sender<usize>) -> Result<ImageData, ImageDownloadError> {
+        let mut stream = self.response.bytes_stream();
 
-            let mut result = Vec::with_capacity(self.content_length);
-            while let Some(item) = stream.next().await {
-                let chunk = item.map_err(|_| ImageDownloadError::Http)?;
-                _ = tx.send(chunk.len()).await;
-                for byte in chunk {
-                    result.push(byte);
-                }
+        let mut result = Vec::with_capacity(self.content_length);
+        while let Some(item) = stream.next().await {
+            let chunk = item.map_err(|_| ImageDownloadError::Http)?;
+            _ = tx.send(chunk.len()).await;
+            for byte in chunk {
+                result.push(byte);
             }
-
-            Ok(result)
-        } else {
-            log::warn!("imagerequest already consumed");
-            Err(ImageDownloadError::Http)
         }
+
+        Ok(ImageData {
+            url: self.url,
+            data: result,
+            content_length: self.content_length,
+            content_type: self.content_type,
+        })
     }
 
     pub fn content_type(&self) -> &str {
@@ -61,10 +61,6 @@ impl ImageRequest {
 
     pub fn content_length(&self) -> usize {
         self.content_length
-    }
-
-    pub fn write_image_to_property(&mut self, prop_name: &str, data: &str) {
-        _ = self.node.set_property(prop_name, data);
     }
 
     fn get_content_length(response: &Response) -> Result<usize, ImageDownloadError> {
