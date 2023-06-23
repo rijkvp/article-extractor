@@ -8,6 +8,7 @@ description = "Scrap article contents from the web. Powered by fivefilters full 
 repository = "https://gitlab.com/news-flash/article_scraper"
 readme = "../Readme.md"
 keywords = ["article", "scrape", "full-text", "readability"]
+exclude = ["resources/tests"]
 
 [dependencies]
 thiserror = "1.0"
