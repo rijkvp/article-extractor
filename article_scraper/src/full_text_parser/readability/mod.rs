@@ -102,14 +102,7 @@ impl Readability {
                     continue;
                 }
 
-                let match_string = node_ref
-                    .get_class_names()
-                    .iter()
-                    .fold(String::new(), |a, b| format!("{a} {b}"));
-                let match_string = match node_ref.get_property("id") {
-                    Some(id) => format!("{match_string} {id}"),
-                    None => match_string,
-                };
+                let match_string = Util::get_signature(node_ref);
 
                 if !Util::is_probably_visible(node_ref) {
                     log::debug!("removing hidden node {match_string}");

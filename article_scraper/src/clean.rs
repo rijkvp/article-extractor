@@ -5,6 +5,11 @@ use crate::full_text_parser::error::FullTextParserError;
 use crate::util::Util;
 use crate::{FtrConfigEntry, FullTextParser};
 
+pub struct CleanedHtml {
+    pub html: String,
+    pub thumbnail: Option<String>,
+}
+
 /// Re-use crate internals to clean HTML of articles before
 /// further processing:
 /// - replace H1 with H2
@@ -29,12 +34,13 @@ use crate::{FtrConfigEntry, FullTextParser};
 /// * `html` - HTML content
 /// * `base_url` - URL used to complete relative URLs
 ///
-pub fn clean_html(html: &str, base_url: &Url) -> Result<String, FullTextParserError> {
+pub fn clean_html(html: &str, base_url: &Url) -> Result<CleanedHtml, FullTextParserError> {
     libxml::tree::node::set_node_rc_guard(10);
 
     let empty_config = FtrConfigEntry::default();
     let document = FullTextParser::parse_html(html, None, &empty_config)?;
     let xpath_ctx = FullTextParser::get_xpath_ctx(&document)?;
+    let thumbnail = FullTextParser::check_for_thumbnail(&xpath_ctx);
     FullTextParser::prep_content(&xpath_ctx, None, &empty_config, base_url, &document, None);
     if let Some(mut root) = document.get_root_element() {
         FullTextParser::post_process_page(&mut root)?;
@@ -50,7 +56,10 @@ pub fn clean_html(html: &str, base_url: &Url) -> Result<String, FullTextParserEr
         article_node.add_child(&mut node).unwrap();
     }
 
-    Ok(document.node_to_string(&article_node))
+    Ok(CleanedHtml {
+        html: document.node_to_string(&article_node),
+        thumbnail,
+    })
 }
 
 #[cfg(test)]
@@ -64,6 +73,10 @@ mod tests {
         let url = Url::parse("https://finshots.in").unwrap();
         let res = clean_html(html, &url).unwrap();
 
-        assert_eq!(res.len(), 11965);
+        assert_eq!(res.html.len(), 11965);
+        assert_eq!(
+            res.thumbnail.as_deref(),
+            Some("https://cdn.finshots.app/images/2023/03/Design-8-Amul.jpg")
+        )
     }
 }

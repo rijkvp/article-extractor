@@ -156,3 +156,71 @@ pub const PHRASING_ELEMS: &[&str] = &[
     "OUTPUT", "PROGRESS", "Q", "RUBY", "SAMP", "SCRIPT", "SELECT", "SMALL", "SPAN", "STRONG",
     "SUB", "SUP", "TEXTAREA", "TIME", "VAR", "WBR",
 ];
+
+pub const LEAD_IMAGE_URL_XPATH: &str = "//link[@rel='image_src']";
+
+pub const POSITIVE_LEAD_IMAGE_URL_HINTS: &[&str] =
+    &["upload", "wp-content", "large", "photo", "wp-image"];
+
+pub static POSITIVE_LEAD_IMAGE_URL_HINTS_REGEX: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(&POSITIVE_LEAD_IMAGE_URL_HINTS.join("|"))
+        .case_insensitive(true)
+        .build()
+        .expect("POSITIVE_LEAD_IMAGE_URL_HINTS regex")
+});
+
+pub const NEGATIVE_LEAD_IMAGE_URL_HINTS: &[&str] = &[
+    "spacer",
+    "sprite",
+    "blank",
+    "throbber",
+    "gradient",
+    "tile",
+    "bg",
+    "background",
+    "icon",
+    "social",
+    "header",
+    "hdr",
+    "advert",
+    "spinner",
+    "loader",
+    "loading",
+    "default",
+    "rating",
+    "share",
+    "facebook",
+    "twitter",
+    "theme",
+    "promo",
+    "ads",
+    "wp-includes",
+];
+
+pub static NEGATIVE_LEAD_IMAGE_URL_HINTS_REGEX: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(&NEGATIVE_LEAD_IMAGE_URL_HINTS.join("|"))
+        .case_insensitive(true)
+        .build()
+        .expect("NEGATIVE_LEAD_IMAGE_URL_HINTS regex")
+});
+
+pub const PHOTO_HINTS: &[&str] = &["figure", "photo", "image", "caption"];
+pub static PHOTO_HINTS_REGEX: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(&PHOTO_HINTS.join("|"))
+        .case_insensitive(true)
+        .build()
+        .expect("PHOTO_HINTS_REGEX regex")
+});
+
+pub static GIF_REGEX: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"\.gif(\?.*)?$"#)
+        .case_insensitive(true)
+        .build()
+        .expect("GIF_REGEX")
+});
+pub static JPG_REGEX: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r#"\.jpe?g(\?.*)?$"#)
+        .case_insensitive(true)
+        .build()
+        .expect("JPG_REGEX")
+});

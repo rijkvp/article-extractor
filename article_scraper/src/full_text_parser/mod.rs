@@ -23,7 +23,7 @@ use libxml::tree::{Document, Node, NodeType};
 use libxml::xpath::Context;
 use reqwest::header::HeaderMap;
 use reqwest::{Client, Response, Url};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::str::from_utf8;
 
@@ -224,7 +224,7 @@ impl FullTextParser {
         metadata::extract(&xpath_ctx, config, Some(global_config), article);
 
         if article.thumbnail_url.is_none() {
-            Self::check_for_thumbnail(&xpath_ctx, article);
+            article.thumbnail_url = Self::check_for_thumbnail(&xpath_ctx);
         }
         Self::prep_content(
             &xpath_ctx,
@@ -427,28 +427,89 @@ impl FullTextParser {
         conf
     }
 
-    fn check_for_thumbnail(context: &Context, article: &mut Article) {
+    pub fn check_for_thumbnail(context: &Context) -> Option<String> {
         if let Ok(thumb) = Util::get_attribute(
             context,
             "//meta[contains(@name, 'twitter:image')]",
             "content",
         ) {
-            article.thumbnail_url = Some(thumb);
-            return;
+            return Some(thumb);
         }
 
         if let Ok(thumb) =
             Util::get_attribute(context, "//meta[contains(@name, 'og:image')]", "content")
         {
-            article.thumbnail_url = Some(thumb);
-            return;
+            return Some(thumb);
         }
 
         if let Ok(thumb) =
             Util::get_attribute(context, "//link[contains(@rel, 'image_src')]", "href")
         {
-            article.thumbnail_url = Some(thumb);
+            return Some(thumb);
         }
+
+        if let Ok(img_nodes) = Util::evaluate_xpath(context, "//img", true) {
+            let mut scores: HashMap<String, i32> = HashMap::new();
+            let len = img_nodes.len();
+            for (index, img_node) in img_nodes.into_iter().enumerate() {
+                let src = if let Some(src) = img_node.get_attribute("src") {
+                    src
+                } else {
+                    continue;
+                };
+
+                let score = Util::score_image_url(&src);
+                let score = score + Util::score_img_attr(&img_node);
+                let score = score + Util::score_by_parents(&img_node);
+                let score = score + Util::score_by_sibling(&img_node);
+                let score = score + Util::score_by_dimensions(&img_node);
+                let score = score + Util::score_by_position(len, index);
+
+                scores.insert(src, score);
+            }
+
+            if let Some((top_src, top_score)) =
+                scores.into_iter().max_by_key(|(_src, score)| *score)
+            {
+                if top_score > 0 {
+                    let top_url = top_src.trim().into();
+                    if Url::parse(top_src.trim()).is_ok() {
+                        return Some(top_url);
+                    }
+                }
+            }
+        }
+
+        // If nothing else worked, check to see if there are any really
+        // probable nodes in the doc, like <link rel="image_src" />.
+        // eslint-disable-next-line no-restricted-syntax
+        if let Ok(link_nodes) = Util::evaluate_xpath(context, constants::LEAD_IMAGE_URL_XPATH, true)
+        {
+            if let Some(first_link_node) = link_nodes.first() {
+                if let Some(src) = first_link_node.get_attribute("src") {
+                    let src = src.trim().to_string();
+                    if Url::parse(&src).is_ok() {
+                        return Some(src);
+                    }
+                }
+
+                if let Some(href) = first_link_node.get_attribute("href") {
+                    let href = href.trim().to_string();
+                    if Url::parse(&href).is_ok() {
+                        return Some(href);
+                    }
+                }
+
+                if let Some(val) = first_link_node.get_attribute("value") {
+                    let val = val.trim().to_string();
+                    if Url::parse(&val).is_ok() {
+                        return Some(val);
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     fn fix_lazy_images(context: &Context, doc: &Document) -> Result<(), FullTextParserError> {

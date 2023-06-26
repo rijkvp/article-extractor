@@ -11,7 +11,7 @@ use reqwest::{
 use tokio::fs::DirEntry;
 
 use crate::{
-    constants,
+    constants::{self, NEGATIVE_LEAD_IMAGE_URL_HINTS_REGEX},
     full_text_parser::{config::ConfigEntry, error::FullTextParserError},
     image_object::ImageObject,
     video_object::VideoObject,
@@ -273,6 +273,17 @@ impl Util {
             node.unlink();
         }
         Ok(())
+    }
+
+    pub fn get_signature(node: &Node) -> String {
+        let match_string = node
+            .get_class_names()
+            .iter()
+            .fold(String::new(), |a, b| format!("{a} {b}"));
+        match node.get_property("id") {
+            Some(id) => format!("{match_string} {id}"),
+            None => match_string,
+        }
     }
 
     pub fn is_probably_visible(node: &Node) -> bool {
@@ -1032,6 +1043,135 @@ impl Util {
                 }
             }
         }
+    }
+
+    pub fn score_image_url(url: &str) -> i32 {
+        let url = url.trim();
+        let mut score = 0;
+
+        if constants::POSITIVE_LEAD_IMAGE_URL_HINTS_REGEX.is_match(url) {
+            score += 20;
+        }
+
+        if NEGATIVE_LEAD_IMAGE_URL_HINTS_REGEX.is_match(url) {
+            score -= 20;
+        }
+
+        // TODO: We might want to consider removing this as
+        // gifs are much more common/popular than they once were
+        if constants::GIF_REGEX.is_match(url) {
+            score -= 10;
+        }
+
+        if constants::JPG_REGEX.is_match(url) {
+            score += 10;
+        }
+
+        // PNGs are neutral.
+
+        score
+    }
+
+    // Alt attribute usually means non-presentational image.
+    pub fn score_img_attr(img: &Node) -> i32 {
+        if img.get_attribute("alt").is_some() {
+            5
+        } else {
+            0
+        }
+    }
+
+    // Look through our parent and grandparent for figure-like
+    // container elements, give a bonus if we find them
+    pub fn score_by_parents(img: &Node) -> i32 {
+        let mut score = 0;
+        let parent = img.get_parent();
+        let grand_parent = parent.as_ref().and_then(|n| n.get_parent());
+        if Self::has_tag_name(parent.as_ref(), "figure")
+            || Self::has_tag_name(grand_parent.as_ref(), "figure")
+        {
+            score += 25;
+        }
+
+        if let Some(parent) = parent.as_ref() {
+            let signature = Util::get_signature(parent);
+            if constants::PHOTO_HINTS_REGEX.is_match(&signature) {
+                score += 15;
+            }
+        }
+
+        if let Some(grand_parent) = grand_parent.as_ref() {
+            let signature = Util::get_signature(grand_parent);
+            if constants::PHOTO_HINTS_REGEX.is_match(&signature) {
+                score += 15;
+            }
+        }
+
+        score
+    }
+
+    // Look at our immediate sibling and see if it looks like it's a
+    // caption. Bonus if so.
+    pub fn score_by_sibling(img: &Node) -> i32 {
+        let mut score = 0;
+        let sibling = img.get_next_element_sibling();
+
+        if let Some(sibling) = sibling.as_ref() {
+            if sibling.get_name().to_lowercase() == "figcaption" {
+                score += 25;
+            }
+
+            let signature = Util::get_signature(sibling);
+            if constants::PHOTO_HINTS_REGEX.is_match(&signature) {
+                score += 15;
+            }
+        }
+
+        score
+    }
+
+    pub fn score_by_dimensions(img: &Node) -> i32 {
+        let mut score = 0;
+
+        let width = img
+            .get_attribute("width")
+            .and_then(|w| w.parse::<f32>().ok());
+        let height = img
+            .get_attribute("height")
+            .and_then(|w| w.parse::<f32>().ok());
+        let src = img.get_attribute("src").unwrap_or_default();
+
+        // Penalty for skinny images
+        if let Some(width) = width {
+            if width <= 50.0 {
+                score -= 50;
+            }
+        }
+
+        // Penalty for short images
+        if let Some(height) = height {
+            if height <= 50.0 {
+                score -= 50;
+            }
+        }
+
+        if let (Some(width), Some(height)) = (width, height) {
+            if !src.contains("sprite") {
+                let area = width * height;
+                if area < 5000.0 {
+                    // Smaller than 50 x 100
+                    score -= 100;
+                } else {
+                    score += f32::round(area / 1000.0) as i32;
+                }
+            }
+        }
+
+        score
+    }
+
+    pub fn score_by_position(len: usize, index: usize) -> i32 {
+        (len / 2 - index) as i32
     }
 }
 

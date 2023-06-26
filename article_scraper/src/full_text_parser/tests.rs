@@ -1,5 +1,5 @@
 use super::{config::ConfigEntry, FullTextParser};
-use libxml::tree::SaveOptions;
+use libxml::{parser::Parser, tree::SaveOptions, xpath::Context};
 use reqwest::{Client, Url};
 
 async fn run_test(name: &str, url: &str, title: Option<&str>, author: Option<&str>) {
@@ -179,4 +179,23 @@ async fn unwrap_noscript_images_2() {
     let res = document.to_string_with_options(options);
 
     assert_eq!(res, expected);
+}
+
+#[test]
+fn extract_thumbnail() {
+    let html = r#"
+<img src="https://www.golem.de/2306/175204-387164-387163_rc.jpg" width="140" height="140" loading="lazy" />Im staubigen
+Utah sind die Fossilien eines urzeitlichen Meeresreptils entdeckt worden. Nun haben Forscher eine Studie dazu
+herausgebracht. (<a href="https://www.golem.de/specials/fortschritt/" rel="noopener noreferrer" target="_blank"
+    referrerpolicy="no-referrer">Fortschritt</a>, <a href="https://www.golem.de/specials/wissenschaft/"
+    rel="noopener noreferrer" target="_blank" referrerpolicy="no-referrer">Wissenschaft</a>)
+    "#;
+    let doc = Parser::default_html().parse_string(html).unwrap();
+    let ctx = Context::new(&doc).unwrap();
+
+    let thumb = FullTextParser::check_for_thumbnail(&ctx).unwrap();
+    assert_eq!(
+        thumb,
+        "https://www.golem.de/2306/175204-387164-387163_rc.jpg"
+    )
 }
