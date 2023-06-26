@@ -427,6 +427,15 @@ impl FullTextParser {
         conf
     }
 
+    pub fn thumbnail_from_html(html: &str) -> Option<String> {
+        if let Ok(doc) = Self::parse_html(html, None, &ConfigEntry::default()) {
+            if let Ok(ctx) = Self::get_xpath_ctx(&doc) {
+                return Self::check_for_thumbnail(&ctx);
+            }
+        }
+        None
+    }
+
     pub fn check_for_thumbnail(context: &Context) -> Option<String> {
         if let Ok(thumb) = Util::get_attribute(
             context,
