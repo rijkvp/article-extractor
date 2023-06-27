@@ -1171,7 +1171,7 @@ impl Util {
     }
 
     pub fn score_by_position(len: usize, index: usize) -> i32 {
-        (len / 2 - index) as i32
+        ((len as f32 / 2.0) - index as f32) as i32
     }
 }
 
