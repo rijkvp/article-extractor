@@ -553,9 +553,9 @@ impl Util {
         fn get_elems(node: &Node, tag: &str) -> Option<Node> {
             for child in node.get_child_elements() {
                 if child.get_name().to_uppercase() == tag {
-                    return Some(child.clone());
-                } else {
-                    return get_elems(&child, tag);
+                    return Some(child);
+                } else if let Some(node) = get_elems(&child, tag) {
+                    return Some(node);
                 }
             }
 
