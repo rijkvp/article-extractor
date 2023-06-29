@@ -633,7 +633,7 @@ impl FullTextParser {
                     })
                     .is_err();
                 if !success {
-                    log::warn!("Failed to add iframe as child of video wrapper <div>");
+                    log::debug!("Failed to add iframe as child of video wrapper <div>");
                 }
             } else {
                 log::warn!("Failed to get parent of iframe");

@@ -547,6 +547,24 @@ impl Util {
         vec
     }
 
+    pub fn get_first_element_by_tag_name(node: &Node, tag: &str) -> Option<Node> {
+        let tag = tag.to_uppercase();
+
+        fn get_elems(node: &Node, tag: &str) -> Option<Node> {
+            for child in node.get_child_elements() {
+                if child.get_name().to_uppercase() == tag {
+                    return Some(child.clone());
+                } else {
+                    return get_elems(&child, tag);
+                }
+            }
+
+            None
+        }
+
+        get_elems(node, &tag)
+    }
+
     pub fn get_link_density(node: &Node) -> f64 {
         let text_length = Util::get_inner_text(node, true).len();
         if text_length == 0 {

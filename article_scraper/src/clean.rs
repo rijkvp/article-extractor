@@ -1,4 +1,3 @@
-use libxml::tree::Node;
 use reqwest::Url;
 
 use crate::full_text_parser::error::FullTextParserError;
@@ -47,17 +46,21 @@ pub fn clean_html(html: &str, base_url: &Url) -> Result<CleanedHtml, FullTextPar
     }
     FullTextParser::post_process_document(&document)?;
 
-    let mut article_node =
-        Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
-    let content_nodes = Util::evaluate_xpath(&xpath_ctx, "//body/*", true)?;
-
-    for mut node in content_nodes {
-        node.unlink();
-        article_node.add_child(&mut node).unwrap();
+    let content_node = if let Some(root) = document.get_root_element() {
+        if root.get_name() == "body" {
+            Some(root)
+        } else if let Some(body) = Util::get_first_element_by_tag_name(&root, "body") {
+            Some(body)
+        } else {
+            Some(root)
+        }
+    } else {
+        None
     }
+    .ok_or(FullTextParserError::Xml)?;
 
     Ok(CleanedHtml {
-        html: document.node_to_string(&article_node),
+        html: document.node_to_string(&content_node),
         thumbnail,
     })
 }
