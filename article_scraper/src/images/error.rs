@@ -23,3 +23,9 @@ pub enum ImageDownloadError {
     #[error("Unknown Error")]
     Unknown,
 }
+
+impl From<reqwest::Error> for ImageDownloadError {
+    fn from(_value: reqwest::Error) -> Self {
+        Self::Http
+    }
+}

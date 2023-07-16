@@ -14,11 +14,7 @@ pub struct ImageRequest {
 
 impl ImageRequest {
     pub async fn new(url: String, client: &Client) -> Result<Self, ImageDownloadError> {
-        let response = client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|_| ImageDownloadError::Http)?;
+        let response = client.get(&url).send().await?;
 
         let content_type = Self::get_content_type(&response)?;
         let content_length = Self::get_content_length(&response)?;
@@ -40,7 +36,7 @@ impl ImageRequest {
 
         let mut result = Vec::with_capacity(self.content_length);
         while let Some(item) = stream.next().await {
-            let chunk = item.map_err(|_| ImageDownloadError::Http)?;
+            let chunk = item?;
             _ = tx.send(chunk.len()).await;
             for byte in chunk {
                 result.push(byte);
