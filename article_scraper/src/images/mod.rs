@@ -4,6 +4,7 @@ use self::pair::Pair;
 use self::request::ImageRequest;
 use crate::util::Util;
 use base64::Engine;
+use futures::StreamExt;
 use image::ImageOutputFormat;
 use libxml::parser::Parser;
 use libxml::tree::{Node, SaveOptions};
@@ -26,6 +27,45 @@ pub struct ImageDownloader {
 impl ImageDownloader {
     pub fn new(max_size: (u32, u32)) -> Self {
         ImageDownloader { max_size }
+    }
+
+    pub async fn single_from_url(
+        url: &str,
+        client: &Client,
+        progress: Option<Sender<Progress>>,
+    ) -> Result<Vec<u8>, ImageDownloadError> {
+        let response = client.get(url).send().await?;
+
+        let content_type = Util::get_content_type(&response)?;
+        let content_length = Util::get_content_length(&response)?;
+
+        if !content_type.contains("image") {
+            return Err(ImageDownloadError::ContentType);
+        }
+
+        let mut stream = response.bytes_stream();
+        let mut downloaded_bytes = 0;
+
+        let mut result = Vec::with_capacity(content_length);
+        while let Some(item) = stream.next().await {
+            let chunk = item?;
+            downloaded_bytes += chunk.len();
+
+            if let Some(sender) = progress.as_ref() {
+                _ = sender
+                    .send(Progress {
+                        total_size: content_length,
+                        downloaded: downloaded_bytes,
+                    })
+                    .await;
+            }
+
+            for byte in chunk {
+                result.push(byte);
+            }
+        }
+
+        Ok(result)
     }
 
     pub async fn download_images_from_string(

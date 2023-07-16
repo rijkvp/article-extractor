@@ -1,6 +1,8 @@
 use futures::StreamExt;
-use reqwest::{header::CONTENT_TYPE, Client, Response};
+use reqwest::{Client, Response};
 use tokio::sync::mpsc::Sender;
+
+use crate::util::Util;
 
 use super::{image_data::ImageData, ImageDownloadError};
 
@@ -16,8 +18,8 @@ impl ImageRequest {
     pub async fn new(url: String, client: &Client) -> Result<Self, ImageDownloadError> {
         let response = client.get(&url).send().await?;
 
-        let content_type = Self::get_content_type(&response)?;
-        let content_length = Self::get_content_length(&response)?;
+        let content_type = Util::get_content_type(&response)?;
+        let content_length = Util::get_content_length(&response)?;
 
         if !content_type.contains("image") {
             return Err(ImageDownloadError::ContentType);
@@ -57,34 +59,5 @@ impl ImageRequest {
 
     pub fn content_length(&self) -> usize {
         self.content_length
-    }
-
-    fn get_content_length(response: &Response) -> Result<usize, ImageDownloadError> {
-        let status_code = response.status();
-
-        if !status_code.is_success() {
-            log::warn!("response: {status_code}");
-            return Err(ImageDownloadError::Http);
-        }
-
-        response
-            .headers()
-            .get(reqwest::header::CONTENT_LENGTH)
-            .and_then(|content_length| content_length.to_str().ok())
-            .and_then(|content_length| content_length.parse::<usize>().ok())
-            .ok_or(ImageDownloadError::ContentLength)
-    }
-
-    fn get_content_type(response: &Response) -> Result<String, ImageDownloadError> {
-        if response.status().is_success() {
-            response
-                .headers()
-                .get(CONTENT_TYPE)
-                .and_then(|val| val.to_str().ok())
-                .map(|val| val.to_string())
-                .ok_or(ImageDownloadError::ContentType)
-        } else {
-            Err(ImageDownloadError::ContentType)
-        }
     }
 }

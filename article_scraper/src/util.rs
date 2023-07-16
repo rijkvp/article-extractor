@@ -5,7 +5,7 @@ use libxml::{
     xpath::Context,
 };
 use reqwest::{
-    header::{HeaderMap, HeaderName, HeaderValue},
+    header::{HeaderMap, HeaderName, HeaderValue, CONTENT_LENGTH, CONTENT_TYPE},
     Response,
 };
 use tokio::fs::DirEntry;
@@ -14,6 +14,7 @@ use crate::{
     constants::{self, NEGATIVE_LEAD_IMAGE_URL_HINTS_REGEX},
     full_text_parser::{config::ConfigEntry, error::FullTextParserError},
     image_object::ImageObject,
+    images::ImageDownloadError,
     video_object::VideoObject,
 };
 
@@ -1190,6 +1191,35 @@ impl Util {
 
     pub fn score_by_position(len: usize, index: usize) -> i32 {
         ((len as f32 / 2.0) - index as f32) as i32
+    }
+
+    pub fn get_content_length(response: &Response) -> Result<usize, ImageDownloadError> {
+        let status_code = response.status();
+
+        if !status_code.is_success() {
+            log::warn!("response: {status_code}");
+            return Err(ImageDownloadError::Http);
+        }
+
+        response
+            .headers()
+            .get(CONTENT_LENGTH)
+            .and_then(|content_length| content_length.to_str().ok())
+            .and_then(|content_length| content_length.parse::<usize>().ok())
+            .ok_or(ImageDownloadError::ContentLength)
+    }
+
+    pub fn get_content_type(response: &Response) -> Result<String, ImageDownloadError> {
+        if response.status().is_success() {
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|val| val.to_str().ok())
+                .map(|val| val.to_string())
+                .ok_or(ImageDownloadError::ContentType)
+        } else {
+            Err(ImageDownloadError::ContentType)
+        }
     }
 }
 
