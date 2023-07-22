@@ -583,6 +583,9 @@ impl FullTextParser {
                 continue;
             }
 
+            _ = node.remove_attribute("decoding");
+            _ = node.remove_attribute("loading");
+
             for (name, val) in node.get_attributes() {
                 if name == "src" || name == "srcset" || name == "alt" {
                     continue;
