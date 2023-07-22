@@ -583,9 +583,6 @@ impl FullTextParser {
                 continue;
             }
 
-            _ = node.remove_attribute("decoding");
-            _ = node.remove_attribute("loading");
-
             for (name, val) in node.get_attributes() {
                 if name == "src" || name == "srcset" || name == "alt" {
                     continue;
@@ -848,6 +845,8 @@ impl FullTextParser {
         _ = Self::fix_lazy_images(context, document);
         _ = Self::fix_iframe_size(context, "youtube.com");
         _ = Self::remove_attribute(context, Some("a"), "onclick");
+        _ = Self::remove_attribute(context, Some("img"), "decoding");
+        _ = Self::remove_attribute(context, Some("img"), "loading");
 
         // strip elements using Readability.com and Instapaper.com ignore class names
         // .entry-unrelated and .instapaper_ignore
