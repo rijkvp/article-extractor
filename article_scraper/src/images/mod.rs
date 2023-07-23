@@ -37,7 +37,7 @@ impl ImageDownloader {
         let response = client.get(url).send().await?;
 
         let content_type = Util::get_content_type(&response)?;
-        let content_length = Util::get_content_length(&response)?;
+        let content_length = Util::get_content_length(&response).unwrap_or(0);
 
         if !content_type.contains("image") {
             return Err(ImageDownloadError::ContentType);
