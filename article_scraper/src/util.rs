@@ -738,11 +738,6 @@ impl Util {
                         }
                     }
 
-                    // For embed with <object> tag, check inner HTML as well.
-                    // if embed_node.get_name().to_lowercase() == "object" && constants::VIDEOS.is_match(embed_node.innerHTML) {
-                    //     return false;
-                    // }
-
                     embed_count += 1;
                 }
             }
@@ -755,8 +750,9 @@ impl Util {
 
             let image_obj_count = Util::get_elements_by_tag_name(node, "imageobject").len();
             let video_obj_count = Util::get_elements_by_tag_name(node, "videoobject").len();
+            let video_tag_count = Util::get_elements_by_tag_name(node, "video").len();
 
-            if image_obj_count > 0 || video_obj_count > 0 {
+            if image_obj_count > 0 || video_obj_count > 0 || video_tag_count > 0 {
                 return false;
             }
 
