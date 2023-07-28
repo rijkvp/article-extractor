@@ -2,6 +2,7 @@ pub use self::error::ImageDownloadError;
 use self::image_data::ImageDataBase64;
 use self::pair::Pair;
 use self::request::ImageRequest;
+use crate::constants;
 use crate::util::Util;
 use base64::Engine;
 use futures::StreamExt;
@@ -36,12 +37,18 @@ impl ImageDownloader {
     ) -> Result<Vec<u8>, ImageDownloadError> {
         let response = client.get(url).send().await?;
 
-        let content_type = Util::get_content_type(&response)?;
-        let content_length = Util::get_content_length(&response).unwrap_or(0);
+        let content_type = Util::get_content_type(&response);
+        let content_length = Util::get_content_length(&response);
 
-        if !content_type.contains("image") {
+        if let (Err(_), Ok(content_length)) = (&content_type, &content_length) {
+            if *content_length > constants::UNKNOWN_CONTENT_SIZE_LIMIT {
+                return Err(ImageDownloadError::ContentType);
+            }
+        } else if !content_type?.contains("image") {
             return Err(ImageDownloadError::ContentType);
         }
+
+        let content_length = content_length.unwrap_or(0);
 
         let mut stream = response.bytes_stream();
         let mut downloaded_bytes = 0;
