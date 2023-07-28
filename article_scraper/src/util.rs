@@ -1193,7 +1193,7 @@ impl Util {
         let status_code = response.status();
 
         if !status_code.is_success() {
-            log::warn!("response: {status_code}");
+            log::warn!("response: {status_code} ({})", response.url());
             return Err(ImageDownloadError::Http);
         }
 
@@ -1206,16 +1206,19 @@ impl Util {
     }
 
     pub fn get_content_type(response: &Response) -> Result<String, ImageDownloadError> {
-        if response.status().is_success() {
-            response
-                .headers()
-                .get(CONTENT_TYPE)
-                .and_then(|val| val.to_str().ok())
-                .map(|val| val.to_string())
-                .ok_or(ImageDownloadError::ContentType)
-        } else {
-            Err(ImageDownloadError::ContentType)
+        let status_code = response.status();
+
+        if !status_code.is_success() {
+            log::warn!("response: {status_code} ({})", response.url());
+            return Err(ImageDownloadError::Http);
         }
+
+        response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|val| val.to_str().ok())
+            .map(|val| val.to_string())
+            .ok_or(ImageDownloadError::ContentType)
     }
 }
 
