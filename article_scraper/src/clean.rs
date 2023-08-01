@@ -153,7 +153,7 @@ mod tests {
         let url = Url::parse("https://finshots.in").unwrap();
         let res = clean_html(html, &url).unwrap();
 
-        assert_eq!(res.html.len(), 11965);
+        assert_eq!(res.html.len(), 11959);
         assert_eq!(
             res.thumbnail.as_deref(),
             Some("https://cdn.finshots.app/images/2023/03/Design-8-Amul.jpg")

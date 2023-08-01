@@ -626,7 +626,7 @@ impl FullTextParser {
                     .set_property("class", "videoWrapper")
                     .ok()
                     .and_then(|()| node.set_property("width", "100%").ok())
-                    .and_then(|()| node.set_property("height", "100%").ok())
+                    .and_then(|()| node.set_property("height", "500").ok())
                     .ok_or_else(|| {
                         node.unlink();
                         video_wrapper.add_child(&mut node)
