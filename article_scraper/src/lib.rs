@@ -45,7 +45,7 @@ mod util;
 mod video_object;
 
 use crate::images::Progress;
-use article::Article;
+pub use article::Article;
 use error::ScraperError;
 #[doc(hidden)]
 pub use full_text_parser::config::ConfigEntry as FtrConfigEntry;
