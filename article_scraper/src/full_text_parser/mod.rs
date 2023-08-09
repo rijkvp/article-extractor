@@ -118,14 +118,52 @@ impl FullTextParser {
         libxml::tree::node::set_node_rc_guard(10);
 
         let mut document = Document::new().map_err(|()| FullTextParserError::Xml)?;
-        let mut root =
+        let mut html_node =
+            Node::new("html", None, &document).map_err(|()| FullTextParserError::Xml)?;
+        let mut head_node =
+            Node::new("head", None, &document).map_err(|()| FullTextParserError::Xml)?;
+        let mut charset_node =
+            Node::new("meta", None, &document).map_err(|()| FullTextParserError::Xml)?;
+        charset_node
+            .set_attribute("charset", "utf-8")
+            .map_err(|e| {
+                log::error!("{e}");
+                FullTextParserError::Xml
+            })?;
+        let mut body_node =
+            Node::new("body", None, &document).map_err(|()| FullTextParserError::Xml)?;
+        let mut article_root =
             Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
-        document.set_root_element(&root);
 
-        Self::generate_head(&mut root, &document)?;
+        html_node.add_child(&mut head_node).map_err(|e| {
+            log::error!("{e}");
+            FullTextParserError::Xml
+        })?;
+        html_node.add_child(&mut body_node).map_err(|e| {
+            log::error!("{e}");
+            FullTextParserError::Xml
+        })?;
+        head_node.add_child(&mut charset_node).map_err(|e| {
+            log::error!("{e}");
+            FullTextParserError::Xml
+        })?;
+        body_node.add_child(&mut article_root).map_err(|e| {
+            log::error!("{e}");
+            FullTextParserError::Xml
+        })?;
+
+        document.set_root_element(&html_node);
+
+        Self::generate_head(&mut article_root, &document)?;
 
         for page_html in pages {
-            self.parse_page(&mut article, &page_html, &mut root, config, global_config)?;
+            self.parse_page(
+                &mut article,
+                &page_html,
+                &mut article_root,
+                config,
+                global_config,
+            )?;
         }
 
         let context = Context::new(&document).map_err(|()| {
@@ -139,7 +177,7 @@ impl FullTextParser {
         }
 
         Self::post_process_document(&document)?;
-        article.html = Some(Util::serialize_node(&document, &root));
+        article.html = Some(Util::serialize_node(&document, &article_root));
 
         Ok(article)
     }
