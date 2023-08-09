@@ -81,7 +81,7 @@ async fn heise_1() {
 #[tokio::test]
 async fn spiegel_1() {
     run_test("spiegel-1", "https://www.spiegel.de/", None, None).await
-} 
+}
 
 #[tokio::test]
 #[ignore = "downloads content from the web"]
