@@ -265,10 +265,72 @@ impl FullTextParser {
 
         // parse html
         let parser = Parser::default_html();
-        parser.parse_string(html.as_str()).map_err(|err| {
+        Self::parse_html_string_patched(html.as_str(), &parser).map_err(|err| {
             log::error!("Parsing HTML failed for downloaded HTML {:?}", err);
             FullTextParserError::Xml
         })
+    }
+
+    /// FIXME: Here are some patched functions of libxml crate.
+    /// Started from libxml 2.11.1+, we have some encoding issue.
+    /// See:
+    /// - <https://github.com/KWARC/rust-libxml/issues/111>
+    /// - <https://github.com/Orange-OpenSource/hurl/issues/1535>
+    /// These two functions should be removed when the issue is fixed in libxml crate.
+    fn try_usize_to_i32(value: usize) -> Result<i32, libxml::parser::XmlParseError> {
+        if cfg!(target_pointer_width = "16") || (value < i32::max_value() as usize) {
+            // Cannot safely use our value comparison, but the conversion if always safe.
+            // Or, if the value can be safely represented as a 32-bit signed integer.
+            Ok(value as i32)
+        } else {
+            // Document too large, cannot parse using libxml2.
+            Err(libxml::parser::XmlParseError::DocumentTooLarge)
+        }
+    }
+
+    fn parse_html_string_patched(
+        input: &str,
+        parser: &Parser,
+    ) -> Result<Document, libxml::parser::XmlParseError> {
+        let input_bytes: &[u8] = input.as_ref();
+        let input_ptr = input_bytes.as_ptr() as *const std::os::raw::c_char;
+        let input_len = Self::try_usize_to_i32(input_bytes.len())?;
+        let encoding = std::ffi::CString::new("utf-8").unwrap();
+        let encoding_ptr = encoding.as_ptr();
+        let url_ptr = std::ptr::null();
+
+        // HTML_PARSE_RECOVER | HTML_PARSE_NOERROR
+        let options = 1 + 32;
+        match parser.format {
+            libxml::parser::ParseFormat::XML => unsafe {
+                let doc_ptr = libxml::bindings::xmlReadMemory(
+                    input_ptr,
+                    input_len,
+                    url_ptr,
+                    encoding_ptr,
+                    options,
+                );
+                if doc_ptr.is_null() {
+                    Err(libxml::parser::XmlParseError::GotNullPointer)
+                } else {
+                    Ok(Document::new_ptr(doc_ptr))
+                }
+            },
+            libxml::parser::ParseFormat::HTML => unsafe {
+                let docptr = libxml::bindings::htmlReadMemory(
+                    input_ptr,
+                    input_len,
+                    url_ptr,
+                    encoding_ptr,
+                    options,
+                );
+                if docptr.is_null() {
+                    Err(libxml::parser::XmlParseError::GotNullPointer)
+                } else {
+                    Ok(Document::new_ptr(docptr))
+                }
+            },
+        }
     }
 
     pub(crate) fn get_xpath_ctx(doc: &Document) -> Result<Context, FullTextParserError> {

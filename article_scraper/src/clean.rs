@@ -39,22 +39,8 @@ pub fn clean_html_fragment(
 ) -> Result<CleanedHtml, FullTextParserError> {
     libxml::tree::node::set_node_rc_guard(10);
 
-    let html = format!(
-        r#"
-        <!DOCTYPE html>
-        <html>
-            <head>
-                <meta charset="utf-8">
-            </head>
-            <body>
-                {html_fragment}
-            </body>
-        </html> 
-    "#
-    );
-
     let empty_config = FtrConfigEntry::default();
-    let document = FullTextParser::parse_html(&html, None, &empty_config)?;
+    let document = FullTextParser::parse_html(html_fragment, None, &empty_config)?;
     let xpath_ctx = FullTextParser::get_xpath_ctx(&document)?;
     let thumbnail = FullTextParser::check_for_thumbnail(&xpath_ctx);
     FullTextParser::prep_content(&xpath_ctx, None, &empty_config, base_url, &document, None);
