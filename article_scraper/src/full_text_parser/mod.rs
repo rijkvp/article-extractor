@@ -122,8 +122,6 @@ impl FullTextParser {
             Node::new("article", None, &document).map_err(|()| FullTextParserError::Xml)?;
         document.set_root_element(&root);
 
-        Self::generate_head(&mut root, &document)?;
-
         for page_html in pages {
             self.parse_page(&mut article, &page_html, &mut root, config, global_config)?;
         }
@@ -1089,20 +1087,6 @@ impl FullTextParser {
         } else {
             url::Url::parse(url).ok()
         }
-    }
-
-    fn generate_head(root: &mut Node, document: &Document) -> Result<(), FullTextParserError> {
-        if let Ok(mut head_node) = Node::new("head", None, document) {
-            if let Ok(()) = root.add_prev_sibling(&mut head_node) {
-                if let Ok(mut meta) = head_node.new_child(None, "meta") {
-                    if meta.set_property("charset", "utf-8").is_ok() {
-                        return Ok(());
-                    }
-                }
-            }
-        }
-
-        Err(FullTextParserError::Xml)
     }
 
     fn prevent_self_closing_tags(context: &Context) -> Result<(), FullTextParserError> {
