@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-use std::fmt::Write;
 use libxml::{
     tree::{Document, Node, NodeType, SaveOptions},
     xpath::Context,
@@ -8,6 +6,8 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue, CONTENT_LENGTH, CONTENT_TYPE},
     Response,
 };
+use std::collections::HashSet;
+use std::fmt::Write;
 use tokio::fs::DirEntry;
 
 use crate::{
@@ -204,13 +204,13 @@ impl Util {
         let node_vec = Util::evaluate_xpath(context, xpath, true)?;
         let mut val = String::new();
         for node in node_vec {
-            let part = node
-                .get_content()
-                .split_whitespace()
-                .fold(String::new(), |mut output, s| {
-                    let _ = write!(output, " {s}");
-                    output
-                });
+            let part =
+                node.get_content()
+                    .split_whitespace()
+                    .fold(String::new(), |mut output, s| {
+                        let _ = write!(output, " {s}");
+                        output
+                    });
             val.push_str(&part);
             val.push(' ');
         }
