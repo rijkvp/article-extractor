@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-
+use std::fmt::Write;
 use libxml::{
     tree::{Document, Node, NodeType, SaveOptions},
     xpath::Context,
@@ -190,7 +190,7 @@ impl Util {
 
     pub fn extract_value(context: &Context, xpath: &str) -> Result<String, FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
-        if let Some(val) = node_vec.get(0) {
+        if let Some(val) = node_vec.first() {
             return Ok(val.get_content());
         }
 
@@ -207,8 +207,10 @@ impl Util {
             let part = node
                 .get_content()
                 .split_whitespace()
-                .map(|s| format!("{} ", s))
-                .collect::<String>();
+                .fold(String::new(), |mut output, s| {
+                    let _ = write!(output, " {s}");
+                    output
+                });
             val.push_str(&part);
             val.push(' ');
         }
