@@ -179,6 +179,10 @@ impl Readability {
                     // Put phrasing content into paragraphs.
                     let mut p: Option<Node> = None;
                     for mut child in node_ref.get_child_nodes().into_iter() {
+                        if child.is_null() {
+                            continue;
+                        }
+
                         if Util::is_phrasing_content(&child) {
                             if let Some(p) = p.as_mut() {
                                 child.unlink();
@@ -205,6 +209,10 @@ impl Readability {
                         } else if p.is_some() {
                             if let Some(p) = p.as_mut() {
                                 for mut r_node in p.get_child_nodes().into_iter().rev() {
+                                    if r_node.is_null() {
+                                        continue;
+                                    }
+
                                     if Util::is_whitespace(&r_node) {
                                         r_node.unlink();
                                         continue;
@@ -366,6 +374,10 @@ impl Readability {
                     Node::new("DIV", None, &document).expect("can't create new node");
 
                 for mut child in root.get_child_elements().drain(..) {
+                    if child.is_null() {
+                        continue;
+                    }
+
                     child.unlink();
                     new_top_candidate.add_child(&mut child).unwrap();
                 }
@@ -510,6 +522,10 @@ impl Readability {
 
             if let Some(mut siblings) = siblings {
                 for mut sibling in siblings.drain(..) {
+                    if sibling.is_null() {
+                        continue;
+                    }
+
                     let mut append = false;
 
                     let score = Self::get_content_score(&sibling).unwrap_or(0.0);
@@ -614,6 +630,10 @@ impl Readability {
                     })?;
 
                 for mut child in article_content.get_child_nodes() {
+                    if child.is_null() {
+                        continue;
+                    }
+
                     child.unlink();
                     div.add_child(&mut child).map_err(|error| {
                         log::error!("{error}");
@@ -657,6 +677,10 @@ impl Readability {
                     // But first check if we actually have something
                     if let Some((best_attempt, _len, _document)) = attempts.pop() {
                         for mut child in best_attempt.get_child_nodes() {
+                            if child.is_null() {
+                                continue;
+                            }
+
                             child.unlink();
                             root.add_child(&mut child).map_err(|error| {
                                 log::error!("{error}");
@@ -674,6 +698,10 @@ impl Readability {
                     .map_err(|()| FullTextParserError::Readability)?;
             } else {
                 for mut child in article_content.get_child_nodes() {
+                    if child.is_null() {
+                        continue;
+                    }
+
                     child.unlink();
                     root.add_child(&mut child).map_err(|error| {
                         log::error!("{error}");

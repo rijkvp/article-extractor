@@ -69,6 +69,10 @@ impl ImageObject {
     }
 
     pub fn replace(&self, node: &mut Node) -> Result<(), FullTextParserError> {
+        if node.is_null() {
+            return Err(FullTextParserError::Xml);
+        }
+
         let mut parent = node.get_parent().ok_or(FullTextParserError::Xml)?;
 
         if parent.get_name().to_uppercase() == "A" {

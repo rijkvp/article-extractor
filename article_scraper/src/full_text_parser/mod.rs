@@ -678,6 +678,10 @@ impl FullTextParser {
         let xpath = &format!("//iframe[contains(@src, '{}')]", site_name);
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
+            if node.is_null() {
+                continue;
+            }
+
             let video_wrapper = node
                 .get_parent()
                 .and_then(|mut parent| parent.new_child(None, "div").ok());
@@ -732,6 +736,10 @@ impl FullTextParser {
     ) -> Result<(), FullTextParserError> {
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
+            if node.is_null() {
+                continue;
+            }
+
             if let Some(url) = node.get_attribute(attribute) {
                 let trimmed_url = url.trim();
 
@@ -845,6 +853,10 @@ impl FullTextParser {
 
         if let Ok(h2_nodes) = Util::evaluate_xpath(context, "//h2", false) {
             for mut h2_node in h2_nodes {
+                if h2_node.is_null() {
+                    continue;
+                }
+
                 if Util::header_duplicates_title(&h2_node, title) {
                     h2_node.unlink();
                 }
@@ -969,6 +981,10 @@ impl FullTextParser {
         // This is done to prevent a placeholder img is replaced by img from noscript in next step.
         let img_nodes = Util::evaluate_xpath(ctx, "//img", false)?;
         for mut img_node in img_nodes {
+            if img_node.is_null() {
+                continue;
+            }
+
             let attrs = img_node.get_attributes();
 
             let keep = attrs.iter().any(|(name, value)| {
@@ -986,6 +1002,10 @@ impl FullTextParser {
         // Next find noscript and try to extract its image
         let noscript_nodes = Util::evaluate_xpath(ctx, "//noscript", false)?;
         for mut noscript_node in noscript_nodes {
+            if noscript_node.is_null() {
+                continue;
+            }
+
             // Parse content of noscript and make sure it only contains image
             if !Util::is_single_image(&noscript_node) {
                 continue;
@@ -1091,6 +1111,10 @@ impl FullTextParser {
         {
             let node_vec = Util::evaluate_xpath(context, xpath, false)?;
             for mut node in node_vec {
+                if node.is_null() {
+                    continue;
+                }
+
                 if node.get_property("style").is_some() && node.remove_property("style").is_err() {
                     return Err(FullTextParserError::Xml);
                 }

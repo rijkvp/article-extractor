@@ -221,6 +221,10 @@ impl Util {
         let node_vec_clone = node_vec.clone();
 
         for mut node in node_vec {
+            if node.is_null() {
+                continue;
+            }
+
             let tag_name = node.get_name();
             if constants::EMBED_TAG_NAMES.contains(tag_name.to_uppercase().as_str())
                 && node
@@ -271,6 +275,10 @@ impl Util {
         let query = &format!("{}[not(ancestor::{})]", xpath, ancestor);
         let node_vec = Util::evaluate_xpath(context, query, false)?;
         for mut node in node_vec {
+            if node.is_null() {
+                continue;
+            }
+
             node.unlink();
         }
         Ok(())
@@ -318,6 +326,10 @@ impl Util {
     }
 
     pub fn remove_and_next(node: &mut Node) -> Option<Node> {
+        if node.is_null() {
+            return None;
+        }
+
         let next_node = Self::next_node(node, true);
         node.unlink();
         next_node
@@ -641,6 +653,10 @@ impl Util {
         nodes.append(&mut Util::get_elements_by_tag_name(root, "h2"));
 
         for mut node in nodes.into_iter().rev() {
+            if node.is_null() {
+                continue;
+            }
+
             if Util::get_class_weight(&node) < 0 {
                 log::debug!(
                     "Removing header with low class weight: {} {}",
@@ -675,6 +691,10 @@ impl Util {
         let nodes = Util::get_elements_by_tag_name(root, tag);
 
         for mut node in nodes.into_iter().rev() {
+            if node.is_null() {
+                continue;
+            }
+
             if Self::should_remove(&node, tag) {
                 node.unlink();
             }
@@ -972,6 +992,10 @@ impl Util {
             // or non-whitespace. This leaves behind the first <br> in the chain
             // (which will be replaced with a <p> later).
             while let Some(mut n) = next {
+                if n.is_null() {
+                    break;
+                }
+
                 let is_text_whitespace = n
                     .get_type()
                     .map(|t| t == NodeType::TextNode)
@@ -1012,6 +1036,10 @@ impl Util {
             next = p.get_next_sibling();
 
             while let Some(mut next_node) = next {
+                if next_node.is_null() {
+                    break;
+                }
+
                 // If we've hit another <br><br>, we're done adding children to this <p>.
                 if next_node.get_name().to_uppercase() == "BR" {
                     if let Some(next_elem) = next_node.get_next_element_sibling() {
@@ -1039,6 +1067,10 @@ impl Util {
             }
 
             while let Some(mut last_child) = p.get_last_child() {
+                if last_child.is_null() {
+                    continue;
+                }
+
                 let is_text_node = last_child
                     .get_type()
                     .map(|t| t == NodeType::TextNode)
