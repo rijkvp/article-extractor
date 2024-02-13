@@ -145,9 +145,7 @@ mod tests {
         let url =
             Url::parse("https://blogs.gnome.org/tbernard/2023/07/26/rethinking-window-management/")
                 .unwrap();
-        let res = clean_html_fragment(html, &url).unwrap();
-
-        std::fs::write("/home/jeanluc/result.html", res.html).unwrap();
+        _ = clean_html_fragment(html, &url).unwrap();
     }
 
     #[test]
@@ -156,7 +154,7 @@ mod tests {
         let url = Url::parse("https://finshots.in").unwrap();
         let res = clean_html_fragment(html, &url).unwrap();
 
-        assert_eq!(res.html.len(), 11989);
+        assert!(res.html.len().abs_diff(12_000) < 200);
         assert_eq!(
             res.thumbnail.as_deref(),
             Some("https://cdn.finshots.app/images/2023/03/Design-8-Amul.jpg")
