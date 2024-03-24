@@ -1,4 +1,4 @@
 [submodule "article_scraper/ftr-site-config"]
 	path = article_scraper/ftr-site-config
 	url = https://github.com/fivefilters/ftr-site-config.git
-	branch = news-flash
+	branch = master
