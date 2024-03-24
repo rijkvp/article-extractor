@@ -4,7 +4,7 @@ stages:
 
 run-build:
   stage: build
-  image: rust:latest
+  image: rust:1.77
   before_script:
   - rustup component add rustfmt
   - rustup component add clippy
@@ -12,4 +12,4 @@ run-build:
   - rustc --version && cargo --version
   - cargo fmt -- --check
   - cargo clippy --all-targets --all-features -- -D warnings
-  - cargo build --release --jobs 1
+  - cargo build --release

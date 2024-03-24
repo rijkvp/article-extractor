@@ -9,10 +9,10 @@ repository = "https://gitlab.com/news-flash/article_scraper"
 
 [dependencies]
 article_scraper = { path  = "../article_scraper/" }
-clap =  { version = "4.2", features = [ "derive" ] }
+clap =  { version = "4.5", features = [ "derive" ] }
 simplelog = "0.12"
 log = "0.4"
-url = "2.3"
-reqwest = { version = "0.11", features = ["json", "native-tls", "gzip", "brotli", "stream"] }
-tokio = { version = "1.27", features = ["macros", "fs", "io-util", "rt-multi-thread" ] }
+url = "2.5"
+reqwest = { version = "0.12", features = ["json", "native-tls", "gzip", "brotli", "stream"] }
+tokio = { version = "1", features = ["macros", "fs", "io-util", "rt-multi-thread" ] }
 indicatif = "0.17"

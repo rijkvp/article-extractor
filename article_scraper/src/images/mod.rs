@@ -6,7 +6,7 @@ use crate::constants;
 use crate::util::Util;
 use base64::Engine;
 use futures::StreamExt;
-use image::ImageOutputFormat;
+use image::ImageFormat;
 use libxml::parser::Parser;
 use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
@@ -324,8 +324,7 @@ impl ImageDownloader {
                 image::imageops::FilterType::Lanczos3,
             );
             let mut resized_buf: Vec<u8> = Vec::new();
-            if let Err(error) =
-                image.write_to(&mut Cursor::new(&mut resized_buf), ImageOutputFormat::Png)
+            if let Err(error) = image.write_to(&mut Cursor::new(&mut resized_buf), ImageFormat::Png)
             {
                 log::error!("Failed to save resized image to resize: {}", error);
                 return None;
