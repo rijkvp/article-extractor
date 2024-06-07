@@ -1258,9 +1258,9 @@ impl Util {
 
 #[cfg(test)]
 mod tests {
-    use libxml::parser::Parser;
-    use crate::FullTextParser;
     use super::Util;
+    use crate::FullTextParser;
+    use libxml::parser::Parser;
 
     fn replace_brs(source: &str, expected: &str) {
         libxml::tree::node::set_node_rc_guard(10);
