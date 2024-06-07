@@ -288,7 +288,7 @@ impl FullTextParser {
         }
     }
 
-    fn parse_html_string_patched(
+    pub(crate) fn parse_html_string_patched(
         input: &str,
         parser: &Parser,
     ) -> Result<Document, libxml::parser::XmlParseError> {
@@ -691,6 +691,7 @@ impl FullTextParser {
                     .ok()
                     .and_then(|()| node.set_property("width", "100%").ok())
                     .and_then(|()| node.set_property("height", "400").ok())
+                    .and_then(|()| node.remove_attribute("aspect-ratio").ok())
                     .ok_or_else(|| {
                         node.unlink();
                         video_wrapper.add_child(&mut node)

@@ -1259,14 +1259,14 @@ impl Util {
 #[cfg(test)]
 mod tests {
     use libxml::parser::Parser;
-
+    use crate::FullTextParser;
     use super::Util;
 
     fn replace_brs(source: &str, expected: &str) {
         libxml::tree::node::set_node_rc_guard(10);
 
         let parser = Parser::default_html();
-        let document = parser.parse_string(source).unwrap();
+        let document = FullTextParser::parse_html_string_patched(source, &parser).unwrap();
         let root = document.get_root_element().unwrap();
         let body = root.get_first_child().unwrap();
         let div = body.get_first_child().unwrap();
