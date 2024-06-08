@@ -682,6 +682,31 @@ impl Util {
         }
     }
 
+    pub fn replace_emoji_images(root: &Node, document: &Document) {
+        let img_nodes = Util::get_elements_by_tag_name(root, "img");
+
+        for img_node in img_nodes {
+            if let Some(img_alt) = img_node.get_attribute("alt") {
+                let mut alt_chars = img_alt.chars();
+                let first_char = alt_chars.next();
+                let second_char = alt_chars.next();
+
+                if let (Some(char), None) = (first_char, second_char) {
+                    if unic_emoji_char::is_emoji(char) {
+                        if let Some(mut parent) = img_node.get_parent() {
+                            // if let Ok(emoji_text_node) = parent.add_text_child(None, "emoji", &char.to_string()) {
+                            //     _ = parent.replace_child_node(emoji_text_node, img_node);
+                            // }
+                            let emoji_text_node =
+                                Node::new_text(&char.to_string(), document).unwrap();
+                            _ = parent.replace_child_node(emoji_text_node, img_node);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Clean an element of all tags of type "tag" if they look fishy.
     // "Fishy" is an algorithm based on content length, classnames, link density, number of images & embeds, etc.
     pub fn clean_conditionally(root: &mut Node, tag: &str) {
@@ -1302,5 +1327,37 @@ mod tests {
         </div>
         "#;
         replace_brs(source, source.trim())
+    }
+
+    fn replace_emojis(source: &str, expected: &str) {
+        libxml::tree::node::set_node_rc_guard(10);
+
+        let parser = Parser::default_html();
+        let document = FullTextParser::parse_html_string_patched(source, &parser).unwrap();
+        let root = document.get_root_element().unwrap();
+        let body = root.get_first_child().unwrap();
+        let p = body.get_first_child().unwrap();
+
+        Util::replace_emoji_images(&root, &document);
+
+        let result = document.node_to_string(&p);
+
+        assert_eq!(expected, result);
+    }
+
+    #[test]
+    fn replace_emojis_1() {
+        replace_emojis(
+            "<p>Let’s see if I did a better job of it this time by telling him he was using Arch wrong. <img src=\"https://s0.wp.com/wp-content/mu-plugins/wpcom-smileys/twemoji/2/72x72/1f600.png\" alt=\"😀\"/></p>",
+            "<p>Let’s see if I did a better job of it this time by telling him he was using Arch wrong. 😀</p>",
+        )
+    }
+
+    #[test]
+    fn replace_emojis_2() {
+        replace_emojis(
+            "<p><img src=\"https://abc.com/img.jpeg\"/><img src=\"https://s0.wp.com/wp-content/mu-plugins/wpcom-smileys/twemoji/2/72x72/1f600.png\" alt=\"😀\"/> Abc</p>",
+            "<p><img src=\"https://abc.com/img.jpeg\"/>😀 Abc</p>",
+        )
     }
 }

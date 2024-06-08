@@ -966,6 +966,7 @@ impl FullTextParser {
 
         if let Some(root) = document.get_root_element() {
             Util::replace_brs(&root, document);
+            Util::replace_emoji_images(&root, document);
         }
 
         Self::fix_urls(context, url, document);
