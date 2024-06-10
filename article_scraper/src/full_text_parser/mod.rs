@@ -690,9 +690,9 @@ impl FullTextParser {
                 let success = video_wrapper
                     .set_property("class", "videoWrapper")
                     .ok()
-                    .and_then(|()| node.set_property("width", "100%").ok())
-                    .and_then(|()| node.set_property("height", "400").ok())
-                    .and_then(|()| node.remove_attribute("aspect-ratio").ok())
+                    .and_then(|()| node.set_property("width", "480").ok())
+                    .and_then(|()| node.set_property("height", "360").ok())
+                    .and_then(|()| node.set_property("aspect-ratio", "auto").ok())
                     .ok_or_else(|| {
                         node.unlink();
                         video_wrapper.add_child(&mut node)

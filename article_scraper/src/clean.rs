@@ -47,6 +47,7 @@ pub fn clean_html_fragment(
     if let Some(mut root) = document.get_root_element() {
         FullTextParser::post_process_page(&mut root)?;
     }
+    FullTextParser::prevent_self_closing_tags(&xpath_ctx)?;
     FullTextParser::post_process_document(&document)?;
 
     let content_node = if let Some(root) = document.get_root_element() {
