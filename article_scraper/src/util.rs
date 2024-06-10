@@ -687,23 +687,25 @@ impl Util {
 
         for img_node in img_nodes {
             if let Some(img_alt) = img_node.get_attribute("alt") {
-                let mut alt_chars = img_alt.chars();
-                let first_char = alt_chars.next();
-                let second_char = alt_chars.next();
-
-                if let (Some(char), None) = (first_char, second_char) {
-                    if unic_emoji_char::is_emoji(char) {
-                        if let Some(mut parent) = img_node.get_parent() {
-                            // if let Ok(emoji_text_node) = parent.add_text_child(None, "emoji", &char.to_string()) {
-                            //     _ = parent.replace_child_node(emoji_text_node, img_node);
-                            // }
-                            let emoji_text_node =
-                                Node::new_text(&char.to_string(), document).unwrap();
-                            _ = parent.replace_child_node(emoji_text_node, img_node);
-                        }
+                if Self::is_emoji(&img_alt) {
+                    if let Some(mut parent) = img_node.get_parent() {
+                        let emoji_text_node = Node::new_text(&img_alt, document).unwrap();
+                        _ = parent.replace_child_node(emoji_text_node, img_node);
                     }
                 }
             }
+        }
+    }
+
+    pub fn is_emoji(text: &str) -> bool {
+        let mut alt_chars = text.chars();
+        let first_char = alt_chars.next();
+        let second_char = alt_chars.next();
+
+        if let (Some(char), None) = (first_char, second_char) {
+            unic_emoji_char::is_emoji(char)
+        } else {
+            false
         }
     }
 
@@ -1246,6 +1248,18 @@ impl Util {
 
     pub fn score_by_position(len: usize, index: usize) -> i32 {
         ((len as f32 / 2.0) - index as f32) as i32
+    }
+
+    pub fn score_by_alt(node: &Node) -> i32 {
+        if let Some(alt) = node.get_attribute("alt") {
+            if Self::is_emoji(&alt) {
+                -100
+            } else {
+                0
+            }
+        } else {
+            0
+        }
     }
 
     pub fn get_content_length(response: &Response) -> Result<usize, ImageDownloadError> {

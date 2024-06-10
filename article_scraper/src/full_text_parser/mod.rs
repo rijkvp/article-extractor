@@ -533,6 +533,7 @@ impl FullTextParser {
                 let score = score + Util::score_by_sibling(&img_node);
                 let score = score + Util::score_by_dimensions(&img_node);
                 let score = score + Util::score_by_position(len, index);
+                let score = score + Util::score_by_alt(&img_node);
 
                 scores.insert(src, score);
             }
