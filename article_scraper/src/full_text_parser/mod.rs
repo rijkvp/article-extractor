@@ -1178,15 +1178,15 @@ impl FullTextParser {
         }
     }
 
-    fn prevent_self_closing_tags(context: &Context) -> Result<(), FullTextParserError> {
+    pub(crate) fn prevent_self_closing_tags(context: &Context) -> Result<(), FullTextParserError> {
         // search document for empty tags and add a empty text node as child
         // this prevents libxml from self closing non void elements such as iframe
 
         let xpath = "//*[not(node())]";
         let node_vec = Util::evaluate_xpath(context, xpath, false)?;
         for mut node in node_vec {
-            let name = node.get_name().to_lowercase();
-            if name == "meta" || name == "img" || name == "br" {
+            let name = node.get_name().to_uppercase();
+            if constants::VALID_SELF_CLOSING_TAGS.contains(name.as_str()) {
                 continue;
             }
 

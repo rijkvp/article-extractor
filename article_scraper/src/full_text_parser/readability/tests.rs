@@ -39,6 +39,10 @@ async fn run_test(name: &str) {
 
     metadata::extract(&xpath_ctx, None, None, &mut article);
     super::Readability::extract_body(document, &mut root, article.title.as_deref()).unwrap();
+
+    let article_ctx = crate::FullTextParser::get_xpath_ctx(&article_document).unwrap();
+
+    crate::FullTextParser::prevent_self_closing_tags(&article_ctx).unwrap();
     crate::FullTextParser::post_process_document(&article_document).unwrap();
 
     let html = Util::serialize_node(&article_document, &root);

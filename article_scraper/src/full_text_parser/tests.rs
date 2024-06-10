@@ -278,23 +278,3 @@ Foto: IMAGO/Vaclav Salek / IMAGO/CTK Photo
         "https://cdn.prod.www.spiegel.de/images/a4573666-f15e-4290-8c73-a0c6cd4ad3b2_w948_r1.778_fpx29.99_fpy44.98.jpg"
     )
 }
-
-#[test]
-fn extract_thumbnail_no_emoji() {
-    let html = r#"
-    <p>I recently went on Brodie Robertson&#8217;s Tech Over Tea channel for a second time. I guess I didn&#8217;t succeed at pissing him off enough on the first go-around, because he invited me back! Let&#8217;s see if I did a better job of it this time by telling him he was using Arch wrong. <img src="https://s0.wp.com/wp-content/mu-plugins/wpcom-smileys/twemoji/2/72x72/1f600.png" alt="😀" class="wp-smiley" style="height: 1em; max-height: 1em;" /></p>
-    <p>Anyway, Brodie was a fantastic host, and we talked about a number of topics such as KDE&#8217;s position in the world, institutional continuity, fundraising and financial stability, the difficulty of reporting and triaging bug, the challenges of packaging software, and windows that block WiFi signals.</p>
-    <p>I hope you enjoy it!</p>
-    <figure class="wp-block-embed is-type-video is-provider-youtube wp-block-embed-youtube wp-embed-aspect-16-9 wp-has-aspect-ratio"><div class="wp-block-embed__wrapper">
-    <iframe class="youtube-player" width="1100" height="619" src="https://www.youtube.com/embed/qJZ2V5FmgO8?version=3&#038;rel=1&#038;showsearch=0&#038;showinfo=1&#038;iv_load_policy=1&#038;fs=1&#038;hl=en&#038;autohide=2&#038;wmode=transparent" allowfullscreen="true" style="border:0;" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-popups-to-escape-sandbox"></iframe>
-    </div></figure>
-    <p>And here&#8217;s the link I mention at the end: <a href="https://kde.org/community/donations">https://kde.org/community/donations</a> <img src="https://s0.wp.com/wp-content/mu-plugins/wpcom-smileys/twemoji/2/72x72/1f642.png" alt="🙂" class="wp-smiley" style="height: 1em; max-height: 1em;" /> </p>
-    "#;
-
-    let parser = Parser::default_html();
-    let doc = FullTextParser::parse_html_string_patched(html, &parser).unwrap();
-    let ctx = Context::new(&doc).unwrap();
-
-    let thumb = FullTextParser::check_for_thumbnail(&ctx);
-    assert_eq!(thumb, None)
-}

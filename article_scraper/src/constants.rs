@@ -141,6 +141,14 @@ pub static DIV_TO_P_ELEMS: Lazy<HashSet<&str>> = Lazy::new(|| {
 pub static VALID_EMPTY_TAGS: Lazy<HashSet<&str>> = Lazy::new(|| {
     HashSet::from([
         "AREA", "BASE", "BR", "COL", "EMBED", "HR", "IMG", "LINK", "META", "SOURCE", "TRACK",
+        "IFRAME",
+    ])
+});
+
+pub static VALID_SELF_CLOSING_TAGS: Lazy<HashSet<&str>> = Lazy::new(|| {
+    HashSet::from([
+        "AREA", "BASE", "BR", "COL", "EMBED", "HR", "IMG", "INPUT", "LINK", "META", "PARAM",
+        "SOURCE", "TRACK", "WBR",
     ])
 });
 
