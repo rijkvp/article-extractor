@@ -1,5 +1,5 @@
 use super::{config::ConfigEntry, FullTextParser};
-use libxml::{parser::Parser, tree::SaveOptions, xpath::Context};
+use libxml::{tree::SaveOptions, xpath::Context};
 use reqwest::{Client, Url};
 
 async fn run_test(name: &str, url: &str, title: Option<&str>, author: Option<&str>) {
@@ -194,7 +194,7 @@ herausgebracht. (<a href="https://www.golem.de/specials/fortschritt/" rel="noope
     referrerpolicy="no-referrer">Fortschritt</a>, <a href="https://www.golem.de/specials/wissenschaft/"
     rel="noopener noreferrer" target="_blank" referrerpolicy="no-referrer">Wissenschaft</a>)
     "#;
-    let doc = Parser::default_html().parse_string(html).unwrap();
+    let doc = FullTextParser::parse_html_string_patched(html).unwrap();
     let ctx = Context::new(&doc).unwrap();
 
     let thumb = FullTextParser::check_for_thumbnail(&ctx).unwrap();
@@ -269,7 +269,7 @@ Foto: IMAGO/Vaclav Salek / IMAGO/CTK Photo
 </section></article>
     "#;
 
-    let doc = Parser::default_html().parse_string(html).unwrap();
+    let doc = FullTextParser::parse_html_string_patched(html).unwrap();
     let ctx = Context::new(&doc).unwrap();
 
     let thumb = FullTextParser::check_for_thumbnail(&ctx).unwrap();

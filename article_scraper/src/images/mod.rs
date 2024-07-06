@@ -2,12 +2,11 @@ pub use self::error::ImageDownloadError;
 use self::image_data::ImageDataBase64;
 use self::pair::Pair;
 use self::request::ImageRequest;
-use crate::constants;
 use crate::util::Util;
+use crate::{constants, FullTextParser};
 use base64::Engine;
 use futures::StreamExt;
 use image::ImageFormat;
-use libxml::parser::Parser;
 use libxml::tree::{Node, SaveOptions};
 use libxml::xpath::Context;
 pub use progress::Progress;
@@ -162,9 +161,7 @@ impl ImageDownloader {
         html: &str,
         downloaded_images: Vec<Pair<ImageDataBase64>>,
     ) -> Result<String, ImageDownloadError> {
-        let parser = Parser::default_html();
-        let doc = parser
-            .parse_string(html)
+        let doc = FullTextParser::parse_html_string_patched(html)
             .map_err(|_| ImageDownloadError::HtmlParse)?;
 
         let xpath_ctx = Context::new(&doc).map_err(|()| {
@@ -207,9 +204,7 @@ impl ImageDownloader {
     }
 
     fn harvest_image_urls_from_html(html: &str) -> Result<Vec<Pair<String>>, ImageDownloadError> {
-        let parser = Parser::default_html();
-        let doc = parser
-            .parse_string(html)
+        let doc = FullTextParser::parse_html_string_patched(html)
             .map_err(|_| ImageDownloadError::HtmlParse)?;
 
         let xpath_ctx = Context::new(&doc).map_err(|()| {

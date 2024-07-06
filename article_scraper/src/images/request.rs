@@ -48,7 +48,6 @@ impl ImageRequest {
         Ok(ImageData {
             url: self.url,
             data: result,
-            content_length: self.content_length,
             content_type: self.content_type,
         })
     }

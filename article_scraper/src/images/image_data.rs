@@ -2,7 +2,6 @@
 pub struct ImageData {
     pub url: String,
     pub data: Vec<u8>,
-    pub content_length: usize,
     pub content_type: String,
 }
 

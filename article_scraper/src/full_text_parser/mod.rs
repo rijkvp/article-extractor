@@ -264,8 +264,7 @@ impl FullTextParser {
         }
 
         // parse html
-        let parser = Parser::default_html();
-        Self::parse_html_string_patched(html.as_str(), &parser).map_err(|err| {
+        Self::parse_html_string_patched(html.as_str()).map_err(|err| {
             log::error!("Parsing HTML failed for downloaded HTML {:?}", err);
             FullTextParserError::Xml
         })
@@ -278,7 +277,7 @@ impl FullTextParser {
     /// - <https://github.com/Orange-OpenSource/hurl/issues/1535>
     /// These two functions should be removed when the issue is fixed in libxml crate.
     fn try_usize_to_i32(value: usize) -> Result<i32, libxml::parser::XmlParseError> {
-        if cfg!(target_pointer_width = "16") || (value < i32::max_value() as usize) {
+        if cfg!(target_pointer_width = "16") || (value < i32::MAX as usize) {
             // Cannot safely use our value comparison, but the conversion if always safe.
             // Or, if the value can be safely represented as a 32-bit signed integer.
             Ok(value as i32)
@@ -290,8 +289,12 @@ impl FullTextParser {
 
     pub(crate) fn parse_html_string_patched(
         input: &str,
-        parser: &Parser,
     ) -> Result<Document, libxml::parser::XmlParseError> {
+        unsafe {
+            // https://gitlab.gnome.org/GNOME/libxml2/-/wikis/Thread-safety
+            libxml::bindings::xmlInitParser();
+        }
+        let parser = Parser::default_html();
         let input_bytes: &[u8] = input.as_ref();
         let input_ptr = input_bytes.as_ptr() as *const std::os::raw::c_char;
         let input_len = Self::try_usize_to_i32(input_bytes.len())?;
@@ -488,7 +491,7 @@ impl FullTextParser {
     }
 
     pub fn thumbnail_from_html(html: &str) -> Option<String> {
-        if let Ok(doc) = Parser::default_html().parse_string(html) {
+        if let Ok(doc) = Self::parse_html_string_patched(html) {
             if let Ok(ctx) = Self::get_xpath_ctx(&doc) {
                 return Self::check_for_thumbnail(&ctx);
             }

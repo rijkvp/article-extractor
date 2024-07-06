@@ -1299,13 +1299,11 @@ impl Util {
 mod tests {
     use super::Util;
     use crate::FullTextParser;
-    use libxml::parser::Parser;
 
     fn replace_brs(source: &str, expected: &str) {
         libxml::tree::node::set_node_rc_guard(10);
 
-        let parser = Parser::default_html();
-        let document = FullTextParser::parse_html_string_patched(source, &parser).unwrap();
+        let document = FullTextParser::parse_html_string_patched(source).unwrap();
         let root = document.get_root_element().unwrap();
         let body = root.get_first_child().unwrap();
         let div = body.get_first_child().unwrap();
@@ -1346,8 +1344,7 @@ mod tests {
     fn replace_emojis(source: &str, expected: &str) {
         libxml::tree::node::set_node_rc_guard(10);
 
-        let parser = Parser::default_html();
-        let document = FullTextParser::parse_html_string_patched(source, &parser).unwrap();
+        let document = FullTextParser::parse_html_string_patched(source).unwrap();
         let root = document.get_root_element().unwrap();
         let body = root.get_first_child().unwrap();
         let p = body.get_first_child().unwrap();
