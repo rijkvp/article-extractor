@@ -4,7 +4,7 @@ stages:
 
 run-build:
   stage: build
-  image: rust:1.77
+  image: rust:1.79
   before_script:
   - rustup component add rustfmt
   - rustup component add clippy
