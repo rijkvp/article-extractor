@@ -1,6 +1,6 @@
 [package]
 name = "article-extractor"
-version = "1.0.1"
+version = "1.0.2"
 authors = ["Jan Lukas Gernert <jangernert@gmail.com>", "Rijk van Putten <rijk@rijkvp.nl>"]
 edition = "2021"
 license = "GPL-3.0-or-later"
