@@ -1,9 +1,8 @@
-# article scraper
+# article-extractor
 
-This is a syncronous fork of <https://gitlab.com/news-flash/article_scraper>
+This is a non-aysnc fork of [article_scraper](https://gitlab.com/news-flash/article_scraper) containing only the article extraction functionallity (does not support web crawling).
 
-The `article_scraper` crate provides a simple way to extract meaningful content from the web.
-It contains two ways of locating the desired content
+It contains two ways of extracting articles from HTML:
 
 ## 1. Rust implementation of [Full-Text RSS](https://www.fivefilters.org/full-text-rss/)
 
