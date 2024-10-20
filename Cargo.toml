@@ -5,6 +5,7 @@ authors = ["Jan Lukas Gernert <jangernert@gmail.com>", "Rijk van Putten <rijk@ri
 edition = "2021"
 license = "GPL-3.0-or-later"
 description = "Extract articles from HTML."
+repository = "https://github.com/rijkvp/article-extractor"
 readme = "README.md"
 keywords = ["article", "scrape", "full-text", "readability"]
 exclude = ["resources/tests"]
