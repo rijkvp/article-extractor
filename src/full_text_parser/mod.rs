@@ -1,19 +1,15 @@
 pub mod config;
 pub mod error;
-mod fingerprints;
 mod metadata;
-mod page;
 mod readability;
 
 use self::config::{ConfigCollection, ConfigEntry};
 use self::error::FullTextParserError;
-use self::page::Page;
 pub use self::readability::Readability;
 use crate::article::Article;
 use crate::constants;
 use crate::util::Util;
 
-use encoding_rs::Encoding;
 use libxml::parser::Parser;
 use libxml::tree::{Document, Node, NodeType};
 use libxml::xpath::Context;
@@ -86,40 +82,6 @@ impl FullTextParser {
         Ok(article)
     }
 
-    fn evlauate_page(
-        &self,
-        html: &str,
-        config: Option<&ConfigEntry>,
-        global_config: &ConfigEntry,
-        article_url: &Url,
-    ) -> Result<Page, FullTextParserError> {
-        let document = Self::parse_html(html, config, global_config)?;
-        let xpath_ctx = Self::get_xpath_ctx(&document)?;
-
-        // check for single page link
-        let rule = Util::select_rule(
-            config.and_then(|c| c.single_page_link.as_deref()),
-            global_config.single_page_link.as_deref(),
-        );
-        if let Some(xpath_single_page_link) = rule {
-            log::debug!(
-                "Single page link xpath specified in config '{}'",
-                xpath_single_page_link
-            );
-
-            if let Some(single_page_url) = Util::find_page_url(&xpath_ctx, xpath_single_page_link) {
-                // parse again with single page url
-                log::debug!("Single page link found '{}'", single_page_url);
-
-                return Ok(Page::Single(single_page_url));
-            }
-        }
-
-        let next_page_url =
-            self.check_for_next_page(&xpath_ctx, config, global_config, article_url);
-        Ok(Page::Multi(next_page_url))
-    }
-
     fn parse_page(
         &self,
         article: &mut Article,
@@ -187,7 +149,7 @@ impl FullTextParser {
     /// See:
     /// - <https://github.com/KWARC/rust-libxml/issues/111>
     /// - <https://github.com/Orange-OpenSource/hurl/issues/1535>
-    /// These two functions should be removed when the issue is fixed in libxml crate.
+    ///     These two functions should be removed when the issue is fixed in libxml crate.
     fn try_usize_to_i32(value: usize) -> Result<i32, libxml::parser::XmlParseError> {
         if cfg!(target_pointer_width = "16") || (value < i32::MAX as usize) {
             // Cannot safely use our value comparison, but the conversion if always safe.
@@ -253,29 +215,6 @@ impl FullTextParser {
             log::error!("Creating xpath context failed for downloaded HTML");
             FullTextParserError::Xml
         })
-    }
-
-    fn get_encoding_from_html(html: &str) -> Option<&str> {
-        let regex =
-            regex::Regex::new(r#"<meta.*?charset="*(.*?)""#).expect("Failed to parse regex");
-        if let Some(captures) = regex.captures(html) {
-            if let Some(regex_match) = captures.get(1) {
-                return Some(regex_match.as_str());
-            }
-        }
-        None
-    }
-
-    fn decode_html(bytes: &[u8], encoding: &str) -> Option<String> {
-        if let Some(encoding) = Encoding::for_label(encoding.as_bytes()) {
-            let (decoded_html, _, invalid_chars) = encoding.decode(bytes);
-
-            if !invalid_chars {
-                return Some(decoded_html.into_owned());
-            }
-        }
-        log::warn!("Could not decode HTML. Encoding: '{}'", encoding);
-        None
     }
 
     fn get_host_name(url: &url::Url) -> Result<String, FullTextParserError> {
@@ -955,47 +894,6 @@ impl FullTextParser {
         }
 
         Ok(found_something)
-    }
-
-    fn check_for_next_page(
-        &self,
-        context: &Context,
-        config: Option<&ConfigEntry>,
-        global_config: &ConfigEntry,
-        article_url: &url::Url,
-    ) -> Option<url::Url> {
-        if let Some(config) = config {
-            if let Some(next_page_xpath) = config.next_page_link.as_deref() {
-                if let Ok(next_page_string) = Util::get_attribute(context, next_page_xpath, "href")
-                {
-                    if let Some(next_page_url) = Self::parse_url(&next_page_string, article_url) {
-                        return Some(next_page_url);
-                    }
-                }
-            }
-        } else if let Some(next_page_xpath) = global_config.next_page_link.as_deref() {
-            if let Ok(next_page_string) = Util::get_attribute(context, next_page_xpath, "href") {
-                if let Some(next_page_url) = Self::parse_url(&next_page_string, article_url) {
-                    return Some(next_page_url);
-                }
-            }
-        }
-
-        // last page reached
-        None
-    }
-
-    fn parse_url(url: &str, article_url: &url::Url) -> Option<url::Url> {
-        let is_relative_url = url::Url::parse(url)
-            .err()
-            .map(|err| err == url::ParseError::RelativeUrlWithoutBase)
-            .unwrap_or(false);
-
-        if is_relative_url {
-            article_url.join(url.trim()).ok()
-        } else {
-            url::Url::parse(url).ok()
-        }
     }
 
     pub(crate) fn prevent_self_closing_tags(context: &Context) -> Result<(), FullTextParserError> {

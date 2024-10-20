@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder};
 
-pub const UNKNOWN_CONTENT_SIZE_LIMIT: usize = 5 * 1024 * 1024;
 pub const DEFAULT_CHAR_THRESHOLD: usize = 500;
 pub static IS_IMAGE: Lazy<Regex> = Lazy::new(|| {
     RegexBuilder::new(r#"\.(jpg|jpeg|png|webp)"#)

@@ -35,7 +35,7 @@ pub struct ConfigEntry {
 
 impl ConfigEntry {
     pub fn parse_path(config_path: &Path) -> Result<ConfigEntry, ConfigError> {
-        let mut file = fs::File::open(&config_path)?;
+        let mut file = fs::File::open(config_path)?;
         let buffer = BufReader::new(&mut file);
 
         Self::parse(buffer)

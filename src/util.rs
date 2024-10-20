@@ -1,5 +1,5 @@
 use libxml::{
-    tree::{Document, Node, NodeType, SaveOptions},
+    tree::{Document, Node, NodeType},
     xpath::Context,
 };
 use std::fmt::Write;
@@ -15,22 +15,6 @@ use crate::{
 pub struct Util;
 
 impl Util {
-    #[allow(dead_code)]
-    pub fn serialize_document(doc: &Document) -> String {
-        let options = SaveOptions {
-            format: true,
-            no_declaration: false,
-            no_empty_tags: true,
-            no_xhtml: false,
-            xhtml: false,
-            as_xml: false,
-            as_html: true,
-            non_significant_whitespace: false,
-        };
-
-        doc.to_string_with_options(options)
-    }
-
     pub fn serialize_node(doc: &Document, node: &Node) -> String {
         doc.node_to_string(node)
     }
@@ -54,39 +38,6 @@ impl Util {
 
     pub fn split_values(values: &str) -> Vec<&str> {
         values.split('|').map(|s| s.trim()).collect()
-    }
-
-    pub fn select_rule<'a>(
-        site_specific_rule: Option<&'a str>,
-        global_rule: Option<&'a str>,
-    ) -> Option<&'a str> {
-        if site_specific_rule.is_some() {
-            site_specific_rule
-        } else {
-            global_rule
-        }
-    }
-
-    pub fn find_page_url(xpath_ctx: &Context, xpath_page_link: &str) -> Option<url::Url> {
-        let res = Self::evaluate_xpath(xpath_ctx, xpath_page_link, false).ok()?;
-        let mut url = None;
-
-        for node in res {
-            let content = node.get_content();
-            let url_str = if content.trim().is_empty() && node.has_attribute("href") {
-                node.get_attribute("href")
-                    .expect("already checked for href")
-            } else {
-                content
-            };
-
-            if let Ok(parsed_url) = url::Url::parse(&url_str) {
-                url = Some(parsed_url);
-                break;
-            }
-        }
-
-        url
     }
 
     pub fn evaluate_xpath(
