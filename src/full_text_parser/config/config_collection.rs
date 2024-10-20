@@ -14,7 +14,7 @@ pub struct ConfigCollection {
 }
 
 impl ConfigCollection {
-    pub async fn parse(directory: Option<&Path>) -> ConfigCollection {
+    pub fn parse(directory: Option<&Path>) -> ConfigCollection {
         let mut user_entries = HashMap::new();
         let mut embedded_entries = HashMap::new();
 

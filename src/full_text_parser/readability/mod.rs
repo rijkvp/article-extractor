@@ -3,13 +3,11 @@ mod state;
 #[cfg(test)]
 mod tests;
 
-use std::cmp::Ordering;
-
-use libxml::tree::{Document, Node};
-
 use self::state::State;
 use super::error::FullTextParserError;
 use crate::{constants, util::Util};
+use libxml::tree::{Document, Node};
+use std::cmp::Ordering;
 
 /// Rust port of mozilla readability algorithm
 ///
@@ -24,10 +22,7 @@ impl Readability {
     /// * `html` - HTML of a website containing an article or similar content
     /// * `base_url` - URL used to complete relative URLs
     ///
-    pub async fn extract(
-        html: &str,
-        base_url: Option<url::Url>,
-    ) -> Result<String, FullTextParserError> {
+    pub fn extract(html: &str, base_url: Option<url::Url>) -> Result<String, FullTextParserError> {
         libxml::tree::node::set_node_rc_guard(10);
         let empty_config = crate::full_text_parser::config::ConfigEntry::default();
 

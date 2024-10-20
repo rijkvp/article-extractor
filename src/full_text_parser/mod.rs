@@ -22,8 +22,8 @@ pub struct FullTextParser {
 }
 
 impl FullTextParser {
-    pub async fn new(config_path: Option<&Path>) -> Self {
-        let config_files = ConfigCollection::parse(config_path).await;
+    pub fn new(config_path: Option<&Path>) -> Self {
+        let config_files = ConfigCollection::parse(config_path);
         Self { config_files }
     }
 
