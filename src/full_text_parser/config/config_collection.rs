@@ -74,6 +74,7 @@ mod tests {
     use super::ConfigCollection;
     use std::path::Path;
 
+    #[test]
     fn read_dir() {
         let path = Path::new("~/.local/share/news-flash/ftr-site-config");
         let _collection = ConfigCollection::parse(Some(path));
