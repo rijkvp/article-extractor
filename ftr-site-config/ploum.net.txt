@@ -1,0 +1,6 @@
+author: //p[@class="subtitle"]//a
+date: //meta[@property='og:article:published_time']/@content
+
+strip: //p[@class="subtitle"]
+
+test_url: https://ploum.net/sunrise-le-calendrier-du-futur/
