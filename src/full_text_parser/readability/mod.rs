@@ -336,10 +336,16 @@ impl Readability {
                 );
             }
             let mut needed_to_create_top_candidate = false;
-            let mut top_candidate = top_candidates.first().cloned().unwrap_or_else(|| {
+            let mut top_candidate = if let Some(t) = top_candidates.first() {
+                t.clone()
+            } else {
                 // If we still have no top candidate, just use the body as a last resort.
                 // We also have to copy the body node so it is something we can modify.
-                let mut root = document.get_root_element().expect("doc should have root");
+                let Some(mut root) = document.get_root_element() else {
+                    log::error!("document has no root element");
+                    return Err(FullTextParserError::Xml);
+                };
+
                 if let Some(body) = root
                     .get_child_elements()
                     .into_iter()
@@ -366,7 +372,7 @@ impl Readability {
                     .expect("init should not fail");
                 needed_to_create_top_candidate = true;
                 new_top_candidate
-            });
+            };
 
             // Util::serialize_node(&top_candidate, "top_candidate.html");
 
