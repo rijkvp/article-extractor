@@ -34,6 +34,7 @@
             packages = with pkgs; [
               openssl
               libxml2
+              cargo-flamegraph
             ];
 
             languages.rust = {

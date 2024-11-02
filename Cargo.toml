@@ -24,3 +24,9 @@ unic-emoji-char = "0.9"
 
 [dev-dependencies]
 env_logger = "0.11"
+criterion = { version = "0.3", features = ["html_reports"] }
+
+[[bench]]
+name = "slow"
+harness = false
+
