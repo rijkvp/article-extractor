@@ -1,6 +1,6 @@
 [package]
 name = "article-extractor"
-version = "1.0.3"
+version = "1.0.4"
 authors = ["Jan Lukas Gernert <jangernert@gmail.com>", "Rijk van Putten <rijk@rijkvp.nl>"]
 edition = "2021"
 license = "GPL-3.0-or-later"
@@ -12,7 +12,7 @@ exclude = ["resources/tests"]
 
 [dependencies]
 thiserror = "1.0"
-libxml = "0.3"
+libxml = "=0.3.3"
 url = "2.5"
 regex = "1.10"
 chrono = "0.4"

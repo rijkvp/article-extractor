@@ -34,15 +34,15 @@
             packages = with pkgs; [
               openssl
               libxml2
-              cargo-flamegraph
-            ];
+              cargo-edit
+           ];
 
             languages.rust = {
               enable = true;
               channel = "stable";
             };
 
-            pre-commit.hooks = {
+            git-hooks.hooks = {
               rustfmt.enable = true;
               clippy.enable = true;
             };
